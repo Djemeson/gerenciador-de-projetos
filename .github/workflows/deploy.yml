@@ -28,15 +28,17 @@ jobs:
           cache: npm
 
       - name: Instalar dependências
+        working-directory: gerenciador-de-projetos
         run: npm ci
 
       - name: Build
+        working-directory: gerenciador-de-projetos
         run: npm run build
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: gerenciador-de-projetos/dist
 
   deploy:
     needs: build
