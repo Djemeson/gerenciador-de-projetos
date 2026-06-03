@@ -1,14 +1,12 @@
-import React, { useState, useRef } from 'react'
-import {
-  X, Flag, Calendar, User, CheckSquare, Trash2, Plus,
-  Mic, MicOff, Image, ListChecks, ChevronRight, GitBranch,
-} from 'lucide-react'
+import React, { useState, useRef, useCallback } from 'react'
+import { X, Flag, Calendar, User, CheckSquare, Trash2, Plus, ListChecks, GitBranch } from 'lucide-react'
 import { useAppStore } from '../../stores/useAppStore'
 import { PRIORITY_LABEL, STATUS_LABEL } from '../../types'
 import type { Priority, TaskStatus } from '../../types'
 import { Button } from '../ui'
 import { TagInput } from '../ui/TagInput'
 import { QuickAddRow } from './QuickAddRow'
+import { BlockEditor } from './BlockEditor'
 import { nanoid } from '../../lib/nanoid'
 
 const PRIORITY_COLORS: Record<Priority, string> = {
@@ -21,92 +19,73 @@ const PRIORITY_COLORS: Record<Priority, string> = {
 export function TaskDetail() {
   const {
     tasks, projects, selectedTaskId, setSelectedTask,
-    updateTask, deleteTask,
-    addChecklist, removeChecklist, addChecklistItem, toggleChecklistItem, removeChecklistItem,
-    addAttachment, removeAttachment,
-    getSubtasks, quickAddTask,
+    updateTask, deleteTask, updateBlocks,
+    addChecklist, removeChecklist, addChecklistItem,
+    toggleChecklistItem, removeChecklistItem,
+    getSubtasks,
   } = useAppStore()
 
-  const task    = tasks.find(t => t.id === selectedTaskId)
-  const project = task ? projects.find(p => p.id === task.projectId) : undefined
-  const subtasks = task ? getSubtasks(task.id) : []
+  // ── Resize ──────────────────────────────────────────────────────────────
+  const [width, setWidth]  = useState(380)
+  const dragging = useRef(false)
+  const startX   = useRef(0)
+  const startW   = useRef(0)
 
-  const [addingChecklist, setAddingChecklist]     = useState(false)
-  const [checklistTitle,  setChecklistTitle]      = useState('')
-  const [addingCheckItems, setAddingCheckItems]   = useState<Record<string, boolean>>({})
-  const [checkItemInputs,  setCheckItemInputs]    = useState<Record<string, string>>({})
-  const [recording,  setRecording]                = useState(false)
-  const [addingSubtask, setAddingSubtask]         = useState(false)
-  const mediaRef = useRef<MediaRecorder | null>(null)
-  const chunksRef = useRef<Blob[]>([])
+  const onDragStart = useCallback((e: React.MouseEvent) => {
+    dragging.current = true; startX.current = e.clientX; startW.current = width
+    const onMove = (ev: MouseEvent) => {
+      if (!dragging.current) return
+      setWidth(Math.max(300, Math.min(700, startW.current + (startX.current - ev.clientX))))
+    }
+    const onUp = () => { dragging.current = false; document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp) }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+  }, [width])
+
+  // ── Checklist UI state ───────────────────────────────────────────────────
+  const [addingChecklist,  setAddingChecklist]   = useState(false)
+  const [checklistTitle,   setChecklistTitle]    = useState('')
+  const [addingItems,      setAddingItems]       = useState<Record<string,boolean>>({})
+  const [itemInputs,       setItemInputs]        = useState<Record<string,string>>({})
+  const [addingSubtask,    setAddingSubtask]     = useState(false)
+
+  const task     = tasks.find(t => t.id === selectedTaskId)
+  const project  = task ? projects.find(p => p.id === task.projectId) : undefined
+  const subtasks = task ? getSubtasks(task.id) : []
 
   if (!task) return null
 
-  // ── Image upload ──────────────────────────────────────────────────────────
-  const handleImage = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = () => {
-      addAttachment(task.id, { type: 'image', name: file.name, data: reader.result as string, mimeType: file.type })
-    }
-    reader.readAsDataURL(file)
-    e.target.value = ''
-  }
-
-  // ── Audio recording ───────────────────────────────────────────────────────
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const mr = new MediaRecorder(stream)
-      chunksRef.current = []
-      mr.ondataavailable = e => chunksRef.current.push(e.data)
-      mr.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
-        const reader = new FileReader()
-        reader.onload = () => {
-          addAttachment(task.id, { type: 'audio', name: `Áudio ${new Date().toLocaleTimeString('pt-BR')}`, data: reader.result as string, mimeType: 'audio/webm' })
-        }
-        reader.readAsDataURL(blob)
-        stream.getTracks().forEach(t => t.stop())
-      }
-      mr.start()
-      mediaRef.current = mr
-      setRecording(true)
-    } catch { alert('Permissão de microfone negada.') }
-  }
-
-  const stopRecording = () => {
-    mediaRef.current?.stop()
-    setRecording(false)
-  }
-
-  // ── Checklist helpers ─────────────────────────────────────────────────────
   const saveChecklist = () => {
     if (!checklistTitle.trim()) return
     addChecklist(task.id, checklistTitle.trim())
-    setChecklistTitle('')
-    setAddingChecklist(false)
+    setChecklistTitle(''); setAddingChecklist(false)
   }
-
-  const saveCheckItem = (checklistId: string) => {
-    const text = checkItemInputs[checklistId]?.trim()
-    if (!text) return
-    addChecklistItem(task.id, checklistId, text)
-    setCheckItemInputs(p => ({ ...p, [checklistId]: '' }))
-    setAddingCheckItems(p => ({ ...p, [checklistId]: false }))
+  const saveItem = (clId: string) => {
+    const text = itemInputs[clId]?.trim(); if (!text) return
+    addChecklistItem(task.id, clId, text)
+    setItemInputs(p => ({ ...p, [clId]: '' })); setAddingItems(p => ({ ...p, [clId]: false }))
   }
 
   return (
-    <aside className="w-80 min-w-[320px] border-l border-gray-200 bg-white flex flex-col h-full overflow-hidden">
+    <aside
+      className="relative flex flex-col border-l border-gray-200 bg-white h-full overflow-hidden flex-shrink-0"
+      style={{ width }}
+    >
+      {/* Draggable divider */}
+      <div
+        onMouseDown={onDragStart}
+        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-brand-400 z-20 transition-colors"
+        title="Arrastar para redimensionar"
+      />
+
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
           {project && <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: project.color }} />}
-          <span className="text-xs text-gray-500 truncate max-w-[200px]">{project?.name}</span>
-          {task.parentId && <span className="text-[10px] text-gray-400 flex items-center gap-0.5"><GitBranch size={10} /> subtarefa</span>}
+          <span className="text-xs text-gray-500 truncate">{project?.name}</span>
+          {task.parentId && <span className="text-[10px] text-gray-400 flex items-center gap-0.5 flex-shrink-0"><GitBranch size={10} /> sub</span>}
         </div>
-        <button onClick={() => setSelectedTask(null)} className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:bg-gray-100">
+        <button onClick={() => setSelectedTask(null)} className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:bg-gray-100 flex-shrink-0">
           <X size={13} />
         </button>
       </div>
@@ -114,12 +93,8 @@ export function TaskDetail() {
       <div className="flex-1 overflow-y-auto">
         {/* Title */}
         <div className="px-4 pt-4 pb-2">
-          <textarea
-            value={task.title}
-            onChange={e => updateTask(task.id, { title: e.target.value })}
-            className="w-full text-sm font-medium text-gray-900 leading-5 resize-none outline-none bg-transparent"
-            rows={2}
-          />
+          <textarea value={task.title} onChange={e => updateTask(task.id, { title: e.target.value })}
+            className="w-full text-sm font-medium text-gray-900 leading-5 resize-none outline-none bg-transparent" rows={2} />
         </div>
 
         {/* Fields */}
@@ -149,68 +124,21 @@ export function TaskDetail() {
           </div>
         </div>
 
-        {/* Content / description */}
+        {/* Block editor — texto + imagens + áudios misturados */}
         <div className="px-4 py-3 border-b border-gray-100">
-          <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-1.5">Notas</p>
-          <textarea
-            value={task.content}
-            onChange={e => updateTask(task.id, { content: e.target.value })}
-            placeholder="Adicione notas, contexto, links..."
-            rows={4}
-            className="w-full text-xs text-gray-700 resize-none outline-none bg-transparent placeholder:text-gray-300 leading-relaxed"
+          <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-2">Conteúdo</p>
+          <BlockEditor
+            blocks={task.blocks}
+            onChange={blocks => updateBlocks(task.id, blocks)}
           />
-        </div>
-
-        {/* Attachments */}
-        <div className="px-4 py-3 border-b border-gray-100">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">Anexos</p>
-            <div className="flex gap-2">
-              <label className="cursor-pointer text-gray-400 hover:text-brand-600 transition-colors" title="Imagem">
-                <Image size={13} />
-                <input type="file" accept="image/*" className="hidden" onChange={handleImage} />
-              </label>
-              <button
-                onClick={recording ? stopRecording : startRecording}
-                className={`transition-colors ${recording ? 'text-red-500 animate-pulse' : 'text-gray-400 hover:text-brand-600'}`}
-                title={recording ? 'Parar gravação' : 'Gravar áudio'}
-              >
-                {recording ? <MicOff size={13} /> : <Mic size={13} />}
-              </button>
-            </div>
-          </div>
-          {recording && <p className="text-[10px] text-red-500 mb-2 flex items-center gap-1"><span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" /> Gravando...</p>}
-          {task.attachments.length > 0 && (
-            <div className="space-y-1.5">
-              {task.attachments.map(att => (
-                <div key={att.id} className="group flex items-center gap-2">
-                  {att.type === 'image' ? (
-                    <div className="flex-1 relative">
-                      <img src={att.data} alt={att.name} className="w-full rounded-lg border border-gray-100 max-h-32 object-cover" />
-                      <button onClick={() => removeAttachment(task.id, att.id)} className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 w-5 h-5 bg-black/40 text-white rounded-full flex items-center justify-center transition-opacity">
-                        <X size={10} />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex-1 flex items-center gap-2 bg-gray-50 rounded-lg px-2 py-1.5 border border-gray-100">
-                      <Mic size={11} className="text-brand-500 flex-shrink-0" />
-                      <audio src={att.data} controls className="flex-1 h-6" style={{ height: 24 }} />
-                      <button onClick={() => removeAttachment(task.id, att.id)} className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-all">
-                        <X size={10} />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* Subtasks */}
         <div className="px-4 py-3 border-b border-gray-100">
           <div className="flex items-center justify-between mb-2">
             <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider flex items-center gap-1">
-              <GitBranch size={10} /> Subtarefas {subtasks.length > 0 && `(${subtasks.filter(s => s.status==='done').length}/${subtasks.length})`}
+              <GitBranch size={10} /> Subtarefas
+              {subtasks.length > 0 && <span className="ml-1">({subtasks.filter(s => s.status==='done').length}/{subtasks.length})</span>}
             </p>
             <button onClick={() => setAddingSubtask(v => !v)} className="text-gray-400 hover:text-brand-600 transition-colors"><Plus size={12} /></button>
           </div>
@@ -223,18 +151,14 @@ export function TaskDetail() {
                     {s.status==='done' && <span className="w-1.5 h-1.5 bg-white rounded-full" />}
                   </span>
                   <span className={`flex-1 text-xs truncate ${s.status==='done' ? 'line-through text-gray-400' : 'text-gray-700'}`}>{s.title}</span>
-                  <ChevronRight size={10} className="text-gray-300 group-hover:text-gray-500" />
+                  <X size={10} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400"
+                    onClick={e => { e.stopPropagation(); deleteTask(s.id) }} />
                 </button>
               ))}
             </div>
           )}
           {addingSubtask && task.projectId && (
-            <QuickAddRow
-              projectId={task.projectId}
-              status="todo"
-              parentId={task.id}
-              onDone={() => setAddingSubtask(false)}
-            />
+            <QuickAddRow projectId={task.projectId} status="todo" parentId={task.id} onDone={() => setAddingSubtask(false)} />
           )}
         </div>
 
@@ -252,49 +176,44 @@ export function TaskDetail() {
               <input autoFocus value={checklistTitle} onChange={e => setChecklistTitle(e.target.value)}
                 onKeyDown={e => { if (e.key==='Enter') saveChecklist(); if (e.key==='Escape') setAddingChecklist(false) }}
                 placeholder="Nome do checklist..." className="flex-1 text-xs px-2 py-1.5 border border-gray-200 rounded-lg outline-none focus:ring-1 focus:ring-brand-400" />
-              <button onClick={saveChecklist} className="text-xs px-2 py-1 bg-brand-600 text-white rounded-lg hover:bg-brand-700">OK</button>
+              <button onClick={saveChecklist} className="text-xs px-2 py-1 bg-brand-600 text-white rounded-lg">OK</button>
             </div>
           )}
 
           {task.checklists.map(cl => {
-            const done  = cl.items.filter(i => i.done).length
-            const total = cl.items.length
+            const done = cl.items.filter(i => i.done).length; const total = cl.items.length
             return (
               <div key={cl.id} className="mb-3">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs font-medium text-gray-600">{cl.title}</span>
                   <div className="flex items-center gap-2">
                     {total > 0 && <span className="text-[10px] text-gray-400">{done}/{total}</span>}
-                    <button onClick={() => removeChecklist(task.id, cl.id)} className="text-gray-300 hover:text-red-400 transition-colors"><X size={10} /></button>
+                    <button onClick={() => removeChecklist(task.id, cl.id)} className="text-gray-300 hover:text-red-400"><X size={10} /></button>
                   </div>
                 </div>
-                {total > 0 && (
-                  <div className="h-1 bg-gray-100 rounded-full mb-2 overflow-hidden">
-                    <div className="h-full bg-brand-500 rounded-full transition-all" style={{ width: `${Math.round((done/total)*100)}%` }} />
-                  </div>
-                )}
+                {total > 0 && <div className="h-1 bg-gray-100 rounded-full mb-2 overflow-hidden"><div className="h-full bg-brand-500 rounded-full" style={{ width: `${Math.round((done/total)*100)}%` }} /></div>}
                 <div className="space-y-1">
                   {cl.items.map(item => (
                     <div key={item.id} className="flex items-center gap-2 group py-0.5">
                       <button onClick={() => toggleChecklistItem(task.id, cl.id, item.id)}
-                        className={`w-3.5 h-3.5 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${item.done ? 'bg-brand-500 border-brand-500' : 'border-gray-300 hover:border-brand-400'}`}>
+                        className={`w-3.5 h-3.5 rounded border flex-shrink-0 flex items-center justify-center ${item.done ? 'bg-brand-500 border-brand-500' : 'border-gray-300 hover:border-brand-400'}`}>
                         {item.done && <span className="w-1.5 h-1.5 bg-white rounded-full" />}
                       </button>
                       <span className={`flex-1 text-xs ${item.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>{item.text}</span>
-                      <button onClick={() => removeChecklistItem(task.id, cl.id, item.id)} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-all"><X size={10} /></button>
+                      <button onClick={() => removeChecklistItem(task.id, cl.id, item.id)} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400"><X size={10} /></button>
                     </div>
                   ))}
                 </div>
-                {addingCheckItems[cl.id] ? (
+                {addingItems[cl.id] ? (
                   <div className="flex gap-1 mt-1.5">
-                    <input autoFocus value={checkItemInputs[cl.id] ?? ''} onChange={e => setCheckItemInputs(p => ({ ...p, [cl.id]: e.target.value }))}
-                      onKeyDown={e => { if (e.key==='Enter') saveCheckItem(cl.id); if (e.key==='Escape') setAddingCheckItems(p => ({ ...p, [cl.id]: false })) }}
+                    <input autoFocus value={itemInputs[cl.id] ?? ''} onChange={e => setItemInputs(p => ({ ...p, [cl.id]: e.target.value }))}
+                      onKeyDown={e => { if (e.key==='Enter') saveItem(cl.id); if (e.key==='Escape') setAddingItems(p => ({ ...p, [cl.id]: false })) }}
                       placeholder="Item..." className="flex-1 text-xs px-2 py-1 border border-gray-200 rounded-lg outline-none" />
-                    <button onClick={() => saveCheckItem(cl.id)} className="text-xs px-2 bg-brand-600 text-white rounded-lg">OK</button>
+                    <button onClick={() => saveItem(cl.id)} className="text-xs px-2 bg-brand-600 text-white rounded-lg">OK</button>
                   </div>
                 ) : (
-                  <button onClick={() => setAddingCheckItems(p => ({ ...p, [cl.id]: true }))}
-                    className="flex items-center gap-1 text-[11px] text-gray-400 hover:text-brand-600 mt-1 transition-colors">
+                  <button onClick={() => setAddingItems(p => ({ ...p, [cl.id]: true }))}
+                    className="flex items-center gap-1 text-[11px] text-gray-400 hover:text-brand-600 mt-1">
                     <Plus size={10} /> Item
                   </button>
                 )}
@@ -305,7 +224,7 @@ export function TaskDetail() {
       </div>
 
       {/* Footer */}
-      <div className="border-t border-gray-100 p-3">
+      <div className="border-t border-gray-100 p-3 flex-shrink-0">
         <Button variant="danger" size="sm" icon={<Trash2 size={12} />} onClick={() => deleteTask(task.id)} className="w-full justify-center">
           Excluir tarefa
         </Button>

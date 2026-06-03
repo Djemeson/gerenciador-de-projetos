@@ -12,16 +12,15 @@ interface QuickAddRowProps {
 export function QuickAddRow({ projectId, status, parentId, onDone }: QuickAddRowProps) {
   const [title, setTitle] = useState('')
   const ref = useRef<HTMLInputElement>(null)
-  const { quickAddTask, setSelectedTask } = useAppStore()
+  const { quickAddTask } = useAppStore()
 
   useEffect(() => { ref.current?.focus() }, [])
 
   const save = () => {
-    if (!title.trim()) { onDone(); return }
-    const task = quickAddTask(title, projectId, status, parentId)
+    if (title.trim()) quickAddTask(title, projectId, status, parentId)
     setTitle('')
-    setSelectedTask(task.id)
     onDone()
+    // Não abre o detalhe — o usuário clica quando quiser ver
   }
 
   const onKey = (e: React.KeyboardEvent) => {
@@ -30,7 +29,7 @@ export function QuickAddRow({ projectId, status, parentId, onDone }: QuickAddRow
   }
 
   return (
-    <div className="flex items-center gap-3 px-5 py-2 border-b border-gray-100 bg-brand-50/30">
+    <div className="flex items-center gap-2 px-5 py-2 border-b border-gray-100 bg-brand-50/30">
       <span className="w-4 h-4 rounded-full border-2 border-brand-300 flex-shrink-0" />
       <input
         ref={ref}
@@ -41,9 +40,7 @@ export function QuickAddRow({ projectId, status, parentId, onDone }: QuickAddRow
         placeholder="Nome da tarefa..."
         className="flex-1 text-sm bg-transparent outline-none text-gray-800 placeholder:text-gray-400"
       />
-      <span className="text-[10px] text-gray-400 flex-shrink-0 hidden sm:block">
-        Enter para salvar · Esc para cancelar
-      </span>
+      <span className="text-[10px] text-gray-400 flex-shrink-0 hidden sm:block">Enter · Esc</span>
     </div>
   )
 }
