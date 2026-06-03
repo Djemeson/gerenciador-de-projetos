@@ -1,7 +1,6 @@
 import React, { useState } from 'react'
 import { Target, ChevronLeft, Archive, Trash2, AlertTriangle } from 'lucide-react'
 import { useAppStore } from '../stores/useAppStore'
-import { useState } from 'react'
 import { TaskList } from '../components/tasks/TaskList'
 import { TaskDetail } from '../components/tasks/TaskDetail'
 import { gutTier } from '../types'
