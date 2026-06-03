@@ -1,6 +1,7 @@
 export type Priority   = 'low' | 'medium' | 'high' | 'urgent'
 export type TaskStatus = 'todo' | 'in_progress' | 'done'
-export type View       = 'my_tasks' | 'all_tasks' | 'projects' | 'project_detail' | 'calendar' | 'reports'
+export type View       = 'my_tasks' | 'all_tasks' | 'projects' | 'project_detail' | 'calendar' | 'reports' | 'inbox'
+export const INBOX_PROJECT_ID = '__inbox__'
 
 export interface GUT { g: number; u: number; t: number; score: number }
 
