@@ -150,7 +150,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   init: () => {
     let projects = localProjects.getAll()
-    let tasks    = localTasks.getAll().map(migrateTask)
+    let tasks    = (localTasks.getAll() as unknown as Record<string, unknown>[]).map(migrateTask)
     if (projects.length === 0) { projects = SEED_PROJECTS; tasks = SEED_TASKS; persist(projects, tasks) }
     set({ projects, tasks })
   },
