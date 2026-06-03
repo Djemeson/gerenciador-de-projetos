@@ -1,12 +1,12 @@
 import React, { useEffect } from 'react'
 import { useAppStore } from './stores/useAppStore'
-import { Sidebar } from './components/layout/Sidebar'
+import { Sidebar }          from './components/layout/Sidebar'
 import { MyTasksView }      from './views/MyTasksView'
 import { AllTasksView }     from './views/AllTasksView'
 import { ProjectsListView } from './views/ProjectsListView'
 import { ProjectDetailView }from './views/ProjectDetailView'
 import { CalendarView }     from './views/CalendarView'
-import { NewTaskModal }     from './components/tasks/NewTaskModal'
+import { ReportsView }      from './views/ReportsView'
 import { NewProjectModal }  from './components/projects/NewProjectModal'
 import { GUTModal }         from './components/projects/GUTModal'
 
@@ -22,6 +22,7 @@ export default function App() {
       case 'projects':       return <ProjectsListView />
       case 'project_detail': return <ProjectDetailView />
       case 'calendar':       return <CalendarView />
+      case 'reports':        return <ReportsView />
       default:               return <MyTasksView />
     }
   }
@@ -32,9 +33,6 @@ export default function App() {
       <main className="flex flex-1 overflow-hidden">
         {view()}
       </main>
-
-      {/* Global modals */}
-      <NewTaskModal />
       <NewProjectModal />
       <GUTModal />
     </div>
