@@ -21,10 +21,12 @@ interface AppState {
   openGUT:         (projectId: string) => void
   closeGUT:        () => void
 
-  addProject:    (name: string, color: string, desc: string) => void
-  updateProject: (id: string, patch: Partial<Project>) => void
-  deleteProject: (id: string) => void
-  saveGUT:       (projectId: string, g: number, u: number, t: number) => void
+  addProject:      (name: string, color: string, desc: string) => void
+  updateProject:   (id: string, patch: Partial<Project>) => void
+  deleteProject:   (id: string) => void
+  archiveProject:  (id: string) => void
+  unarchiveProject:(id: string) => void
+  saveGUT:         (projectId: string, g: number, u: number, t: number) => void
 
   addTask:      (task: Omit<Task, 'id'|'createdAt'|'updatedAt'>) => Task
   quickAddTask: (title: string, projectId: string, status: TaskStatus, parentId?: string) => Task
@@ -64,7 +66,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   closeGUT:        () => set({ gutModal: { open: false, projectId: null } }),
 
   addProject: (name, color, description) => {
-    const p: Project = { id: nanoid(), name, color, description, gut: calcGUT(1,1,1), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+    const p: Project = { id: nanoid(), name, color, description, gut: calcGUT(1,1,1), archived: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
     const projects = [...get().projects, p]
     persist(projects, get().tasks); set({ projects })
   },
@@ -76,6 +78,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     const projects = get().projects.filter(p => p.id !== id)
     const tasks    = get().tasks.filter(t => t.projectId !== id)
     persist(projects, tasks); set({ projects, tasks })
+  },
+  archiveProject: (id) => {
+    const projects = get().projects.map(p => p.id === id ? { ...p, archived: true, updatedAt: new Date().toISOString() } : p)
+    persist(projects, get().tasks)
+    set({ projects, activeView: get().activeProjectId === id ? 'projects' : get().activeView, activeProjectId: get().activeProjectId === id ? null : get().activeProjectId })
+  },
+  unarchiveProject: (id) => {
+    const projects = get().projects.map(p => p.id === id ? { ...p, archived: false, updatedAt: new Date().toISOString() } : p)
+    persist(projects, get().tasks); set({ projects })
   },
   saveGUT: (projectId, g, u, t) => {
     const gut = calcGUT(g, u, t)
@@ -149,7 +160,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   getSubtasks: (parentId) => get().tasks.filter(t => t.parentId === parentId),
 
   init: () => {
-    let projects = localProjects.getAll()
+    let projects = localProjects.getAll().map(p => ({ archived: false, ...p }))
     let tasks    = (localTasks.getAll() as unknown as Record<string, unknown>[]).map(migrateTask)
     if (projects.length === 0) { projects = SEED_PROJECTS; tasks = SEED_TASKS; persist(projects, tasks) }
     set({ projects, tasks })

@@ -38,7 +38,7 @@ export interface Task {
 
 export interface Project {
   id: string; name: string; color: string; description: string
-  gut: GUT; createdAt: string; updatedAt: string
+  gut: GUT; archived: boolean; createdAt: string; updatedAt: string
 }
 
 export const PROJECT_COLORS = ['#6B5EE8','#1D9E75','#D85A30','#BA7517','#D4537E','#378ADD','#639922','#888780']

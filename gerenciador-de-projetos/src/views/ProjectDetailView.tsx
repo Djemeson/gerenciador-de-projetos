@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
-import { Target, ChevronLeft } from 'lucide-react'
+import { Target, ChevronLeft, Archive, Trash2, AlertTriangle } from 'lucide-react'
 import { useAppStore } from '../stores/useAppStore'
+import { useState } from 'react'
 import { TaskList } from '../components/tasks/TaskList'
 import { TaskDetail } from '../components/tasks/TaskDetail'
 import { gutTier } from '../types'
@@ -8,8 +9,9 @@ import { gutTier } from '../types'
 type SortBy = 'status' | 'priority' | 'dueDate'
 
 export function ProjectDetailView() {
-  const { activeProjectId, projects, tasks, selectedTaskId, openGUT, setView } = useAppStore()
-  const [sortBy, setSortBy] = useState<SortBy>('status')
+  const { activeProjectId, projects, tasks, selectedTaskId, openGUT, setView, archiveProject, deleteProject } = useAppStore()
+  const [sortBy, setSortBy]       = useState<SortBy>('status')
+  const [confirmDel, setConfirmDel] = useState(false)
 
   const project = projects.find(p => p.id === activeProjectId)
   if (!project) return null
@@ -31,6 +33,25 @@ export function ProjectDetailView() {
             </button>
             <span className="w-3 h-3 rounded-full" style={{ background: project.color }} />
             <h1 className="text-sm font-semibold text-gray-900 flex-1">{project.name}</h1>
+
+            {/* Archive */}
+            <button onClick={() => { archiveProject(project.id); setView('projects') }}
+              className="flex items-center gap-1 text-xs px-2.5 py-1 border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors">
+              <Archive size={12} /> Arquivar
+            </button>
+
+            {/* Delete with confirm */}
+            {confirmDel ? (
+              <button onClick={() => { deleteProject(project.id); setView('projects') }}
+                className="flex items-center gap-1 text-xs px-2.5 py-1 bg-red-500 text-white rounded-lg animate-pulse">
+                <AlertTriangle size={12} /> Confirmar exclusão
+              </button>
+            ) : (
+              <button onClick={() => { setConfirmDel(true); setTimeout(() => setConfirmDel(false), 3000) }}
+                className="flex items-center gap-1 text-xs px-2.5 py-1 border border-red-200 text-red-500 rounded-lg hover:bg-red-50 transition-colors">
+                <Trash2 size={12} /> Deletar
+              </button>
+            )}
 
             <button onClick={() => openGUT(project.id)}
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium transition-colors hover:border-gray-300"

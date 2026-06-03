@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { Calendar, AlertCircle, Check, ChevronRight, ChevronDown, GitBranch } from 'lucide-react'
+import React, { useState, useRef } from 'react'
+import { Calendar, AlertCircle, Check, ChevronRight, ChevronDown, GitBranch, Trash2 } from 'lucide-react'
 import type { Task, Project, Priority } from '../../types'
 import { PRIORITY_LABEL } from '../../types'
 import { useAppStore } from '../../stores/useAppStore'
@@ -23,7 +23,8 @@ interface TaskRowProps {
 }
 
 export function TaskRow({ task, project, showProject = false, depth = 0, selected = false, onSelect }: TaskRowProps) {
-  const { updateTask, setSelectedTask, selectedTaskId, tasks } = useAppStore()
+  const { updateTask, deleteTask, setSelectedTask, selectedTaskId, tasks } = useAppStore()
+  const [confirmDel, setConfirmDel] = useState(false)
   const [expanded,      setExpanded]      = useState(true)
   const [addingSubtask, setAddingSubtask] = useState(false)
 
@@ -132,6 +133,24 @@ export function TaskRow({ task, project, showProject = false, depth = 0, selecte
         <span className="w-5 h-5 rounded-full bg-brand-100 text-brand-700 text-[9px] font-medium flex items-center justify-center flex-shrink-0">
           {task.assignee.slice(0,2)}
         </span>
+
+        {/* Delete on hover */}
+        {confirmDel ? (
+          <button
+            onClick={e => { e.stopPropagation(); deleteTask(task.id) }}
+            className="flex items-center gap-0.5 text-[10px] text-red-500 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded animate-pulse flex-shrink-0"
+          >
+            <AlertCircle size={9} /> Del?
+          </button>
+        ) : (
+          <button
+            onClick={e => { e.stopPropagation(); setConfirmDel(true); setTimeout(() => setConfirmDel(false), 2500) }}
+            className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-all flex-shrink-0"
+            title="Deletar tarefa"
+          >
+            <Trash2 size={12} />
+          </button>
+        )}
 
         {/* Add subtask on hover */}
         {!isDone && (

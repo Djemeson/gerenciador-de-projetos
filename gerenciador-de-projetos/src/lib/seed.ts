@@ -1,10 +1,10 @@
 import type { Project, Task } from '../types'
 
 export const SEED_PROJECTS: Project[] = [
-  { id:'p1', name:'Lançamento v2.0',    color:'#6B5EE8', description:'Nova versão com redesign e melhorias.', gut:{g:5,u:5,t:4,score:100}, createdAt:'2026-05-01T00:00:00Z', updatedAt:'2026-05-01T00:00:00Z' },
-  { id:'p2', name:'Suporte ao Cliente', color:'#1D9E75', description:'Gestão de tickets e SLA.',               gut:{g:3,u:4,t:3,score:36},  createdAt:'2026-05-10T00:00:00Z', updatedAt:'2026-05-10T00:00:00Z' },
-  { id:'p3', name:'Marketing Q3',       color:'#D85A30', description:'Campanhas digitais Q3.',                 gut:{g:3,u:3,t:2,score:18},  createdAt:'2026-05-15T00:00:00Z', updatedAt:'2026-05-15T00:00:00Z' },
-  { id:'p4', name:'Infraestrutura',     color:'#888780', description:'Migração e atualizações críticas.',      gut:{g:4,u:2,t:4,score:32},  createdAt:'2026-05-20T00:00:00Z', updatedAt:'2026-05-20T00:00:00Z' },
+  { id:'p1', name:'Lançamento v2.0',    color:'#6B5EE8', description:'Nova versão com redesign e melhorias.', gut:{g:5,u:5,t:4,score:100}, archived:false, createdAt:'2026-05-01T00:00:00Z', updatedAt:'2026-05-01T00:00:00Z' },
+  { id:'p2', name:'Suporte ao Cliente', color:'#1D9E75', description:'Gestão de tickets e SLA.',               gut:{g:3,u:4,t:3,score:36},  archived:false, createdAt:'2026-05-10T00:00:00Z', updatedAt:'2026-05-10T00:00:00Z' },
+  { id:'p3', name:'Marketing Q3',       color:'#D85A30', description:'Campanhas digitais Q3.',                 gut:{g:3,u:3,t:2,score:18},  archived:false, createdAt:'2026-05-15T00:00:00Z', updatedAt:'2026-05-15T00:00:00Z' },
+  { id:'p4', name:'Infraestrutura',     color:'#888780', description:'Migração e atualizações críticas.',      gut:{g:4,u:2,t:4,score:32},  archived:false, createdAt:'2026-05-20T00:00:00Z', updatedAt:'2026-05-20T00:00:00Z' },
 ]
 
 const b = { parentId: null, description: '', blocks: [], checklists: [] }

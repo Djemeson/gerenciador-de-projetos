@@ -14,7 +14,7 @@ export function Sidebar() {
   const { openSettings } = useSettingsStore()
   const notifCount = useNotificationStore(s => s.notifications.length)
 
-  const sortedProjects = [...projects].sort((a, b) => b.gut.score - a.gut.score)
+  const sortedProjects = [...projects].filter(p => !p.archived).sort((a, b) => b.gut.score - a.gut.score)
   const inboxCount = tasks.filter(t => t.projectId === INBOX_PROJECT_ID && t.status !== 'done').length
 
   const navItem = (view: View, label: string, Icon: React.ElementType, badge?: number) => {
