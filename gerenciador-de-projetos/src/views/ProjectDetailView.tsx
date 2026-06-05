@@ -261,9 +261,9 @@ function CalendarInline({ tasks, projectId }: { tasks: any[]; projectId: string 
   return (
     <div className="flex-1 overflow-y-auto p-4">
       <div className="flex items-center justify-between mb-3">
-        <button onClick={()=>month===0?{setMonth(11),setYear(y=>y-1)}:setMonth(m=>m-1)} className="text-xs px-2 py-1 border border-gray-200 rounded-lg hover:bg-gray-50">‹</button>
+        <button onClick={()=>{ if(month===0){setMonth(11);setYear(y=>y-1)}else{setMonth(m=>m-1)} }} className="text-xs px-2 py-1 border border-gray-200 rounded-lg hover:bg-gray-50">{'<'}</button>
         <span className="text-sm font-medium">{MONTHS[month]} {year}</span>
-        <button onClick={()=>month===11?{setMonth(0),setYear(y=>y+1)}:setMonth(m=>m+1)} className="text-xs px-2 py-1 border border-gray-200 rounded-lg hover:bg-gray-50">›</button>
+        <button onClick={()=>{ if(month===11){setMonth(0);setYear(y=>y+1)}else{setMonth(m=>m+1)} }} className="text-xs px-2 py-1 border border-gray-200 rounded-lg hover:bg-gray-50">{'>'}</button>
       </div>
       <div className="grid grid-cols-7 gap-1">
         {['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map(d=><div key={d} className="text-center text-[10px] text-gray-400 py-1">{d}</div>)}
