@@ -27,7 +27,7 @@ export function ReportsView() {
   }, [tasks])
 
   const projectHealth = useMemo(() =>
-    [...projects].sort((a, b) => b.gut.score - a.gut.score).map(p => {
+    [...projects].filter(p => !p.archived).sort((a, b) => b.gut.score - a.gut.score).map(p => {
       const pt      = tasks.filter(t => t.projectId === p.id && !t.parentId)
       const donePt  = pt.filter(t => t.status === 'done').length
       const overdPt = pt.filter(t => t.dueDate && t.status !== 'done' && new Date(t.dueDate) < now).length

@@ -1,11 +1,13 @@
 import { create } from 'zustand'
 
 export interface Settings {
-  quickCaptureHotkey: string   // ex: 'ctrl+space', 'ctrl+k'
+  quickCaptureHotkey: string
+  openAIKey: string
 }
 
 const DEFAULTS: Settings = {
   quickCaptureHotkey: 'ctrl+space',
+  openAIKey: '',
 }
 
 function load(): Settings {
