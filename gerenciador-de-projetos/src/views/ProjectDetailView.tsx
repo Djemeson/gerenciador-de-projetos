@@ -218,7 +218,7 @@ function TableView({ tasks, project }: { tasks: any[]; project: any }) {
               <td className="px-3 py-2 text-gray-400">{i+1}</td>
               <td className="px-3 py-2 font-medium text-gray-800">{t.title}</td>
               <td className="px-3 py-2">
-                <select value={t.status} onChange={e=>{e.stopPropagation();updateTask(t.id,{status:e.target.value})}} onClick={e=>e.stopPropagation()}
+                <select value={t.status} onChange={e=>{e.stopPropagation();updateTask(t.id,{status:e.target.value as any})}} onClick={e=>e.stopPropagation()}
                   className="text-xs bg-transparent border-none outline-none cursor-pointer text-gray-600">
                   <option value="todo">A fazer</option>
                   <option value="in_progress">Em progresso</option>

@@ -14,7 +14,7 @@ function load(): Settings {
   try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem('tf_settings') ?? '{}') } }
   catch { return DEFAULTS }
 }
-function save(s: Settings) { localStorage.setItem('tf_settings', JSON.stringify(s)) }
+function save(s: Settings) { localStorage.setItem('tf_settings', JSON.stringify({ quickCaptureHotkey: s.quickCaptureHotkey, openAIKey: s.openAIKey })) }
 
 interface SettingsState extends Settings {
   settingsOpen: boolean
@@ -30,7 +30,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   closeSettings: () => set({ settingsOpen: false }),
   updateSetting: (key, value) => {
     const next = { ...get(), [key]: value }
-    save({ quickCaptureHotkey: next.quickCaptureHotkey })
+    save({ quickCaptureHotkey: next.quickCaptureHotkey, openAIKey: next.openAIKey })
     set({ [key]: value })
   },
 }))

@@ -302,10 +302,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   init: () => {
-    let projects = localProjects.getAll().map(p => ({
-      spaceId:null, archived:false, columns:[], activeView:'list' as const,
-      ...p, archived: (p as any).archived ?? false,
-    })) as Project[]
+    let projects = localProjects.getAll().map(p => {
+      const raw = p as any
+      return { ...p, spaceId: raw.spaceId ?? null, archived: raw.archived ?? false, columns: raw.columns ?? [], activeView: raw.activeView ?? 'list' } as Project
+    })
     let tasks    = (localTasks.getAll() as unknown as Record<string,unknown>[]).map(migrateTask)
     const spaces = loadJSON<Space[]>(SPACES_KEY, [])
     const automations = loadJSON<Automation[]>(AUTOMATIONS_KEY, [])
