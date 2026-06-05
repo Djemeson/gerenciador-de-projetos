@@ -179,7 +179,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     pProjects(projects, get().tasks); set({ projects })
   },
   addColumn: (projectId, col) => {
-    const newCol: ColumnDef = { ...col, id:nanoid() }
+    const newCol: ColumnDef = { dropdownOptions: [], ...col, id:nanoid() }
     const projects = get().projects.map(p => p.id===projectId ? {...p,columns:[...p.columns,newCol]} : p)
     pProjects(projects, get().tasks); set({ projects })
   },

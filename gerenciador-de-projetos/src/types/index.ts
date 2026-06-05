@@ -17,12 +17,18 @@ export interface Space {
 // ── Custom columns ────────────────────────────────────────────────────────
 export type ColumnType = 'text' | 'number' | 'date' | 'dropdown' | 'checkbox' | 'money' | 'url'
 
+export interface DropdownOption {
+  id: string
+  label: string
+  color: string   // hex
+}
+
 export interface ColumnDef {
   id: string
   name: string
   type: ColumnType
-  projectId: string   // '' = global
-  options?: string[]  // for dropdown
+  projectId: string
+  dropdownOptions: DropdownOption[]   // for dropdown type (with colors)
   width?: number
 }
 
