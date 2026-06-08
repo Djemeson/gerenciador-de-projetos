@@ -1,13 +1,13 @@
 import type { Project, Task } from '../types'
 
 export const SEED_PROJECTS: Project[] = [
-  { id:'p1', name:'Lançamento v2.0',    color:'#6B5EE8', description:'Nova versão com redesign.', spaceId:null, gut:{g:5,u:5,t:4,score:100}, archived:false, columns:[], activeView:'list', createdAt:'2026-05-01T00:00:00Z', updatedAt:'2026-05-01T00:00:00Z' },
-  { id:'p2', name:'Suporte ao Cliente', color:'#1D9E75', description:'Gestão de tickets e SLA.',  spaceId:null, gut:{g:3,u:4,t:3,score:36},  archived:false, columns:[], activeView:'list', createdAt:'2026-05-10T00:00:00Z', updatedAt:'2026-05-10T00:00:00Z' },
-  { id:'p3', name:'Marketing Q3',       color:'#D85A30', description:'Campanhas digitais Q3.',    spaceId:null, gut:{g:3,u:3,t:2,score:18},  archived:false, columns:[], activeView:'list', createdAt:'2026-05-15T00:00:00Z', updatedAt:'2026-05-15T00:00:00Z' },
-  { id:'p4', name:'Infraestrutura',     color:'#888780', description:'Migrações críticas.',        spaceId:null, gut:{g:4,u:2,t:4,score:32},  archived:false, columns:[], activeView:'list', createdAt:'2026-05-20T00:00:00Z', updatedAt:'2026-05-20T00:00:00Z' },
+  { id:'p1', name:'Lançamento v2.0',    color:'#6B5EE8', description:'Nova versão com redesign.', spaceId:null, folderId:null, gut:{g:5,u:5,t:4,score:100}, archived:false, columns:[], activeView:'list', taskOpenMode:'side', customViews:[], createdAt:'2026-05-01T00:00:00Z', updatedAt:'2026-05-01T00:00:00Z' },
+  { id:'p2', name:'Suporte ao Cliente', color:'#1D9E75', description:'Gestão de tickets e SLA.',  spaceId:null, folderId:null, gut:{g:3,u:4,t:3,score:36},  archived:false, columns:[], activeView:'list', taskOpenMode:'side', customViews:[], createdAt:'2026-05-10T00:00:00Z', updatedAt:'2026-05-10T00:00:00Z' },
+  { id:'p3', name:'Marketing Q3',       color:'#D85A30', description:'Campanhas digitais Q3.',    spaceId:null, folderId:null, gut:{g:3,u:3,t:2,score:18},  archived:false, columns:[], activeView:'list', taskOpenMode:'side', customViews:[], createdAt:'2026-05-15T00:00:00Z', updatedAt:'2026-05-15T00:00:00Z' },
+  { id:'p4', name:'Infraestrutura',     color:'#888780', description:'Migrações críticas.',        spaceId:null, folderId:null, gut:{g:4,u:2,t:4,score:32},  archived:false, columns:[], activeView:'list', taskOpenMode:'side', customViews:[], createdAt:'2026-05-20T00:00:00Z', updatedAt:'2026-05-20T00:00:00Z' },
 ]
 
-const b = { parentId:null, description:'', blocks:[], checklists:[], customFields:{} }
+const b = { parentId:null, description:'', blocks:[], checklists:[], customFields:{}, taskType:'task' as const }
 
 export const SEED_TASKS: Task[] = [
   { ...b, id:'t1',  projectId:'p1', title:'Revisar arquitetura do Firebase',           status:'in_progress', priority:'urgent', dueDate:'2026-06-02', assignee:'DJ',  tags:['Dev','Firebase'], createdAt:'2026-05-28T00:00:00Z', updatedAt:'2026-06-01T00:00:00Z' },
