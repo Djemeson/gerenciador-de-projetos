@@ -1,7 +1,7 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { Calendar, AlertCircle, Check, ChevronRight, ChevronDown, GitBranch, Trash2 } from 'lucide-react'
-import type { Task, Project, Priority, ColumnDef } from '../../types'
-import { PRIORITY_LABEL } from '../../types'
+import type { Task, Project, Priority, ColumnDef, TaskType } from '../../types'
+import { PRIORITY_LABEL, TASK_TYPE_META } from '../../types'
 import { useAppStore } from '../../stores/useAppStore'
 import { QuickAddRow } from './QuickAddRow'
 import { CustomFieldCell } from './CustomFieldCell'
@@ -12,6 +12,8 @@ const PRIORITY_CIRCLE: Record<Priority,{border:string;bg:string}> = {
   medium: { border:'border-blue-400',   bg:''             },
   low:    { border:'border-gray-300',   bg:''             },
 }
+
+const TASK_TYPES: TaskType[] = ['task','milestone','meeting_note','bug','goal','objective','form_response','request']
 
 interface TaskRowProps {
   task:         Task
@@ -28,6 +30,8 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
   const [expanded,      setExpanded]      = useState(true)
   const [addingSubtask, setAddingSubtask] = useState(false)
   const [confirmDel,    setConfirmDel]    = useState(false)
+  const [typeOpen,      setTypeOpen]      = useState(false)
+  const typeRef = useRef<HTMLDivElement>(null)
 
   const subtasks    = tasks.filter(t => t.parentId===task.id)
   const hasChildren = subtasks.length > 0
@@ -36,13 +40,21 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
   const isOverdue   = task.dueDate && !isDone && new Date(task.dueDate) < new Date()
   const indent      = depth * 20
   const circle      = isDone ? null : PRIORITY_CIRCLE[task.priority]
+  const typeMeta    = TASK_TYPE_META[task.taskType ?? 'task']
+
+  // Close type picker on outside click
+  useEffect(() => {
+    if (!typeOpen) return
+    const handler = (e: MouseEvent) => { if (!typeRef.current?.contains(e.target as Node)) setTypeOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [typeOpen])
 
   const toggleDone = (e: React.MouseEvent) => {
     e.stopPropagation()
     updateTask(task.id, { status: isDone ? 'todo' : 'done' })
   }
 
-  // Prevent text selection on shift-click
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.shiftKey || e.ctrlKey || e.metaKey) e.preventDefault()
   }
@@ -78,7 +90,40 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
           {expanded?<ChevronDown size={11}/>:<ChevronRight size={11}/>}
         </button>
 
-        {/* Priority circle */}
+        {/* Task type icon */}
+        <div ref={typeRef} className="relative flex-shrink-0 mr-1">
+          <button
+            onClick={e=>{e.stopPropagation();setTypeOpen(v=>!v)}}
+            title={`Tipo: ${typeMeta.label}`}
+            className={`w-4 h-4 flex items-center justify-center rounded text-[10px] transition-all hover:scale-110 ${isDone?'opacity-40':''}`}
+            style={{ color: typeMeta.color }}>
+            {task.taskType==='task' ? (
+              <span className="text-[11px] leading-none" style={{color:typeMeta.color}}>○</span>
+            ) : (
+              <span className="text-[10px] leading-none">{typeMeta.symbol}</span>
+            )}
+          </button>
+          {typeOpen && (
+            <div className="absolute left-0 top-5 z-50 bg-white border border-gray-200 rounded-xl shadow-lg py-1.5 min-w-[180px]"
+              onMouseDown={e=>e.stopPropagation()}>
+              <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider px-3 py-1">Tipo de tarefa</p>
+              {TASK_TYPES.map(type => {
+                const m = TASK_TYPE_META[type]
+                return (
+                  <button key={type} onClick={()=>{updateTask(task.id,{taskType:type});setTypeOpen(false)}}
+                    className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-gray-50 transition-colors">
+                    <span className="w-5 h-5 rounded flex items-center justify-center text-sm flex-shrink-0"
+                      style={{ background: m.bg, color: m.color }}>{m.symbol}</span>
+                    <span className="text-xs text-gray-700">{m.label}</span>
+                    {(task.taskType??'task')===type && <Check size={10} className="ml-auto text-brand-500"/>}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Priority circle / done check */}
         <button onClick={toggleDone} title={isDone?'Reabrir':PRIORITY_LABEL[task.priority]}
           className={`w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center border-2 transition-all mr-2
             ${isDone?'bg-brand-500 border-brand-500':`${circle?.border} ${circle?.bg} hover:scale-110`}`}>
@@ -87,7 +132,7 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
 
         {depth>0&&<GitBranch size={10} className="text-gray-300 flex-shrink-0 mr-1"/>}
 
-        {/* Name — fixed flex-1 */}
+        {/* Name */}
         <div className="flex-1 min-w-0 py-1 pr-2" style={{minWidth:120}}>
           <span className={`block text-sm truncate ${isDone?'line-through text-gray-400':'text-gray-800'}`}>{task.title}</span>
           {task.description&&!isDone&&<span className="block text-[11px] text-gray-400 truncate">{task.description}</span>}
@@ -148,7 +193,7 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
 
           {/* Custom columns */}
           {columns.map(col=>(
-            <div key={col.id} className="px-2 flex items-center" style={{width:col.width??100}}>
+            <div key={col.id} className="px-2 flex items-center border-l border-gray-100" style={{width:col.width??100,minWidth:col.width??100}}>
               <CustomFieldCell task={task} column={col}/>
             </div>
           ))}

@@ -1,8 +1,11 @@
 import React, { useState, useRef, useCallback } from 'react'
-import { X, Flag, Calendar, User, CheckSquare, Trash2, Plus, ListChecks, GitBranch } from 'lucide-react'
+import {
+  X, Flag, Calendar, User, CheckSquare, Trash2, Plus, ListChecks, GitBranch,
+  PanelRight, Square, Maximize2,
+} from 'lucide-react'
 import { useAppStore } from '../../stores/useAppStore'
-import { PRIORITY_LABEL, STATUS_LABEL } from '../../types'
-import type { Priority, TaskStatus } from '../../types'
+import { PRIORITY_LABEL, STATUS_LABEL, TASK_TYPE_META } from '../../types'
+import type { Priority, TaskStatus, TaskOpenMode } from '../../types'
 import { Button } from '../ui'
 import { TagInput } from '../ui/TagInput'
 import { QuickAddRow } from './QuickAddRow'
@@ -16,7 +19,18 @@ const PRIORITY_COLORS: Record<Priority, string> = {
   low:    'text-gray-500 bg-gray-50 border-gray-200',
 }
 
-export function TaskDetail() {
+const MODE_CONFIG: Record<TaskOpenMode, { label: string; Icon: React.ElementType }> = {
+  side:   { label: 'Lado a lado',  Icon: PanelRight  },
+  center: { label: 'Centralizado', Icon: Square      },
+  full:   { label: 'Página inteira',Icon: Maximize2  },
+}
+
+interface Props {
+  mode?: TaskOpenMode
+  onChangeMode?: (mode: TaskOpenMode) => void
+}
+
+export function TaskDetail({ mode = 'side', onChangeMode }: Props) {
   const {
     tasks, projects, selectedTaskId, setSelectedTask,
     updateTask, deleteTask, updateBlocks,
@@ -25,8 +39,8 @@ export function TaskDetail() {
     getSubtasks,
   } = useAppStore()
 
-  // ── Resize ──────────────────────────────────────────────────────────────
-  const [width, setWidth]  = useState(380)
+  // ── Resize (side mode only) ──────────────────────────────────────────────
+  const [width, setWidth]  = useState(460)
   const dragging = useRef(false)
   const startX   = useRef(0)
   const startW   = useRef(0)
@@ -35,14 +49,14 @@ export function TaskDetail() {
     dragging.current = true; startX.current = e.clientX; startW.current = width
     const onMove = (ev: MouseEvent) => {
       if (!dragging.current) return
-      setWidth(Math.max(300, Math.min(700, startW.current + (startX.current - ev.clientX))))
+      setWidth(Math.max(340, Math.min(800, startW.current + (startX.current - ev.clientX))))
     }
     const onUp = () => { dragging.current = false; document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp) }
     document.addEventListener('mousemove', onMove)
     document.addEventListener('mouseup', onUp)
   }, [width])
 
-  // ── Checklist UI state ───────────────────────────────────────────────────
+  // ── Checklist state ──────────────────────────────────────────────────────
   const [addingChecklist,  setAddingChecklist]   = useState(false)
   const [checklistTitle,   setChecklistTitle]    = useState('')
   const [addingItems,      setAddingItems]       = useState<Record<string,boolean>>({})
@@ -55,6 +69,8 @@ export function TaskDetail() {
 
   if (!task) return null
 
+  const typeMeta = TASK_TYPE_META[task.taskType ?? 'task']
+
   const saveChecklist = () => {
     if (!checklistTitle.trim()) return
     addChecklist(task.id, checklistTitle.trim())
@@ -66,39 +82,72 @@ export function TaskDetail() {
     setItemInputs(p => ({ ...p, [clId]: '' })); setAddingItems(p => ({ ...p, [clId]: false }))
   }
 
-  return (
-    <aside
-      className="relative flex flex-col border-l border-gray-200 bg-white h-full overflow-hidden flex-shrink-0"
-      style={{ width }}
-    >
-      {/* Draggable divider */}
-      <div
-        onMouseDown={onDragStart}
-        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-brand-400 z-20 transition-colors"
-        title="Arrastar para redimensionar"
-      />
+  const containerClass = mode === 'full'
+    ? 'flex flex-col flex-1 bg-white h-full overflow-hidden'
+    : mode === 'center'
+    ? 'flex flex-col bg-white rounded-2xl shadow-2xl overflow-hidden'
+    : 'relative flex flex-col border-l border-gray-200 bg-white h-full overflow-hidden flex-shrink-0'
+
+  const containerStyle = mode === 'full'
+    ? {}
+    : mode === 'center'
+    ? { width: '720px', maxWidth: '90vw', maxHeight: '90vh' }
+    : { width }
+
+  const content = (
+    <>
+      {/* Draggable divider (side mode only) */}
+      {mode === 'side' && (
+        <div onMouseDown={onDragStart}
+          className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-brand-400 z-20 transition-colors"
+          title="Arrastar para redimensionar"/>
+      )}
 
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0 bg-white">
         <div className="flex items-center gap-2 min-w-0">
+          {/* Type icon */}
+          <span className="w-5 h-5 rounded flex items-center justify-center text-sm flex-shrink-0"
+            style={{ background: typeMeta.bg, color: typeMeta.color }}
+            title={typeMeta.label}>
+            {typeMeta.symbol}
+          </span>
           {project && <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: project.color }} />}
           <span className="text-xs text-gray-500 truncate">{project?.name}</span>
           {task.parentId && <span className="text-[10px] text-gray-400 flex items-center gap-0.5 flex-shrink-0"><GitBranch size={10} /> sub</span>}
         </div>
-        <button onClick={() => setSelectedTask(null)} className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:bg-gray-100 flex-shrink-0">
-          <X size={13} />
-        </button>
+
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {/* Open mode selector */}
+          {onChangeMode && (
+            <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5 mr-1">
+              {(['side','center','full'] as TaskOpenMode[]).map(m => {
+                const cfg = MODE_CONFIG[m]
+                return (
+                  <button key={m} onClick={() => onChangeMode(m)} title={cfg.label}
+                    className={`p-1 rounded-md transition-colors ${mode===m?'bg-white text-gray-700 shadow-sm':'text-gray-400 hover:text-gray-600'}`}>
+                    <cfg.Icon size={11}/>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+          <button onClick={() => setSelectedTask(null)} className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:bg-gray-100 flex-shrink-0">
+            <X size={13} />
+          </button>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className={`flex-1 overflow-y-auto ${mode === 'center' || mode === 'full' ? 'max-w-3xl mx-auto w-full' : ''}`}>
         {/* Title */}
-        <div className="px-4 pt-4 pb-2">
+        <div className="px-5 pt-5 pb-2">
           <textarea value={task.title} onChange={e => updateTask(task.id, { title: e.target.value })}
-            className="w-full text-sm font-medium text-gray-900 leading-5 resize-none outline-none bg-transparent" rows={2} />
+            className={`w-full font-semibold text-gray-900 leading-6 resize-none outline-none bg-transparent ${mode==='full'?'text-xl':'text-base'}`}
+            rows={mode==='full'?2:2} />
         </div>
 
         {/* Fields */}
-        <div className="px-4 space-y-2 pb-3 border-b border-gray-100">
+        <div className="px-5 space-y-2.5 pb-4 border-b border-gray-100">
           <Field icon={<Flag size={12} />} label="Prioridade">
             <select value={task.priority} onChange={e => updateTask(task.id, { priority: e.target.value as Priority })}
               className={`text-xs px-2 py-1 rounded-md border font-medium cursor-pointer outline-none ${PRIORITY_COLORS[task.priority]}`}>
@@ -124,17 +173,14 @@ export function TaskDetail() {
           </div>
         </div>
 
-        {/* Block editor — texto + imagens + áudios misturados */}
-        <div className="px-4 py-3 border-b border-gray-100">
+        {/* Block editor */}
+        <div className="px-5 py-4 border-b border-gray-100">
           <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-2">Conteúdo</p>
-          <BlockEditor
-            blocks={task.blocks}
-            onChange={blocks => updateBlocks(task.id, blocks)}
-          />
+          <BlockEditor blocks={task.blocks} onChange={blocks => updateBlocks(task.id, blocks)} />
         </div>
 
         {/* Subtasks */}
-        <div className="px-4 py-3 border-b border-gray-100">
+        <div className="px-5 py-4 border-b border-gray-100">
           <div className="flex items-center justify-between mb-2">
             <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider flex items-center gap-1">
               <GitBranch size={10} /> Subtarefas
@@ -163,7 +209,7 @@ export function TaskDetail() {
         </div>
 
         {/* Checklists */}
-        <div className="px-4 py-3">
+        <div className="px-5 py-4">
           <div className="flex items-center justify-between mb-2">
             <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider flex items-center gap-1">
               <ListChecks size={10} /> Checklists
@@ -183,7 +229,7 @@ export function TaskDetail() {
           {task.checklists.map(cl => {
             const done = cl.items.filter(i => i.done).length; const total = cl.items.length
             return (
-              <div key={cl.id} className="mb-3">
+              <div key={cl.id} className="mb-4">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs font-medium text-gray-600">{cl.title}</span>
                   <div className="flex items-center gap-2">
@@ -225,10 +271,27 @@ export function TaskDetail() {
 
       {/* Footer */}
       <div className="border-t border-gray-100 p-3 flex-shrink-0">
-        <Button variant="danger" size="sm" icon={<Trash2 size={12} />} onClick={() => deleteTask(task.id)} className="w-full justify-center">
+        <Button variant="danger" size="sm" icon={<Trash2 size={12} />} onClick={() => { setSelectedTask(null); deleteTask(task.id) }} className="w-full justify-center">
           Excluir tarefa
         </Button>
       </div>
+    </>
+  )
+
+  if (mode === 'center') {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm"
+        onClick={() => setSelectedTask(null)}>
+        <div className={containerClass} style={containerStyle} onClick={e => e.stopPropagation()}>
+          {content}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <aside className={containerClass} style={containerStyle}>
+      {content}
     </aside>
   )
 }

@@ -3,12 +3,14 @@ import { nanoid } from '../lib/nanoid'
 import { localProjects, localTasks } from '../lib/localStore'
 import { SEED_PROJECTS, SEED_TASKS } from '../lib/seed'
 import type {
-  Project, Task, Space, ColumnDef, Automation, ViewType,
+  Project, Task, Space, Folder, ColumnDef, Automation, ViewType,
   View, TaskStatus, Priority, Checklist, ChecklistItem, ContentBlock,
+  TaskType, TaskOpenMode, CustomProjectView,
 } from '../types'
-import { calcGUT, migrateTask } from '../types'
+import { calcGUT, migrateTask, migrateProject } from '../types'
 
 const SPACES_KEY     = 'tf_spaces'
+const FOLDERS_KEY    = 'tf_folders'
 const AUTOMATIONS_KEY= 'tf_automations'
 
 function loadJSON<T>(key: string, fallback: T): T {
@@ -32,6 +34,7 @@ interface AppState {
   projects:    Project[]
   tasks:       Task[]
   spaces:      Space[]
+  folders:     Folder[]
   automations: Automation[]
 
   activeView:      View
@@ -44,6 +47,7 @@ interface AppState {
   newProjectModal: boolean
   gutModal:        { open: boolean; projectId: string | null }
   columnsModal:    string | null  // projectId
+  newViewModal:    string | null  // projectId
 
   setView:         (view: View, projectId?: string) => void
   setSelectedTask: (id: string | null) => void
@@ -58,23 +62,33 @@ interface AppState {
   closeGUT:        () => void
   openColumnsModal:(id: string) => void
   closeColumnsModal:() => void
+  openNewViewModal:(id: string) => void
+  closeNewViewModal:() => void
 
   // Spaces
   addSpace:    (name: string, color: string) => Space
   updateSpace: (id: string, patch: Partial<Space>) => void
   deleteSpace: (id: string) => void
 
+  // Folders
+  addFolder:    (name: string, spaceId: string) => Folder
+  updateFolder: (id: string, patch: Partial<Folder>) => void
+  deleteFolder: (id: string) => void
+
   // Projects
-  addProject:       (name: string, color: string, desc: string, spaceId?: string) => void
+  addProject:       (name: string, color: string, desc: string, spaceId?: string, folderId?: string) => void
   updateProject:    (id: string, patch: Partial<Project>) => void
   deleteProject:    (id: string) => void
   archiveProject:   (id: string) => void
   unarchiveProject: (id: string) => void
   saveGUT:          (id: string, g: number, u: number, t: number) => void
   setProjectView:   (id: string, view: ViewType) => void
+  setTaskOpenMode:  (id: string, mode: TaskOpenMode) => void
   addColumn:        (projectId: string, col: Omit<ColumnDef,'id'>) => void
   updateColumn:     (projectId: string, colId: string, patch: Partial<ColumnDef>) => void
   deleteColumn:     (projectId: string, colId: string) => void
+  addCustomView:    (projectId: string, view: Omit<CustomProjectView,'id'>) => void
+  deleteCustomView: (projectId: string, viewId: string) => void
 
   // Tasks
   addTask:       (task: Omit<Task,'id'|'createdAt'|'updatedAt'>) => Task
@@ -106,10 +120,10 @@ interface AppState {
 function pProjects(p: Project[], t: Task[]) { localProjects.set(p as any); localTasks.set(t as any) }
 
 export const useAppStore = create<AppState>((set, get) => ({
-  projects: [], tasks: [], spaces: [], automations: [],
+  projects: [], tasks: [], spaces: [], folders: [], automations: [],
   activeView:'my_tasks', activeProjectId:null, selectedTaskId:null,
   filterPanelOpen:false, aiPanelOpen:false, filters:EMPTY_FILTER,
-  newProjectModal:false, gutModal:{open:false,projectId:null}, columnsModal:null,
+  newProjectModal:false, gutModal:{open:false,projectId:null}, columnsModal:null, newViewModal:null,
 
   setView: (view, projectId) => set({ activeView:view, activeProjectId:projectId??null, selectedTaskId:null }),
   setSelectedTask: (id) => set({ selectedTaskId:id }),
@@ -124,6 +138,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   closeGUT:        () => set({ gutModal:{open:false,projectId:null} }),
   openColumnsModal: (id) => set({ columnsModal:id }),
   closeColumnsModal:() => set({ columnsModal:null }),
+  openNewViewModal: (id) => set({ newViewModal: id }),
+  closeNewViewModal:() => set({ newViewModal: null }),
 
   // ── Spaces ───────────────────────────────────────────────────────────
   addSpace: (name, color) => {
@@ -137,15 +153,35 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   deleteSpace: (id) => {
     const spaces   = get().spaces.filter(s => s.id !== id)
-    const projects = get().projects.map(p => p.spaceId===id ? {...p,spaceId:null} : p)
-    saveJSON(SPACES_KEY, spaces); pProjects(projects, get().tasks); set({ spaces, projects })
+    const folders  = get().folders.filter(f => f.spaceId !== id)
+    const projects = get().projects.map(p => p.spaceId===id ? {...p,spaceId:null,folderId:null} : p)
+    saveJSON(SPACES_KEY, spaces); saveJSON(FOLDERS_KEY, folders)
+    pProjects(projects, get().tasks); set({ spaces, folders, projects })
+  },
+
+  // ── Folders ──────────────────────────────────────────────────────────
+  addFolder: (name, spaceId) => {
+    const f: Folder = { id:nanoid(), name, spaceId, collapsed:false, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString() }
+    const folders = [...get().folders, f]
+    saveJSON(FOLDERS_KEY, folders); set({ folders }); return f
+  },
+  updateFolder: (id, patch) => {
+    const folders = get().folders.map(f => f.id===id ? {...f,...patch,updatedAt:new Date().toISOString()} : f)
+    saveJSON(FOLDERS_KEY, folders); set({ folders })
+  },
+  deleteFolder: (id) => {
+    const folders  = get().folders.filter(f => f.id !== id)
+    const projects = get().projects.map(p => p.folderId===id ? {...p,folderId:null} : p)
+    saveJSON(FOLDERS_KEY, folders); pProjects(projects, get().tasks); set({ folders, projects })
   },
 
   // ── Projects ─────────────────────────────────────────────────────────
-  addProject: (name, color, description, spaceId) => {
+  addProject: (name, color, description, spaceId, folderId) => {
     const p: Project = {
-      id:nanoid(), name, color, description, spaceId:spaceId??null,
+      id:nanoid(), name, color, description,
+      spaceId:spaceId??null, folderId:folderId??null,
       gut:calcGUT(1,1,1), archived:false, columns:[], activeView:'list',
+      taskOpenMode:'side', customViews:[],
       createdAt:new Date().toISOString(), updatedAt:new Date().toISOString(),
     }
     const projects = [...get().projects, p]
@@ -178,6 +214,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     const projects = get().projects.map(p => p.id===id ? {...p,activeView:view} : p)
     pProjects(projects, get().tasks); set({ projects })
   },
+  setTaskOpenMode: (id, mode) => {
+    const projects = get().projects.map(p => p.id===id ? {...p,taskOpenMode:mode} : p)
+    pProjects(projects, get().tasks); set({ projects })
+  },
   addColumn: (projectId, col) => {
     const newCol: ColumnDef = { ...col, id:nanoid() }
     const projects = get().projects.map(p => p.id===projectId ? {...p,columns:[...p.columns,newCol]} : p)
@@ -189,6 +229,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   deleteColumn: (projectId, colId) => {
     const projects = get().projects.map(p => p.id!==projectId ? p : { ...p, columns:p.columns.filter(c => c.id!==colId) })
+    pProjects(projects, get().tasks); set({ projects })
+  },
+  addCustomView: (projectId, view) => {
+    const newView: CustomProjectView = { ...view, id: nanoid() }
+    const projects = get().projects.map(p => p.id!==projectId ? p : { ...p, customViews:[...(p.customViews??[]),newView] })
+    pProjects(projects, get().tasks); set({ projects })
+  },
+  deleteCustomView: (projectId, viewId) => {
+    const projects = get().projects.map(p => p.id!==projectId ? p : { ...p, customViews:(p.customViews??[]).filter(v => v.id!==viewId) })
     pProjects(projects, get().tasks); set({ projects })
   },
 
@@ -203,7 +252,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   quickAddTask: (title, projectId, status, parentId) => {
     const t: Task = {
       id:nanoid(), projectId, parentId:parentId??null, title:title.trim(), description:'', blocks:[],
-      status, priority:'medium', dueDate:null, assignee:'DJ', tags:[], checklists:[], customFields:{},
+      status, priority:'medium', taskType:'task', dueDate:null, assignee:'DJ', tags:[], checklists:[], customFields:{},
       createdAt:new Date().toISOString(), updatedAt:new Date().toISOString(),
     }
     const tasks = [...get().tasks, t]
@@ -302,14 +351,19 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   init: () => {
-    let projects = localProjects.getAll().map(p => {
-      const raw = p as any
-      return { ...p, spaceId: raw.spaceId ?? null, archived: raw.archived ?? false, columns: raw.columns ?? [], activeView: raw.activeView ?? 'list' } as Project
-    })
-    let tasks    = (localTasks.getAll() as unknown as Record<string,unknown>[]).map(migrateTask)
-    const spaces = loadJSON<Space[]>(SPACES_KEY, [])
+    const rawProjects = localProjects.getAll() as unknown as Record<string, unknown>[]
+    const projects    = rawProjects.map(migrateProject)
+    const tasks       = (localTasks.getAll() as unknown as Record<string,unknown>[]).map(migrateTask)
+    const spaces      = loadJSON<Space[]>(SPACES_KEY, [])
+    const folders     = loadJSON<Folder[]>(FOLDERS_KEY, [])
     const automations = loadJSON<Automation[]>(AUTOMATIONS_KEY, [])
-    if (projects.length===0) { projects=SEED_PROJECTS; tasks=SEED_TASKS; pProjects(projects,tasks) }
-    set({ projects, tasks, spaces, automations })
+    if (projects.length===0) {
+      const seeded = SEED_PROJECTS.map(p => ({ ...p, folderId:null, taskOpenMode:'side' as const, customViews:[] }))
+      const seededTasks = SEED_TASKS.map(t => ({ ...t, taskType:'task' as const }))
+      pProjects(seeded as any, seededTasks as any)
+      set({ projects: seeded as any, tasks: seededTasks as any, spaces, folders, automations })
+    } else {
+      set({ projects, tasks, spaces, folders, automations })
+    }
   },
 }))

@@ -14,6 +14,16 @@ export interface Space {
   updatedAt: string
 }
 
+// ── Folders ───────────────────────────────────────────────────────────────
+export interface Folder {
+  id: string
+  name: string
+  spaceId: string
+  collapsed: boolean
+  createdAt: string
+  updatedAt: string
+}
+
 // ── Custom columns ────────────────────────────────────────────────────────
 export type ColumnType = 'text' | 'number' | 'date' | 'dropdown' | 'checkbox' | 'money' | 'url'
 
@@ -33,7 +43,19 @@ export interface ColumnDef {
 }
 
 // ── Views ─────────────────────────────────────────────────────────────────
-export type ViewType = 'list' | 'board' | 'table' | 'calendar'
+export type ViewType = 'list' | 'board' | 'table' | 'calendar' | 'overview' | 'mindmap' | 'activity' | 'dashboard'
+
+export interface CustomProjectView {
+  id: string
+  name: string
+  icon: string
+  baseType: 'list' | 'board' | 'table' | 'calendar'
+  filterStatus?: TaskStatus | 'all'
+  filterDaysBack?: number   // completed in last N days
+}
+
+// ── Task open mode ────────────────────────────────────────────────────────
+export type TaskOpenMode = 'side' | 'center' | 'full'
 
 // ── Automations ───────────────────────────────────────────────────────────
 export type TriggerType = 'status_changed' | 'priority_changed' | 'task_created' | 'due_date_reached' | 'assignee_changed'
@@ -72,6 +94,20 @@ export interface ContentBlock {
   text?: string; data?: string; name?: string; mimeType?: string
 }
 
+// ── Task types ────────────────────────────────────────────────────────────
+export type TaskType = 'task' | 'milestone' | 'meeting_note' | 'bug' | 'goal' | 'objective' | 'form_response' | 'request'
+
+export const TASK_TYPE_META: Record<TaskType, { label: string; symbol: string; color: string; bg: string }> = {
+  task:          { label: 'Tarefa',                 symbol: '○',  color: '#888780', bg: '#f3f3f2' },
+  milestone:     { label: 'Marco',                  symbol: '◆',  color: '#6B5EE8', bg: '#EEEDFE' },
+  meeting_note:  { label: 'Anotação de reunião',    symbol: '🗒',  color: '#378ADD', bg: '#E6F1FB' },
+  bug:           { label: 'Erro',                   symbol: '⚙',  color: '#E24B4A', bg: '#FAECE7' },
+  goal:          { label: 'Meta',                   symbol: '▲',  color: '#D85A30', bg: '#FAEEDA' },
+  objective:     { label: 'Objetivo',               symbol: '◎',  color: '#1D9E75', bg: '#E1F5EE' },
+  form_response: { label: 'Resposta de formulário', symbol: '≡',  color: '#BA7517', bg: '#FAEEDA' },
+  request:       { label: 'Solicitação',            symbol: '◫',  color: '#D4537E', bg: '#FCEEF4' },
+}
+
 // ── Task ──────────────────────────────────────────────────────────────────
 export interface Task {
   id: string
@@ -82,6 +118,7 @@ export interface Task {
   blocks: ContentBlock[]
   status: TaskStatus
   priority: Priority
+  taskType: TaskType
   dueDate: string | null
   assignee: string
   tags: string[]
@@ -95,9 +132,12 @@ export interface Task {
 export interface Project {
   id: string; name: string; color: string; description: string
   spaceId: string | null
+  folderId: string | null
   gut: GUT; archived: boolean
   columns: ColumnDef[]           // custom columns for this project
   activeView: ViewType           // which view is selected
+  taskOpenMode: TaskOpenMode     // how task detail opens
+  customViews: CustomProjectView[]
   createdAt: string; updatedAt: string
 }
 
@@ -133,11 +173,31 @@ export function migrateTask(raw: Record<string, unknown>): Task {
     title: String(raw.title ?? ''), description: String(raw.description ?? ''),
     blocks, status: (raw.status as TaskStatus) ?? 'todo',
     priority: (raw.priority as Priority) ?? 'medium',
+    taskType: (raw.taskType as TaskType) ?? 'task',
     dueDate: (raw.dueDate as string|null) ?? null,
     assignee: String(raw.assignee ?? ''),
     tags: (raw.tags as string[]) ?? [],
     checklists: (raw.checklists as Checklist[]) ?? [],
     customFields: (raw.customFields as Record<string,unknown>) ?? {},
+    createdAt: String(raw.createdAt ?? new Date().toISOString()),
+    updatedAt: String(raw.updatedAt ?? new Date().toISOString()),
+  }
+}
+
+export function migrateProject(raw: Record<string, unknown>): Project {
+  return {
+    id: String(raw.id ?? ''),
+    name: String(raw.name ?? ''),
+    color: String(raw.color ?? '#6B5EE8'),
+    description: String(raw.description ?? ''),
+    spaceId: (raw.spaceId as string | null) ?? null,
+    folderId: (raw.folderId as string | null) ?? null,
+    gut: (raw.gut as GUT) ?? calcGUT(1,1,1),
+    archived: (raw.archived as boolean) ?? false,
+    columns: (raw.columns as ColumnDef[]) ?? [],
+    activeView: (raw.activeView as ViewType) ?? 'list',
+    taskOpenMode: (raw.taskOpenMode as TaskOpenMode) ?? 'side',
+    customViews: (raw.customViews as CustomProjectView[]) ?? [],
     createdAt: String(raw.createdAt ?? new Date().toISOString()),
     updatedAt: String(raw.updatedAt ?? new Date().toISOString()),
   }

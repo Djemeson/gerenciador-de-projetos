@@ -6,7 +6,7 @@ import { Sidebar }                  from './components/layout/Sidebar'
 import { MyTasksView }              from './views/MyTasksView'
 import { AllTasksView }             from './views/AllTasksView'
 import { ProjectsListView }         from './views/ProjectsListView'
-import { ProjectDetailView }        from './views/ProjectDetailView'
+import { ProjectDetailView, NewViewModal } from './views/ProjectDetailView'
 import { CalendarView }             from './views/CalendarView'
 import { ReportsView }              from './views/ReportsView'
 import { InboxView }                from './views/InboxView'
@@ -68,6 +68,7 @@ export default function App() {
       <GUTModal/>
       <SettingsModal/>
       <ColumnsModal/>
+      <NewViewModal/>
       <QuickCapture open={captureOpen} onClose={()=>setCaptureOpen(false)}/>
       <Notifications/>
     </div>

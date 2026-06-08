@@ -1,24 +1,42 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import {
   Zap, CheckSquare, Layers, Calendar, Plus, Settings,
   BarChart2, FileText, Inbox, ChevronRight, ChevronDown,
+  FolderOpen, Folder as FolderIcon, MoreHorizontal, Pencil, Trash2,
 } from 'lucide-react'
 import { useAppStore } from '../../stores/useAppStore'
 import { useSettingsStore } from '../../stores/useSettingsStore'
 import { useNotificationStore } from '../../stores/useNotificationStore'
 import { gutTier, INBOX_PROJECT_ID } from '../../types'
-import type { View } from '../../types'
-import { nanoid } from '../../lib/nanoid'
+import type { View, Project, Space, Folder } from '../../types'
 
 export function Sidebar() {
-  const { activeView, activeProjectId, projects, tasks, spaces, setView, openNewProject, addSpace, updateSpace } = useAppStore()
+  const {
+    activeView, activeProjectId, projects, tasks, spaces, folders,
+    setView, openNewProject, addSpace, updateSpace, deleteSpace,
+    addFolder, updateFolder, deleteFolder,
+  } = useAppStore()
   const { openSettings } = useSettingsStore()
   const notifCount = useNotificationStore(s => s.notifications.length)
-  const [addingSpace, setAddingSpace] = useState(false)
-  const [spaceName,   setSpaceName]   = useState('')
+
+  const [addingSpace,     setAddingSpace]     = useState(false)
+  const [spaceName,       setSpaceName]       = useState('')
+  const [addingFolder,    setAddingFolder]    = useState<string|null>(null)  // spaceId
+  const [folderName,      setFolderName]      = useState('')
+  const [editingSpace,    setEditingSpace]    = useState<string|null>(null)
+  const [editingFolder,   setEditingFolder]   = useState<string|null>(null)
+  const [spaceMenu,       setSpaceMenu]       = useState<string|null>(null)
+  const [folderMenu,      setFolderMenu]      = useState<string|null>(null)
 
   const activeProjects = projects.filter(p => !p.archived)
-  const inboxCount = tasks.filter(t => t.projectId===INBOX_PROJECT_ID && t.status!=='done').length
+  const inboxCount     = tasks.filter(t => t.projectId===INBOX_PROJECT_ID && t.status!=='done').length
+
+  // Close menus on outside click
+  useEffect(() => {
+    const handler = () => { setSpaceMenu(null); setFolderMenu(null) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
 
   const navItem = (view: View, label: string, Icon: React.ElementType, badge?: number, projectId?: string) => {
     const isActive = activeView===view && (projectId ? activeProjectId===projectId : !activeProjectId || view!=='project_detail')
@@ -37,27 +55,40 @@ export function Sidebar() {
     if (spaceName.trim()) { addSpace(spaceName.trim(), '#6B5EE8'); setSpaceName(''); setAddingSpace(false) }
   }
 
-  // Group projects by space
-  const ungrouped = activeProjects.filter(p => !p.spaceId).sort((a,b) => b.gut.score-a.gut.score)
-  const spaceGroups = spaces.map(s => ({
-    space: s,
-    projects: activeProjects.filter(p => p.spaceId===s.id).sort((a,b) => b.gut.score-a.gut.score),
-  }))
+  const saveFolder = (spaceId: string) => {
+    if (folderName.trim()) { addFolder(folderName.trim(), spaceId); setFolderName(''); setAddingFolder(null) }
+  }
 
-  const renderProject = (p: typeof activeProjects[0]) => {
+  const renderProject = (p: Project, indent = 0) => {
     const isActive = activeView==='project_detail' && activeProjectId===p.id
-    const tier = gutTier(p.gut.score)
+    const tier     = gutTier(p.gut.score)
     return (
       <button key={p.id} onClick={() => setView('project_detail', p.id)}
         className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors text-left group
-          ${isActive?'bg-brand-50 text-brand-700 font-medium':'text-gray-500 hover:bg-gray-100 hover:text-gray-700'}`}>
+          ${isActive?'bg-brand-50 text-brand-700 font-medium':'text-gray-500 hover:bg-gray-100 hover:text-gray-700'}`}
+        style={{ paddingLeft: `${10 + indent * 10}px` }}>
         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{background:p.color}}/>
-        <span className="flex-1 truncate text-sm">{p.name}</span>
-        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0" style={{background:tier.bg,color:tier.color}}>{p.gut.score}</span>
-        <ChevronRight size={10} className="opacity-0 group-hover:opacity-40 flex-shrink-0"/>
+        <span className="flex-1 truncate text-[13px]">{p.name}</span>
+        <span className="text-[9px] font-semibold px-1 py-0.5 rounded-full flex-shrink-0 hidden group-hover:inline-block"
+          style={{background:tier.bg,color:tier.color}}>{p.gut.score}</span>
       </button>
     )
   }
+
+  // Projects by space + folder
+  const ungrouped = activeProjects.filter(p => !p.spaceId)
+
+  const spaceGroups = spaces.map(s => {
+    const spaceFolders = folders.filter(f => f.spaceId===s.id)
+    return {
+      space: s,
+      folders: spaceFolders.map(f => ({
+        folder: f,
+        projects: activeProjects.filter(p => p.spaceId===s.id && p.folderId===f.id),
+      })),
+      ungrouped: activeProjects.filter(p => p.spaceId===s.id && !p.folderId),
+    }
+  })
 
   return (
     <aside className="w-52 min-w-[208px] flex flex-col bg-gray-50 border-r border-gray-200 h-full select-none">
@@ -70,25 +101,24 @@ export function Sidebar() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-2 pb-4 scrollbar-none">
+        {/* Nav items */}
         <div className="space-y-0.5 mb-3">
-          {navItem('inbox',    'Caixa de entrada', Inbox, inboxCount)}
-          {navItem('my_tasks', 'Minhas tarefas',   CheckSquare)}
-          {navItem('all_tasks','Todas as tarefas', Layers)}
-          {navItem('calendar', 'Calendário',       Calendar)}
-          {navItem('projects', 'Projetos',         BarChart2)}
-          {navItem('reports',  'Relatórios',       FileText)}
-          {navItem('automations','Automações',     Zap)}
+          {navItem('inbox',     'Caixa de entrada', Inbox, inboxCount)}
+          {navItem('my_tasks',  'Minhas tarefas',   CheckSquare)}
+          {navItem('all_tasks', 'Todas as tarefas', Layers)}
+          {navItem('calendar',  'Calendário',       Calendar)}
+          {navItem('projects',  'Projetos',         BarChart2)}
+          {navItem('reports',   'Relatórios',       FileText)}
+          {navItem('automations','Automações',      Zap)}
         </div>
 
-        {/* Spaces + Projects */}
+        {/* Spaces + Folders + Projects */}
         <div>
-          <div className="flex items-center justify-between px-2.5 py-1.5">
+          <div className="flex items-center justify-between px-2.5 py-1">
             <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">Espaços</span>
-            <div className="flex gap-1">
-              <button onClick={() => setAddingSpace(v=>!v)} className="w-5 h-5 flex items-center justify-center rounded text-gray-400 hover:bg-gray-200 hover:text-gray-600 transition-colors" title="Novo espaço">
-                <Plus size={12}/>
-              </button>
-            </div>
+            <button onClick={() => setAddingSpace(v=>!v)}
+              className="w-5 h-5 flex items-center justify-center rounded text-gray-400 hover:bg-gray-200 hover:text-gray-600 transition-colors"
+              title="Novo espaço"><Plus size={12}/></button>
           </div>
 
           {addingSpace && (
@@ -101,30 +131,148 @@ export function Sidebar() {
             </div>
           )}
 
-          {/* Ungrouped projects */}
-          <div className="space-y-0.5 mb-2">
-            {ungrouped.map(renderProject)}
-            <button onClick={openNewProject} className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
-              <Plus size={11}/> Novo projeto
-            </button>
-          </div>
+          {/* Ungrouped projects (no space) */}
+          {ungrouped.length > 0 && (
+            <div className="space-y-0.5 mb-1">
+              {ungrouped.map(p => renderProject(p))}
+            </div>
+          )}
+          <button onClick={openNewProject}
+            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
+            <Plus size={11}/> Novo projeto
+          </button>
 
-          {/* Spaces with projects */}
-          {spaceGroups.map(({ space: s, projects: sp }) => (
-            <div key={s.id} className="mb-2">
-              <button onClick={() => updateSpace(s.id, {collapsed:!s.collapsed})}
-                className="w-full flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium text-gray-500 hover:text-gray-700 transition-colors">
-                {s.collapsed?<ChevronRight size={11}/>:<ChevronDown size={11}/>}
-                <span className="w-2 h-2 rounded-sm flex-shrink-0" style={{background:s.color}}/>
-                {s.name}
-                <span className="ml-auto text-[10px] text-gray-400">{sp.length}</span>
-              </button>
-              {!s.collapsed && (
-                <div className="pl-3 space-y-0.5">
-                  {sp.map(renderProject)}
-                  <button onClick={() => { openNewProject() }} className="w-full flex items-center gap-2 px-2.5 py-1 rounded-lg text-[11px] text-gray-400 hover:text-gray-600 transition-colors">
-                    <Plus size={10}/> Adicionar projeto
+          {/* Space groups */}
+          {spaceGroups.map(({ space: s, folders: sfolders, ungrouped: sup }) => (
+            <div key={s.id} className="mt-2">
+              {/* Space header */}
+              <div className="flex items-center gap-0.5 group/space">
+                <button onClick={() => updateSpace(s.id, {collapsed:!s.collapsed})}
+                  className="flex items-center gap-1.5 flex-1 px-2.5 py-1 text-[11px] font-semibold text-gray-600 hover:text-gray-800 transition-colors rounded-lg hover:bg-gray-100">
+                  {s.collapsed?<ChevronRight size={11}/>:<ChevronDown size={11}/>}
+                  <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{background:s.color}}/>
+                  {editingSpace===s.id ? (
+                    <input autoFocus defaultValue={s.name}
+                      onBlur={e => { updateSpace(s.id,{name:e.target.value}); setEditingSpace(null) }}
+                      onKeyDown={e => { if(e.key==='Enter')(e.target as HTMLInputElement).blur(); if(e.key==='Escape')setEditingSpace(null) }}
+                      onClick={e=>e.stopPropagation()}
+                      className="flex-1 bg-transparent outline-none text-[11px] border-b border-brand-300"/>
+                  ) : (
+                    <span className="flex-1 truncate">{s.name}</span>
+                  )}
+                </button>
+                {/* Space actions */}
+                <div className="relative flex-shrink-0">
+                  <button onClick={e=>{e.stopPropagation();setSpaceMenu(spaceMenu===s.id?null:s.id)}}
+                    className="w-5 h-5 opacity-0 group-hover/space:opacity-100 flex items-center justify-center rounded text-gray-400 hover:bg-gray-200 transition-all">
+                    <MoreHorizontal size={11}/>
                   </button>
+                  {spaceMenu===s.id && (
+                    <div className="absolute right-0 top-5 z-50 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[140px]"
+                      onMouseDown={e=>e.stopPropagation()}>
+                      <button onClick={()=>{setAddingFolder(s.id);setSpaceMenu(null)}}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50">
+                        <FolderOpen size={11}/> Nova pasta
+                      </button>
+                      <button onClick={()=>{openNewProject();setSpaceMenu(null)}}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50">
+                        <Plus size={11}/> Novo projeto
+                      </button>
+                      <div className="h-px bg-gray-100 my-1"/>
+                      <button onClick={()=>{setEditingSpace(s.id);setSpaceMenu(null)}}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50">
+                        <Pencil size={11}/> Renomear
+                      </button>
+                      <button onClick={()=>{deleteSpace(s.id);setSpaceMenu(null)}}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-red-500 hover:bg-red-50">
+                        <Trash2 size={11}/> Excluir espaço
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {!s.collapsed && (
+                <div className="pl-2">
+                  {/* Folders */}
+                  {sfolders.map(({ folder: f, projects: fp }) => (
+                    <div key={f.id} className="mt-0.5">
+                      <div className="flex items-center gap-0.5 group/folder">
+                        <button onClick={() => updateFolder(f.id, {collapsed:!f.collapsed})}
+                          className="flex items-center gap-1.5 flex-1 px-2 py-1 text-[11px] font-medium text-gray-500 hover:text-gray-700 transition-colors rounded-lg hover:bg-gray-100">
+                          {f.collapsed?<ChevronRight size={10}/>:<ChevronDown size={10}/>}
+                          {f.collapsed ? <FolderIcon size={11} className="text-amber-500"/> : <FolderOpen size={11} className="text-amber-500"/>}
+                          {editingFolder===f.id ? (
+                            <input autoFocus defaultValue={f.name}
+                              onBlur={e => { updateFolder(f.id,{name:e.target.value}); setEditingFolder(null) }}
+                              onKeyDown={e => { if(e.key==='Enter')(e.target as HTMLInputElement).blur(); if(e.key==='Escape')setEditingFolder(null) }}
+                              onClick={e=>e.stopPropagation()}
+                              className="flex-1 bg-transparent outline-none text-[11px] border-b border-brand-300"/>
+                          ) : (
+                            <span className="flex-1 truncate">{f.name}</span>
+                          )}
+                          <span className="text-[9px] text-gray-400 ml-auto">{fp.length}</span>
+                        </button>
+                        {/* Folder actions */}
+                        <div className="relative flex-shrink-0">
+                          <button onClick={e=>{e.stopPropagation();setFolderMenu(folderMenu===f.id?null:f.id)}}
+                            className="w-5 h-5 opacity-0 group-hover/folder:opacity-100 flex items-center justify-center rounded text-gray-400 hover:bg-gray-200 transition-all">
+                            <MoreHorizontal size={10}/>
+                          </button>
+                          {folderMenu===f.id && (
+                            <div className="absolute right-0 top-5 z-50 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[130px]"
+                              onMouseDown={e=>e.stopPropagation()}>
+                              <button onClick={()=>{openNewProject();setFolderMenu(null)}}
+                                className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50">
+                                <Plus size={11}/> Novo projeto
+                              </button>
+                              <button onClick={()=>{setEditingFolder(f.id);setFolderMenu(null)}}
+                                className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50">
+                                <Pencil size={11}/> Renomear
+                              </button>
+                              <button onClick={()=>{deleteFolder(f.id);setFolderMenu(null)}}
+                                className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-red-500 hover:bg-red-50">
+                                <Trash2 size={11}/> Excluir pasta
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      {!f.collapsed && (
+                        <div className="pl-2 space-y-0.5">
+                          {fp.map(p => renderProject(p, 1))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {/* Add folder input */}
+                  {addingFolder===s.id && (
+                    <div className="flex gap-1 px-1 py-1">
+                      <input autoFocus value={folderName} onChange={e=>setFolderName(e.target.value)}
+                        onKeyDown={e=>{if(e.key==='Enter')saveFolder(s.id);if(e.key==='Escape')setAddingFolder(null)}}
+                        placeholder="Nome da pasta..."
+                        className="flex-1 text-[11px] px-2 py-1 border border-gray-200 rounded-lg outline-none focus:ring-1 focus:ring-brand-400"/>
+                      <button onClick={()=>saveFolder(s.id)} className="text-[11px] px-1.5 py-1 bg-brand-600 text-white rounded-lg">OK</button>
+                    </div>
+                  )}
+
+                  {/* Ungrouped projects in space */}
+                  <div className="space-y-0.5 mt-0.5">
+                    {sup.map(p => renderProject(p, 0))}
+                  </div>
+
+                  {/* Add actions */}
+                  <div className="flex gap-1 px-1 mt-0.5">
+                    <button onClick={() => { setAddingFolder(s.id); setSpaceMenu(null) }}
+                      className="flex items-center gap-1 text-[11px] text-gray-400 hover:text-gray-600 px-2 py-1 rounded hover:bg-gray-100 transition-colors">
+                      <FolderOpen size={10}/> Pasta
+                    </button>
+                    <button onClick={openNewProject}
+                      className="flex items-center gap-1 text-[11px] text-gray-400 hover:text-gray-600 px-2 py-1 rounded hover:bg-gray-100 transition-colors">
+                      <Plus size={10}/> Projeto
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
