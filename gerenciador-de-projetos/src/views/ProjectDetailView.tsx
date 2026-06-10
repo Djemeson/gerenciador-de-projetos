@@ -74,18 +74,25 @@ export function ProjectDetailView() {
   const mainContent = (
     <div className="flex flex-col flex-1 overflow-hidden min-w-0">
       {/* Header */}
-      <div className="px-4 py-2.5 border-b border-gray-200 bg-white flex-shrink-0">
-        <div className="flex items-center gap-2 mb-2 flex-wrap">
-          <button onClick={() => setView('projects')} className="text-gray-400 hover:text-gray-600 transition-colors">
-            <ChevronLeft size={15}/>
-          </button>
-          <span className="w-3 h-3 rounded-full" style={{ background: project.color }}/>
-          <h1 className="text-sm font-semibold text-gray-900 flex-1 min-w-0 truncate">{project.name}</h1>
+      <div className="bg-white border-b border-gray-200 flex-shrink-0">
+
+        {/* ── Breadcrumb + toolbar row ── */}
+        <div className="px-4 pt-3 pb-0 flex items-center justify-between gap-2 flex-wrap">
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-1 text-[13px] min-w-0">
+            <button onClick={() => setView('projects')} className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0">
+              <ChevronLeft size={15}/>
+            </button>
+            <span className="text-gray-400 hover:text-gray-600 cursor-pointer transition-colors">Projetos</span>
+            <span className="text-gray-300 mx-0.5">/</span>
+            <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: project.color }}/>
+            <h1 className="font-semibold text-gray-900 truncate min-w-0">{project.name}</h1>
+          </div>
 
           {/* Toolbar */}
           <div className="flex items-center gap-1 flex-shrink-0">
             <button onClick={toggleFilterPanel} title="Filtros"
-              className={`p-1.5 rounded-lg transition-colors ${filterPanelOpen?'bg-brand-100 text-brand-600':'text-gray-400 hover:bg-gray-100'}`}>
+              className={`p-1.5 rounded-lg transition-colors ${filterPanelOpen ? 'bg-brand-100 text-brand-600' : 'text-gray-400 hover:bg-gray-100'}`}>
               <SlidersHorizontal size={14}/>
             </button>
             <button onClick={() => openColumnsModal(project.id)} title="Campos personalizados"
@@ -93,12 +100,12 @@ export function ProjectDetailView() {
               <Columns size={14}/>
             </button>
             <button onClick={toggleAIPanel} title="Pergunte à IA"
-              className={`p-1.5 rounded-lg transition-colors ${aiPanelOpen?'bg-brand-100 text-brand-600':'text-gray-400 hover:bg-gray-100'}`}>
+              className={`p-1.5 rounded-lg transition-colors ${aiPanelOpen ? 'bg-brand-100 text-brand-600' : 'text-gray-400 hover:bg-gray-100'}`}>
               <Sparkles size={14}/>
             </button>
             <button onClick={() => openGUT(project.id)}
               className="flex items-center gap-1.5 px-2 py-1 rounded-lg border text-xs font-medium transition-colors hover:border-gray-300"
-              style={{ background:tier.bg, color:tier.color, borderColor:tier.color+'33' }}>
+              style={{ background: tier.bg, color: tier.color, borderColor: tier.color+'33' }}>
               <Target size={11}/> GUT {project.gut.score}
             </button>
             <button onClick={() => { archiveProject(project.id); setView('projects') }}
@@ -111,7 +118,7 @@ export function ProjectDetailView() {
                 <AlertTriangle size={11}/> Confirmar
               </button>
             ) : (
-              <button onClick={() => { setConfirmDel(true); setTimeout(()=>setConfirmDel(false),3000) }}
+              <button onClick={() => { setConfirmDel(true); setTimeout(() => setConfirmDel(false), 3000) }}
                 className="flex items-center gap-1 text-xs px-2 py-1 border border-red-200 text-red-500 rounded-lg hover:bg-red-50">
                 <Trash2 size={11}/> Deletar
               </button>
@@ -119,38 +126,37 @@ export function ProjectDetailView() {
           </div>
         </div>
 
-        {/* Progress */}
-        <div className="flex items-center gap-3 mb-2">
+        {/* ── Progress bar ── */}
+        <div className="flex items-center gap-3 px-4 mt-2">
           <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
-            <div className="h-full rounded-full transition-all" style={{ width:`${pct}%`, background:project.color }}/>
+            <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: project.color }}/>
           </div>
           <span className="text-xs text-gray-400 flex-shrink-0">{done}/{total} · {pct}%</span>
         </div>
 
-        {/* View tabs */}
-        <div className="flex items-center gap-0.5 overflow-x-auto scrollbar-none">
+        {/* ── View tabs (ClickUp underline style) ── */}
+        <div className="flex items-center overflow-x-auto scrollbar-none px-3 mt-1">
           {VIEW_TABS.map(({ key, label, Icon }) => (
             <button key={key} onClick={() => selectView(key)}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors flex-shrink-0
+              className={`flex items-center gap-1.5 px-2.5 py-2.5 text-xs font-medium whitespace-nowrap transition-all flex-shrink-0 border-b-2 -mb-px
                 ${!activeCustomId && activeView===key
-                  ? 'bg-brand-50 text-brand-700 border border-brand-200'
-                  : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'}`}>
+                  ? 'border-brand-500 text-brand-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-200'}`}>
               <Icon size={12}/>{label}
             </button>
           ))}
 
           {/* Custom views */}
           {customViews.map(cv => (
-            <div key={cv.id} className="flex items-center group/cv flex-shrink-0">
+            <div key={cv.id} className="flex items-center group/cv flex-shrink-0 border-b-2 -mb-px
+              ${activeCustomId===cv.id ? 'border-brand-500' : 'border-transparent'}">
               <button onClick={() => { setActiveCustomId(cv.id); setProjectView(project.id, cv.baseType) }}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-l-lg text-xs font-medium whitespace-nowrap transition-colors
-                  ${activeCustomId===cv.id
-                    ? 'bg-brand-50 text-brand-700 border border-brand-200 border-r-0'
-                    : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'}`}>
+                className={`flex items-center gap-1.5 px-2.5 py-2.5 text-xs font-medium whitespace-nowrap transition-colors
+                  ${activeCustomId===cv.id ? 'text-brand-600' : 'text-gray-500 hover:text-gray-800'}`}>
                 <span>{cv.icon}</span>{cv.name}
               </button>
-              <button onClick={() => { deleteCustomView(project.id, cv.id); if(activeCustomId===cv.id)setActiveCustomId(null) }}
-                className="opacity-0 group-hover/cv:opacity-100 px-1 py-1.5 text-gray-300 hover:text-red-400 transition-all text-xs border-l-0">
+              <button onClick={() => { deleteCustomView(project.id, cv.id); if(activeCustomId===cv.id) setActiveCustomId(null) }}
+                className="opacity-0 group-hover/cv:opacity-100 px-1 py-2.5 text-gray-300 hover:text-red-400 transition-all text-xs">
                 <X size={10}/>
               </button>
             </div>
@@ -158,7 +164,7 @@ export function ProjectDetailView() {
 
           {/* Add view */}
           <button onClick={() => openNewViewModal(project.id)}
-            className="flex items-center gap-1 px-2 py-1.5 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0 ml-1">
+            className="flex items-center gap-1 px-2.5 py-2.5 text-xs text-gray-400 hover:text-gray-600 border-b-2 border-transparent -mb-px transition-colors flex-shrink-0">
             <Plus size={11}/> Visualização
           </button>
         </div>

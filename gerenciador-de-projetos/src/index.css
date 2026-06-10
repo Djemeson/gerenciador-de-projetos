@@ -30,11 +30,20 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-gray-200 rounded-full;
+    background: rgba(160, 160, 185, 0.25);
+    border-radius: 9999px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-gray-300;
+    background: rgba(160, 160, 185, 0.45);
+  }
+
+  /* Sidebar dark scrollbar */
+  .sidebar-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+  }
+  .sidebar-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
   }
 }
 
