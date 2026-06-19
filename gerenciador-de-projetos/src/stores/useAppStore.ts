@@ -67,17 +67,18 @@ interface AppState {
   closeNewViewModal:() => void
 
   // Spaces
-  addSpace:    (name: string, color: string) => Space
+  addSpace:    (name: string, color: string, icon?: string) => Space
   updateSpace: (id: string, patch: Partial<Space>) => void
   deleteSpace: (id: string) => void
 
   // Folders
-  addFolder:    (name: string, spaceId: string) => Folder
+  addFolder:    (name: string, spaceId: string, icon?: string) => Folder
   updateFolder: (id: string, patch: Partial<Folder>) => void
   deleteFolder: (id: string) => void
 
   // Projects
-  addProject:       (name: string, color: string, desc: string, spaceId?: string, folderId?: string) => void
+  addProject:       (name: string, color: string, desc: string, spaceId?: string, folderId?: string, icon?: string) => void
+  moveProject:      (id: string, spaceId: string | null, folderId: string | null) => void
   updateProject:    (id: string, patch: Partial<Project>) => void
   deleteProject:    (id: string) => void
   archiveProject:   (id: string) => void
@@ -143,8 +144,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   closeNewViewModal:() => set({ newViewModal: null }),
 
   // ── Spaces ───────────────────────────────────────────────────────────
-  addSpace: (name, color) => {
-    const s: Space = { id:nanoid(), name, color, collapsed:false, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString() }
+  addSpace: (name, color, icon) => {
+    const s: Space = { id:nanoid(), name, color, icon, collapsed:false, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString() }
     const spaces = [...get().spaces, s]
     saveJSON(SPACES_KEY, spaces); set({ spaces }); return s
   },
@@ -161,8 +162,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   // ── Folders ──────────────────────────────────────────────────────────
-  addFolder: (name, spaceId) => {
-    const f: Folder = { id:nanoid(), name, spaceId, collapsed:false, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString() }
+  addFolder: (name, spaceId, icon) => {
+    const f: Folder = { id:nanoid(), name, spaceId, icon, collapsed:false, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString() }
     const folders = [...get().folders, f]
     saveJSON(FOLDERS_KEY, folders); set({ folders }); return f
   },
@@ -177,15 +178,19 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   // ── Projects ─────────────────────────────────────────────────────────
-  addProject: (name, color, description, spaceId, folderId) => {
+  addProject: (name, color, description, spaceId, folderId, icon) => {
     const p: Project = {
-      id:nanoid(), name, color, description,
+      id:nanoid(), name, color, description, icon,
       spaceId:spaceId??null, folderId:folderId??null,
       gut:calcGUT(1,1,1), archived:false, columns:[], activeView:'list',
       taskOpenMode:'side', customViews:[],
       createdAt:new Date().toISOString(), updatedAt:new Date().toISOString(),
     }
     const projects = [...get().projects, p]
+    pProjects(projects, get().tasks); set({ projects })
+  },
+  moveProject: (id, spaceId, folderId) => {
+    const projects = get().projects.map(p => p.id===id ? {...p, spaceId, folderId, updatedAt:new Date().toISOString()} : p)
     pProjects(projects, get().tasks); set({ projects })
   },
   updateProject: (id, patch) => {

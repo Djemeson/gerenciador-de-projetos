@@ -9,6 +9,7 @@ export interface Space {
   id: string
   name: string
   color: string
+  icon?: string        // emoji opcional
   collapsed: boolean
   createdAt: string
   updatedAt: string
@@ -19,10 +20,20 @@ export interface Folder {
   id: string
   name: string
   spaceId: string
+  icon?: string        // emoji opcional
   collapsed: boolean
   createdAt: string
   updatedAt: string
 }
+
+// ── Ícones (emojis curados, estilo ClickUp) ────────────────────────────────
+export const ICON_OPTIONS: string[] = [
+  '🚀','💡','🎯','📈','💼','🛠️','⚙️','🔧','🧩','📦',
+  '📁','🗂️','📋','📊','📅','✅','🏷️','🔔','⭐','🔥',
+  '💬','📣','🤖','🧠','💻','🖥️','📱','🌐','🔌','🛰️',
+  '💰','💳','🧾','🏦','📉','🤝','👥','🎧','📞','✉️',
+  '🏠','🏢','🏭','🚚','🧰','🔒','🛡️','🚨','⚡','🌟',
+]
 
 // ── Custom columns ────────────────────────────────────────────────────────
 export type ColumnType = 'text' | 'number' | 'date' | 'dropdown' | 'checkbox' | 'money' | 'url'
@@ -131,6 +142,7 @@ export interface Task {
 // ── Project ───────────────────────────────────────────────────────────────
 export interface Project {
   id: string; name: string; color: string; description: string
+  icon?: string                  // emoji opcional
   spaceId: string | null
   folderId: string | null
   gut: GUT; archived: boolean
@@ -190,6 +202,7 @@ export function migrateProject(raw: Record<string, unknown>): Project {
     name: String(raw.name ?? ''),
     color: String(raw.color ?? '#6B5EE8'),
     description: String(raw.description ?? ''),
+    icon: (raw.icon as string | undefined) ?? undefined,
     spaceId: (raw.spaceId as string | null) ?? null,
     folderId: (raw.folderId as string | null) ?? null,
     gut: (raw.gut as GUT) ?? calcGUT(1,1,1),

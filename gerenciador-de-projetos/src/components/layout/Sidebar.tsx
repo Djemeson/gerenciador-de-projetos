@@ -1,38 +1,49 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Zap, CheckSquare, Layers, Calendar, Plus, Settings,
   BarChart2, FileText, Inbox, ChevronRight, ChevronDown,
   FolderOpen, Folder as FolderIcon, MoreHorizontal, Pencil, Trash2,
+  Smile, ArrowRightLeft, Target, Archive, Check, List,
 } from 'lucide-react'
 import { useAppStore } from '../../stores/useAppStore'
 import { useSettingsStore } from '../../stores/useSettingsStore'
 import { useNotificationStore } from '../../stores/useNotificationStore'
 import { gutTier, INBOX_PROJECT_ID } from '../../types'
 import type { View, Project, Space, Folder } from '../../types'
+import { EmojiPicker } from '../ui/EmojiPicker'
+
+type IconTarget = { kind: 'space' | 'folder' | 'project'; id: string }
 
 export function Sidebar() {
   const {
     activeView, activeProjectId, projects, tasks, spaces, folders,
     setView, openNewProject, addSpace, updateSpace, deleteSpace,
     addFolder, updateFolder, deleteFolder,
+    updateProject, moveProject, archiveProject, deleteProject, openGUT,
   } = useAppStore()
   const { openSettings } = useSettingsStore()
   const notifCount = useNotificationStore(s => s.notifications.length)
 
-  const [addingSpace,     setAddingSpace]     = useState(false)
-  const [spaceName,       setSpaceName]       = useState('')
-  const [addingFolder,    setAddingFolder]    = useState<string|null>(null)
-  const [folderName,      setFolderName]      = useState('')
-  const [editingSpace,    setEditingSpace]    = useState<string|null>(null)
-  const [editingFolder,   setEditingFolder]   = useState<string|null>(null)
-  const [spaceMenu,       setSpaceMenu]       = useState<string|null>(null)
-  const [folderMenu,      setFolderMenu]      = useState<string|null>(null)
+  const [addingSpace,   setAddingSpace]   = useState(false)
+  const [spaceName,     setSpaceName]     = useState('')
+  const [addingFolder,  setAddingFolder]  = useState<string|null>(null)
+  const [folderName,    setFolderName]    = useState('')
+  const [editingSpace,  setEditingSpace]  = useState<string|null>(null)
+  const [editingFolder, setEditingFolder] = useState<string|null>(null)
+  const [editingProject,setEditingProject]= useState<string|null>(null)
+  const [spaceMenu,     setSpaceMenu]     = useState<string|null>(null)
+  const [folderMenu,    setFolderMenu]    = useState<string|null>(null)
+  const [projectMenu,   setProjectMenu]   = useState<string|null>(null)
+  const [moveMenu,      setMoveMenu]      = useState<string|null>(null)
+  const [iconPicker,    setIconPicker]    = useState<IconTarget|null>(null)
 
   const activeProjects = projects.filter(p => !p.archived)
   const inboxCount     = tasks.filter(t => t.projectId===INBOX_PROJECT_ID && t.status!=='done').length
+  const taskCount      = (pid: string) => tasks.filter(t => t.projectId===pid).length
 
+  const closeAllMenus = () => { setSpaceMenu(null); setFolderMenu(null); setProjectMenu(null); setMoveMenu(null); setIconPicker(null) }
   useEffect(() => {
-    const handler = () => { setSpaceMenu(null); setFolderMenu(null) }
+    const handler = () => closeAllMenus()
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
@@ -62,32 +73,163 @@ export function Sidebar() {
   const saveSpace = () => {
     if (spaceName.trim()) { addSpace(spaceName.trim(), '#7B68EE'); setSpaceName(''); setAddingSpace(false) }
   }
-
   const saveFolder = (spaceId: string) => {
     if (folderName.trim()) { addFolder(folderName.trim(), spaceId); setFolderName(''); setAddingFolder(null) }
   }
+
+  // ─── Icon badges ───────────────────────────────────────────────────────────
+  const spaceBadge = (s: Space) => s.icon
+    ? <span className="w-5 h-5 rounded-md flex items-center justify-center text-[13px] leading-none flex-shrink-0" style={{ background: `${s.color}26` }}>{s.icon}</span>
+    : <span className="w-5 h-5 rounded-md flex items-center justify-center text-[11px] font-bold text-white leading-none flex-shrink-0" style={{ background: s.color }}>{s.name.charAt(0).toUpperCase() || '#'}</span>
+
+  const folderBadge = (f: Folder, open: boolean) => f.icon
+    ? <span className="w-[18px] flex items-center justify-center text-[13px] leading-none flex-shrink-0">{f.icon}</span>
+    : (open
+        ? <FolderOpen size={14} className="text-amber-400 flex-shrink-0"/>
+        : <FolderIcon size={14} className="text-amber-400 flex-shrink-0"/>)
+
+  const projectBadge = (p: Project) => p.icon
+    ? <span className="w-[18px] flex items-center justify-center text-[13px] leading-none flex-shrink-0">{p.icon}</span>
+    : <span className="w-[18px] flex items-center justify-center flex-shrink-0">
+        <span className="w-3 h-3 rounded-[4px]" style={{ background: p.color }}/>
+      </span>
+
+  // ─── Move-to submenu ─────────────────────────────────────────────────────────
+  const moveSubmenu = (p: Project) => (
+    <div
+      className="absolute right-0 top-6 z-[60] bg-cu-active border border-cu-border rounded-xl shadow-2xl py-1 min-w-[180px] max-h-[280px] overflow-y-auto sidebar-scroll"
+      onMouseDown={e => e.stopPropagation()}
+    >
+      <div className="px-3 pt-1 pb-1.5 text-[10px] font-semibold text-cu-muted uppercase tracking-wider">Mover para</div>
+      <button
+        onClick={() => { moveProject(p.id, null, null); closeAllMenus() }}
+        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-cu-text hover:bg-cu-hover hover:text-white transition-colors"
+      >
+        <Inbox size={12} className="flex-shrink-0"/>
+        <span className="flex-1 text-left truncate">Sem espaço</span>
+        {!p.spaceId && <Check size={12} className="text-brand-400"/>}
+      </button>
+      {spaces.map(s => {
+        const sFolders = folders.filter(f => f.spaceId===s.id)
+        const atRoot = p.spaceId===s.id && !p.folderId
+        return (
+          <div key={s.id}>
+            <button
+              onClick={() => { moveProject(p.id, s.id, null); closeAllMenus() }}
+              className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-cu-text hover:bg-cu-hover hover:text-white transition-colors"
+            >
+              {spaceBadge(s)}
+              <span className="flex-1 text-left truncate">{s.name}</span>
+              {atRoot && <Check size={12} className="text-brand-400"/>}
+            </button>
+            {sFolders.map(f => {
+              const here = p.spaceId===s.id && p.folderId===f.id
+              return (
+                <button
+                  key={f.id}
+                  onClick={() => { moveProject(p.id, s.id, f.id); closeAllMenus() }}
+                  className="w-full flex items-center gap-2 pl-7 pr-3 py-1.5 text-xs text-cu-text hover:bg-cu-hover hover:text-white transition-colors"
+                >
+                  {folderBadge(f, false)}
+                  <span className="flex-1 text-left truncate">{f.name}</span>
+                  {here && <Check size={12} className="text-brand-400"/>}
+                </button>
+              )
+            })}
+          </div>
+        )
+      })}
+    </div>
+  )
 
   // ─── Project item ─────────────────────────────────────────────────────────────
   const renderProject = (p: Project, indent = 0) => {
     const isActive = activeView==='project_detail' && activeProjectId===p.id
     const tier     = gutTier(p.gut.score)
+    const count    = taskCount(p.id)
     return (
-      <button
-        key={p.id}
-        onClick={() => setView('project_detail', p.id)}
-        className={`w-full flex items-center gap-2 py-1.5 rounded-lg transition-colors text-left group
-          ${isActive
-            ? 'bg-cu-active text-white font-medium'
-            : 'text-cu-text hover:bg-cu-hover hover:text-white'}`}
-        style={{ paddingLeft: `${10 + indent * 10}px`, paddingRight: '10px' }}
-      >
-        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{background: p.color}}/>
-        <span className="flex-1 truncate text-[13px]">{p.name}</span>
-        <span
-          className="text-[9px] font-semibold px-1 py-0.5 rounded-full flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-          style={{background: tier.bg, color: tier.color}}
-        >{p.gut.score}</span>
-      </button>
+      <div key={p.id} className="flex items-center gap-0.5 group/proj">
+        <button
+          onClick={() => setView('project_detail', p.id)}
+          className={`flex items-center gap-2 flex-1 min-w-0 py-1.5 rounded-lg transition-colors text-left
+            ${isActive ? 'bg-cu-active text-white font-medium' : 'text-cu-text hover:bg-cu-hover hover:text-white'}`}
+          style={{ paddingLeft: `${8 + indent * 12}px`, paddingRight: '8px' }}
+        >
+          {projectBadge(p)}
+          {editingProject === p.id ? (
+            <input
+              autoFocus
+              defaultValue={p.name}
+              onBlur={e => { const v=e.target.value.trim(); if(v) updateProject(p.id,{name:v}); setEditingProject(null) }}
+              onKeyDown={e => { if(e.key==='Enter') (e.target as HTMLInputElement).blur(); if(e.key==='Escape') setEditingProject(null) }}
+              onClick={e => e.stopPropagation()}
+              className="flex-1 bg-transparent outline-none text-[13px] border-b border-brand-400 text-white"
+            />
+          ) : (
+            <span className="flex-1 truncate text-[13px]">{p.name}</span>
+          )}
+          {count > 0 && (
+            <span className="text-[10px] text-cu-muted flex-shrink-0 group-hover/proj:hidden">{count}</span>
+          )}
+          <span
+            className="text-[9px] font-semibold px-1 py-0.5 rounded-full flex-shrink-0 hidden group-hover/proj:inline"
+            style={{ background: tier.bg, color: tier.color }}
+            title={`GUT ${p.gut.score}`}
+          >{p.gut.score}</span>
+        </button>
+
+        {/* Project menu */}
+        <div className="relative flex-shrink-0">
+          <button
+            onClick={e => { e.stopPropagation(); setProjectMenu(projectMenu===p.id ? null : p.id); setMoveMenu(null); setIconPicker(null) }}
+            className="w-5 h-5 opacity-0 group-hover/proj:opacity-100 flex items-center justify-center rounded text-cu-muted hover:bg-cu-hover hover:text-white transition-all"
+          ><MoreHorizontal size={12}/></button>
+
+          {iconPicker?.kind==='project' && iconPicker.id===p.id && (
+            <EmojiPicker
+              className="absolute right-0 top-6"
+              onPick={emoji => updateProject(p.id, { icon: emoji })}
+              onClose={() => setIconPicker(null)}
+            />
+          )}
+
+          {projectMenu === p.id && (
+            <div
+              className="absolute right-0 top-6 z-50 bg-cu-active border border-cu-border rounded-xl shadow-2xl py-1 min-w-[170px]"
+              onMouseDown={e => e.stopPropagation()}
+            >
+              <button onClick={() => { setEditingProject(p.id); closeAllMenus() }}
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-cu-text hover:bg-cu-hover hover:text-white transition-colors">
+                <Pencil size={12}/> Renomear
+              </button>
+              <button onClick={() => { setIconPicker({kind:'project',id:p.id}); setProjectMenu(null); setMoveMenu(null) }}
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-cu-text hover:bg-cu-hover hover:text-white transition-colors">
+                <Smile size={12}/> Alterar ícone
+              </button>
+              <div className="relative">
+                <button onClick={() => setMoveMenu(moveMenu===p.id ? null : p.id)}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-cu-text hover:bg-cu-hover hover:text-white transition-colors">
+                  <ArrowRightLeft size={12}/> <span className="flex-1 text-left">Mover para</span> <ChevronRight size={12}/>
+                </button>
+                {moveMenu === p.id && moveSubmenu(p)}
+              </div>
+              <button onClick={() => { openGUT(p.id); closeAllMenus() }}
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-cu-text hover:bg-cu-hover hover:text-white transition-colors">
+                <Target size={12}/> Pontuação GUT
+              </button>
+              <div className="h-px bg-cu-border my-1"/>
+              <button onClick={() => { archiveProject(p.id); closeAllMenus() }}
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-cu-text hover:bg-cu-hover hover:text-white transition-colors">
+                <Archive size={12}/> Arquivar
+              </button>
+              <button onClick={() => { deleteProject(p.id); closeAllMenus() }}
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/10 transition-colors">
+                <Trash2 size={12}/> Excluir
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
     )
   }
 
@@ -174,16 +316,20 @@ export function Sidebar() {
 
           {/* Space groups */}
           {spaceGroups.map(({ space: s, folders: sfolders, ungrouped: sup }) => (
-            <div key={s.id} className="mt-2">
+            <div key={s.id} className="mt-0.5">
 
               {/* Space header */}
-              <div className="flex items-center gap-0.5 group/space">
+              <div className={`flex items-center gap-0.5 group/space rounded-lg ${!s.collapsed ? '' : ''}`}>
                 <button
                   onClick={() => updateSpace(s.id, {collapsed: !s.collapsed})}
-                  className="flex items-center gap-1.5 flex-1 px-2 py-1 text-[11px] font-semibold text-cu-text hover:text-white transition-colors rounded-lg hover:bg-cu-hover"
+                  className="flex items-center gap-1.5 flex-1 min-w-0 px-1.5 py-1.5 text-[13px] font-semibold text-white/90 hover:text-white transition-colors rounded-lg hover:bg-cu-hover"
                 >
-                  {s.collapsed ? <ChevronRight size={11} className="text-cu-muted"/> : <ChevronDown size={11} className="text-cu-muted"/>}
-                  <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{background: s.color}}/>
+                  <span className="w-3 flex items-center justify-center flex-shrink-0">
+                    {s.collapsed
+                      ? <ChevronRight size={12} className="text-cu-muted group-hover/space:text-cu-text"/>
+                      : <ChevronDown size={12} className="text-cu-muted group-hover/space:text-cu-text"/>}
+                  </span>
+                  {spaceBadge(s)}
                   {editingSpace === s.id ? (
                     <input
                       autoFocus
@@ -191,41 +337,58 @@ export function Sidebar() {
                       onBlur={e => { updateSpace(s.id, {name: e.target.value}); setEditingSpace(null) }}
                       onKeyDown={e => { if(e.key==='Enter') (e.target as HTMLInputElement).blur(); if(e.key==='Escape') setEditingSpace(null) }}
                       onClick={e => e.stopPropagation()}
-                      className="flex-1 bg-transparent outline-none text-[11px] border-b border-brand-400 text-white"
+                      className="flex-1 bg-transparent outline-none text-[13px] border-b border-brand-400 text-white"
                     />
                   ) : (
                     <span className="flex-1 truncate">{s.name}</span>
                   )}
                 </button>
 
-                {/* Space menu */}
-                <div className="relative flex-shrink-0">
+                {/* Space actions */}
+                <div className="relative flex-shrink-0 flex items-center">
                   <button
-                    onClick={e => { e.stopPropagation(); setSpaceMenu(spaceMenu===s.id ? null : s.id) }}
+                    onClick={e => { e.stopPropagation(); setSpaceMenu(spaceMenu===s.id ? null : s.id); setIconPicker(null) }}
                     className="w-5 h-5 opacity-0 group-hover/space:opacity-100 flex items-center justify-center rounded text-cu-muted hover:bg-cu-hover hover:text-white transition-all"
-                  ><MoreHorizontal size={11}/></button>
+                  ><MoreHorizontal size={13}/></button>
+                  <button
+                    onClick={e => { e.stopPropagation(); openNewProject(s.id) }}
+                    className="w-5 h-5 opacity-0 group-hover/space:opacity-100 flex items-center justify-center rounded text-cu-muted hover:bg-cu-hover hover:text-white transition-all"
+                    title="Novo projeto"
+                  ><Plus size={13}/></button>
+
+                  {iconPicker?.kind==='space' && iconPicker.id===s.id && (
+                    <EmojiPicker
+                      className="absolute right-0 top-6"
+                      onPick={emoji => updateSpace(s.id, { icon: emoji })}
+                      onClose={() => setIconPicker(null)}
+                    />
+                  )}
 
                   {spaceMenu === s.id && (
                     <div
-                      className="absolute right-0 top-5 z-50 bg-cu-active border border-cu-border rounded-xl shadow-2xl py-1 min-w-[150px]"
+                      className="absolute right-0 top-6 z-50 bg-cu-active border border-cu-border rounded-xl shadow-2xl py-1 min-w-[160px]"
                       onMouseDown={e => e.stopPropagation()}
                     >
-                      <button onClick={() => { setAddingFolder(s.id); setSpaceMenu(null) }}
+                      <button onClick={() => { openNewProject(s.id); closeAllMenus() }}
                         className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-cu-text hover:bg-cu-hover hover:text-white transition-colors">
-                        <FolderOpen size={11}/> Nova pasta
+                        <Plus size={12}/> Novo projeto
                       </button>
-                      <button onClick={() => { openNewProject(s.id); setSpaceMenu(null) }}
+                      <button onClick={() => { setAddingFolder(s.id); closeAllMenus() }}
                         className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-cu-text hover:bg-cu-hover hover:text-white transition-colors">
-                        <Plus size={11}/> Novo projeto
+                        <FolderOpen size={12}/> Nova pasta
+                      </button>
+                      <button onClick={() => { setIconPicker({kind:'space',id:s.id}); setSpaceMenu(null) }}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-cu-text hover:bg-cu-hover hover:text-white transition-colors">
+                        <Smile size={12}/> Alterar ícone
                       </button>
                       <div className="h-px bg-cu-border my-1"/>
-                      <button onClick={() => { setEditingSpace(s.id); setSpaceMenu(null) }}
+                      <button onClick={() => { setEditingSpace(s.id); closeAllMenus() }}
                         className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-cu-text hover:bg-cu-hover hover:text-white transition-colors">
-                        <Pencil size={11}/> Renomear
+                        <Pencil size={12}/> Renomear
                       </button>
-                      <button onClick={() => { deleteSpace(s.id); setSpaceMenu(null) }}
+                      <button onClick={() => { deleteSpace(s.id); closeAllMenus() }}
                         className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/10 transition-colors">
-                        <Trash2 size={11}/> Excluir espaço
+                        <Trash2 size={12}/> Excluir espaço
                       </button>
                     </div>
                   )}
@@ -233,7 +396,7 @@ export function Sidebar() {
               </div>
 
               {!s.collapsed && (
-                <div className="pl-2">
+                <div className="ml-3 pl-1.5 border-l border-cu-border/60">
 
                   {/* Folders */}
                   {sfolders.map(({ folder: f, projects: fp }) => (
@@ -241,12 +404,14 @@ export function Sidebar() {
                       <div className="flex items-center gap-0.5 group/folder">
                         <button
                           onClick={() => updateFolder(f.id, {collapsed: !f.collapsed})}
-                          className="flex items-center gap-1.5 flex-1 px-2 py-1 text-[11px] font-medium text-cu-text hover:text-white transition-colors rounded-lg hover:bg-cu-hover"
+                          className="flex items-center gap-1.5 flex-1 min-w-0 px-1.5 py-1.5 text-[13px] font-medium text-cu-text hover:text-white transition-colors rounded-lg hover:bg-cu-hover"
                         >
-                          {f.collapsed ? <ChevronRight size={10} className="text-cu-muted"/> : <ChevronDown size={10} className="text-cu-muted"/>}
-                          {f.collapsed
-                            ? <FolderIcon size={11} className="text-amber-400"/>
-                            : <FolderOpen  size={11} className="text-amber-400"/>}
+                          <span className="w-3 flex items-center justify-center flex-shrink-0">
+                            {f.collapsed
+                              ? <ChevronRight size={11} className="text-cu-muted"/>
+                              : <ChevronDown size={11} className="text-cu-muted"/>}
+                          </span>
+                          {folderBadge(f, !f.collapsed)}
                           {editingFolder === f.id ? (
                             <input
                               autoFocus
@@ -254,37 +419,54 @@ export function Sidebar() {
                               onBlur={e => { updateFolder(f.id, {name: e.target.value}); setEditingFolder(null) }}
                               onKeyDown={e => { if(e.key==='Enter') (e.target as HTMLInputElement).blur(); if(e.key==='Escape') setEditingFolder(null) }}
                               onClick={e => e.stopPropagation()}
-                              className="flex-1 bg-transparent outline-none text-[11px] border-b border-brand-400 text-white"
+                              className="flex-1 bg-transparent outline-none text-[13px] border-b border-brand-400 text-white"
                             />
                           ) : (
                             <span className="flex-1 truncate">{f.name}</span>
                           )}
-                          <span className="text-[9px] text-cu-muted ml-auto">{fp.length}</span>
+                          <span className="text-[10px] text-cu-muted ml-auto flex-shrink-0">{fp.length}</span>
                         </button>
 
-                        {/* Folder menu */}
-                        <div className="relative flex-shrink-0">
+                        {/* Folder actions */}
+                        <div className="relative flex-shrink-0 flex items-center">
                           <button
-                            onClick={e => { e.stopPropagation(); setFolderMenu(folderMenu===f.id ? null : f.id) }}
+                            onClick={e => { e.stopPropagation(); setFolderMenu(folderMenu===f.id ? null : f.id); setIconPicker(null) }}
                             className="w-5 h-5 opacity-0 group-hover/folder:opacity-100 flex items-center justify-center rounded text-cu-muted hover:bg-cu-hover hover:text-white transition-all"
-                          ><MoreHorizontal size={10}/></button>
+                          ><MoreHorizontal size={12}/></button>
+                          <button
+                            onClick={e => { e.stopPropagation(); openNewProject(f.spaceId, f.id) }}
+                            className="w-5 h-5 opacity-0 group-hover/folder:opacity-100 flex items-center justify-center rounded text-cu-muted hover:bg-cu-hover hover:text-white transition-all"
+                            title="Novo projeto"
+                          ><Plus size={12}/></button>
+
+                          {iconPicker?.kind==='folder' && iconPicker.id===f.id && (
+                            <EmojiPicker
+                              className="absolute right-0 top-6"
+                              onPick={emoji => updateFolder(f.id, { icon: emoji })}
+                              onClose={() => setIconPicker(null)}
+                            />
+                          )}
 
                           {folderMenu === f.id && (
                             <div
-                              className="absolute right-0 top-5 z-50 bg-cu-active border border-cu-border rounded-xl shadow-2xl py-1 min-w-[140px]"
+                              className="absolute right-0 top-6 z-50 bg-cu-active border border-cu-border rounded-xl shadow-2xl py-1 min-w-[150px]"
                               onMouseDown={e => e.stopPropagation()}
                             >
-                              <button onClick={() => { openNewProject(f.spaceId, f.id); setFolderMenu(null) }}
+                              <button onClick={() => { openNewProject(f.spaceId, f.id); closeAllMenus() }}
                                 className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-cu-text hover:bg-cu-hover hover:text-white transition-colors">
-                                <Plus size={11}/> Novo projeto
+                                <Plus size={12}/> Novo projeto
                               </button>
-                              <button onClick={() => { setEditingFolder(f.id); setFolderMenu(null) }}
+                              <button onClick={() => { setIconPicker({kind:'folder',id:f.id}); setFolderMenu(null) }}
                                 className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-cu-text hover:bg-cu-hover hover:text-white transition-colors">
-                                <Pencil size={11}/> Renomear
+                                <Smile size={12}/> Alterar ícone
                               </button>
-                              <button onClick={() => { deleteFolder(f.id); setFolderMenu(null) }}
+                              <button onClick={() => { setEditingFolder(f.id); closeAllMenus() }}
+                                className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-cu-text hover:bg-cu-hover hover:text-white transition-colors">
+                                <Pencil size={12}/> Renomear
+                              </button>
+                              <button onClick={() => { deleteFolder(f.id); closeAllMenus() }}
                                 className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/10 transition-colors">
-                                <Trash2 size={11}/> Excluir pasta
+                                <Trash2 size={12}/> Excluir pasta
                               </button>
                             </div>
                           )}
@@ -292,8 +474,10 @@ export function Sidebar() {
                       </div>
 
                       {!f.collapsed && (
-                        <div className="pl-2 space-y-0.5">
-                          {fp.map(p => renderProject(p, 1))}
+                        <div className="ml-3 pl-1 space-y-0.5">
+                          {fp.length === 0
+                            ? <div className="pl-3 py-1 text-[11px] text-cu-muted/70 italic">Vazia</div>
+                            : fp.map(p => renderProject(p, 0))}
                         </div>
                       )}
                     </div>
@@ -314,20 +498,20 @@ export function Sidebar() {
                     </div>
                   )}
 
-                  {/* Ungrouped projects in space */}
+                  {/* Projects directly in space */}
                   <div className="space-y-0.5 mt-0.5">
                     {sup.map(p => renderProject(p, 0))}
                   </div>
 
                   {/* Quick-add row */}
                   <div className="flex gap-1 px-1 mt-0.5">
-                    <button onClick={() => { setAddingFolder(s.id); setSpaceMenu(null) }}
+                    <button onClick={() => { setAddingFolder(s.id); closeAllMenus() }}
                       className="flex items-center gap-1 text-[11px] text-cu-muted hover:text-white px-2 py-1 rounded hover:bg-cu-hover transition-colors">
-                      <FolderOpen size={10}/> Pasta
+                      <FolderOpen size={11}/> Pasta
                     </button>
                     <button onClick={() => openNewProject(s.id)}
                       className="flex items-center gap-1 text-[11px] text-cu-muted hover:text-white px-2 py-1 rounded hover:bg-cu-hover transition-colors">
-                      <Plus size={10}/> Projeto
+                      <Plus size={11}/> Projeto
                     </button>
                   </div>
                 </div>
@@ -338,8 +522,8 @@ export function Sidebar() {
           {/* Projetos sem espaço (legado) */}
           {ungrouped.length > 0 && (
             <div className="mt-3">
-              <div className="px-2 py-1 text-[10px] font-semibold text-cu-muted uppercase tracking-wider">
-                Sem espaço
+              <div className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold text-cu-muted uppercase tracking-wider">
+                <List size={11}/> Sem espaço
               </div>
               <div className="space-y-0.5">
                 {ungrouped.map(p => renderProject(p))}
