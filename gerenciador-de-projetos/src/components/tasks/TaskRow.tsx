@@ -90,21 +90,40 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
           {expanded?<ChevronDown size={11}/>:<ChevronRight size={11}/>}
         </button>
 
-        {/* Task type icon */}
-        <div ref={typeRef} className="relative flex-shrink-0 mr-1">
+        {/* Status circle = task-type icon (merged, ClickUp-style) */}
+        <div ref={typeRef} className="relative flex-shrink-0 mr-2 flex items-center">
+          <button
+            onClick={toggleDone}
+            title={isDone ? 'Reabrir' : `${typeMeta.label} · concluir`}
+            className={`group/st relative w-[18px] h-[18px] rounded-full flex items-center justify-center border-2 transition-all hover:scale-110
+              ${isDone
+                ? 'bg-brand-500 border-brand-500'
+                : `${circle?.border ?? 'border-gray-300'} ${circle?.bg ?? ''} hover:border-brand-400`}`}
+          >
+            {isDone ? (
+              <Check size={10} className="text-white" strokeWidth={3}/>
+            ) : (
+              <>
+                {task.taskType && task.taskType!=='task' && (
+                  <span className="text-[10px] leading-none transition-opacity group-hover/st:opacity-0"
+                    style={{ color: typeMeta.color }}>{typeMeta.symbol}</span>
+                )}
+                <Check size={10} strokeWidth={3}
+                  className="absolute text-brand-400 opacity-0 transition-opacity group-hover/st:opacity-100"/>
+              </>
+            )}
+          </button>
+
+          {/* Type picker trigger (appears on row hover) */}
           <button
             onClick={e=>{e.stopPropagation();setTypeOpen(v=>!v)}}
             title={`Tipo: ${typeMeta.label}`}
-            className={`w-4 h-4 flex items-center justify-center rounded text-[10px] transition-all hover:scale-110 ${isDone?'opacity-40':''}`}
-            style={{ color: typeMeta.color }}>
-            {task.taskType==='task' ? (
-              <span className="text-[11px] leading-none" style={{color:typeMeta.color}}>○</span>
-            ) : (
-              <span className="text-[10px] leading-none">{typeMeta.symbol}</span>
-            )}
+            className="w-3 h-4 -ml-px flex items-center justify-center text-gray-300 hover:text-gray-500 opacity-0 group-hover:opacity-100 transition-all">
+            <ChevronDown size={9}/>
           </button>
+
           {typeOpen && (
-            <div className="absolute left-0 top-5 z-50 bg-white border border-gray-200 rounded-xl shadow-lg py-1.5 min-w-[180px]"
+            <div className="absolute left-0 top-6 z-50 bg-white border border-gray-200 rounded-xl shadow-lg py-1.5 min-w-[190px]"
               onMouseDown={e=>e.stopPropagation()}>
               <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider px-3 py-1">Tipo de tarefa</p>
               {TASK_TYPES.map(type => {
@@ -122,13 +141,6 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
             </div>
           )}
         </div>
-
-        {/* Priority circle / done check */}
-        <button onClick={toggleDone} title={isDone?'Reabrir':PRIORITY_LABEL[task.priority]}
-          className={`w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center border-2 transition-all mr-2
-            ${isDone?'bg-brand-500 border-brand-500':`${circle?.border} ${circle?.bg} hover:scale-110`}`}>
-          {isDone&&<Check size={9} className="text-white" strokeWidth={3}/>}
-        </button>
 
         {depth>0&&<GitBranch size={10} className="text-gray-300 flex-shrink-0 mr-1"/>}
 

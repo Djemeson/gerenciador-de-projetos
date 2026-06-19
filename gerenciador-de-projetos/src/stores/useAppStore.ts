@@ -39,6 +39,8 @@ interface AppState {
 
   activeView:      View
   activeProjectId: string | null
+  activeSpaceId:   string | null
+  activeFolderId:  string | null
   selectedTaskId:  string | null
   filterPanelOpen: boolean
   aiPanelOpen:     boolean
@@ -51,6 +53,8 @@ interface AppState {
   newViewModal:    string | null  // projectId
 
   setView:         (view: View, projectId?: string) => void
+  openSpace:       (id: string) => void
+  openFolder:      (id: string) => void
   setSelectedTask: (id: string | null) => void
   toggleFilterPanel: () => void
   toggleAIPanel:   () => void
@@ -123,11 +127,13 @@ function pProjects(p: Project[], t: Task[]) { localProjects.set(p as any); local
 
 export const useAppStore = create<AppState>((set, get) => ({
   projects: [], tasks: [], spaces: [], folders: [], automations: [],
-  activeView:'my_tasks', activeProjectId:null, selectedTaskId:null,
+  activeView:'my_tasks', activeProjectId:null, activeSpaceId:null, activeFolderId:null, selectedTaskId:null,
   filterPanelOpen:false, aiPanelOpen:false, filters:EMPTY_FILTER,
   newProjectModal:false, newProjectCtx:{}, gutModal:{open:false,projectId:null}, columnsModal:null, newViewModal:null,
 
-  setView: (view, projectId) => set({ activeView:view, activeProjectId:projectId??null, selectedTaskId:null }),
+  setView: (view, projectId) => set({ activeView:view, activeProjectId:projectId??null, activeSpaceId:null, activeFolderId:null, selectedTaskId:null }),
+  openSpace:  (id) => set({ activeView:'space_detail',  activeSpaceId:id, activeFolderId:null, activeProjectId:null, selectedTaskId:null }),
+  openFolder: (id) => set({ activeView:'folder_detail', activeFolderId:id, activeSpaceId:null, activeProjectId:null, selectedTaskId:null }),
   setSelectedTask: (id) => set({ selectedTaskId:id }),
   toggleFilterPanel: () => set(s => ({ filterPanelOpen:!s.filterPanelOpen })),
   toggleAIPanel:     () => set(s => ({ aiPanelOpen:!s.aiPanelOpen })),

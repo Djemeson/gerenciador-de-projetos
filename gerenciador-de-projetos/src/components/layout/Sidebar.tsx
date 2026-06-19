@@ -16,8 +16,9 @@ type IconTarget = { kind: 'space' | 'folder' | 'project'; id: string }
 
 export function Sidebar() {
   const {
-    activeView, activeProjectId, projects, tasks, spaces, folders,
-    setView, openNewProject, addSpace, updateSpace, deleteSpace,
+    activeView, activeProjectId, activeSpaceId, activeFolderId,
+    projects, tasks, spaces, folders,
+    setView, openSpace, openFolder, openNewProject, addSpace, updateSpace, deleteSpace,
     addFolder, updateFolder, deleteFolder,
     updateProject, moveProject, archiveProject, deleteProject, openGUT,
   } = useAppStore()
@@ -319,16 +320,19 @@ export function Sidebar() {
             <div key={s.id} className="mt-0.5">
 
               {/* Space header */}
-              <div className={`flex items-center gap-0.5 group/space rounded-lg ${!s.collapsed ? '' : ''}`}>
+              <div className={`flex items-center gap-0.5 group/space rounded-lg ${activeView==='space_detail' && activeSpaceId===s.id ? 'bg-cu-active' : ''}`}>
                 <button
                   onClick={() => updateSpace(s.id, {collapsed: !s.collapsed})}
-                  className="flex items-center gap-1.5 flex-1 min-w-0 px-1.5 py-1.5 text-[13px] font-semibold text-white/90 hover:text-white transition-colors rounded-lg hover:bg-cu-hover"
+                  title={s.collapsed ? 'Expandir' : 'Recolher'}
+                  className="w-5 h-7 flex items-center justify-center flex-shrink-0 rounded text-cu-muted hover:text-white hover:bg-cu-hover transition-colors"
                 >
-                  <span className="w-3 flex items-center justify-center flex-shrink-0">
-                    {s.collapsed
-                      ? <ChevronRight size={12} className="text-cu-muted group-hover/space:text-cu-text"/>
-                      : <ChevronDown size={12} className="text-cu-muted group-hover/space:text-cu-text"/>}
-                  </span>
+                  {s.collapsed ? <ChevronRight size={12}/> : <ChevronDown size={12}/>}
+                </button>
+                <button
+                  onClick={() => openSpace(s.id)}
+                  className={`flex items-center gap-1.5 flex-1 min-w-0 px-1 py-1.5 text-[13px] font-semibold transition-colors rounded-lg hover:bg-cu-hover
+                    ${activeView==='space_detail' && activeSpaceId===s.id ? 'text-white' : 'text-white/90 hover:text-white'}`}
+                >
                   {spaceBadge(s)}
                   {editingSpace === s.id ? (
                     <input
@@ -340,7 +344,7 @@ export function Sidebar() {
                       className="flex-1 bg-transparent outline-none text-[13px] border-b border-brand-400 text-white"
                     />
                   ) : (
-                    <span className="flex-1 truncate">{s.name}</span>
+                    <span className="flex-1 truncate text-left">{s.name}</span>
                   )}
                 </button>
 
@@ -401,16 +405,19 @@ export function Sidebar() {
                   {/* Folders */}
                   {sfolders.map(({ folder: f, projects: fp }) => (
                     <div key={f.id} className="mt-0.5">
-                      <div className="flex items-center gap-0.5 group/folder">
+                      <div className={`flex items-center gap-0.5 group/folder rounded-lg ${activeView==='folder_detail' && activeFolderId===f.id ? 'bg-cu-active' : ''}`}>
                         <button
                           onClick={() => updateFolder(f.id, {collapsed: !f.collapsed})}
-                          className="flex items-center gap-1.5 flex-1 min-w-0 px-1.5 py-1.5 text-[13px] font-medium text-cu-text hover:text-white transition-colors rounded-lg hover:bg-cu-hover"
+                          title={f.collapsed ? 'Expandir' : 'Recolher'}
+                          className="w-5 h-7 flex items-center justify-center flex-shrink-0 rounded text-cu-muted hover:text-white hover:bg-cu-hover transition-colors"
                         >
-                          <span className="w-3 flex items-center justify-center flex-shrink-0">
-                            {f.collapsed
-                              ? <ChevronRight size={11} className="text-cu-muted"/>
-                              : <ChevronDown size={11} className="text-cu-muted"/>}
-                          </span>
+                          {f.collapsed ? <ChevronRight size={11}/> : <ChevronDown size={11}/>}
+                        </button>
+                        <button
+                          onClick={() => openFolder(f.id)}
+                          className={`flex items-center gap-1.5 flex-1 min-w-0 px-1 py-1.5 text-[13px] font-medium transition-colors rounded-lg hover:bg-cu-hover
+                            ${activeView==='folder_detail' && activeFolderId===f.id ? 'text-white' : 'text-cu-text hover:text-white'}`}
+                        >
                           {folderBadge(f, !f.collapsed)}
                           {editingFolder === f.id ? (
                             <input
@@ -422,7 +429,7 @@ export function Sidebar() {
                               className="flex-1 bg-transparent outline-none text-[13px] border-b border-brand-400 text-white"
                             />
                           ) : (
-                            <span className="flex-1 truncate">{f.name}</span>
+                            <span className="flex-1 truncate text-left">{f.name}</span>
                           )}
                           <span className="text-[10px] text-cu-muted ml-auto flex-shrink-0">{fp.length}</span>
                         </button>

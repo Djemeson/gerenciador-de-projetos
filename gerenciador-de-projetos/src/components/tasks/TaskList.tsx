@@ -14,7 +14,7 @@ interface TaskListProps {
   projectId?:   string
   columns?:     ColumnDef[]
   showProject?: boolean
-  sortBy?:      'status' | 'priority' | 'dueDate' | 'project'
+  sortBy?:      'status' | 'priority' | 'dueDate' | 'project' | 'assignee'
 }
 
 export function TaskList({ tasks, projectId, columns=[], showProject=false, sortBy='status' }: TaskListProps) {
@@ -92,6 +92,9 @@ export function TaskList({ tasks, projectId, columns=[], showProject=false, sort
     content = po.map(p=>{const items=rootTasks.filter(t=>t.priority===p&&t.status!=='done'); return items.length?renderGroup(p,PRIORITY_LABEL[p],items,'todo'):null})
   } else if (sortBy==='project') {
     content = projects.map(pr=>{const items=rootTasks.filter(t=>t.projectId===pr.id&&t.status!=='done'); return items.length?renderGroup(pr.id,pr.name,items,'todo',pr.color):null})
+  } else if (sortBy==='assignee') {
+    const assignees=[...new Set(rootTasks.filter(t=>t.status!=='done').map(t=>t.assignee||'Sem responsável'))].sort()
+    content = assignees.map(a=>{const items=rootTasks.filter(t=>(t.assignee||'Sem responsável')===a&&t.status!=='done'); return items.length?renderGroup('asg_'+a,a,items,'todo','#7B68EE'):null})
   } else {
     const sorted=[...rootTasks].filter(t=>t.status!=='done').sort((a,b)=>{if(!a.dueDate)return 1;if(!b.dueDate)return-1;return new Date(a.dueDate).getTime()-new Date(b.dueDate).getTime()})
     content = sorted.map(t=><TaskRow key={t.id} task={t} project={projects.find(p=>p.id===t.projectId)} showProject={showProject} columns={columns} selected={selectedIds.includes(t.id)} onSelect={handleSelect}/>)

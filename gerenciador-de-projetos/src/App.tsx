@@ -7,6 +7,7 @@ import { MyTasksView }              from './views/MyTasksView'
 import { AllTasksView }             from './views/AllTasksView'
 import { ProjectsListView }         from './views/ProjectsListView'
 import { ProjectDetailView, NewViewModal } from './views/ProjectDetailView'
+import { SpaceDetailView, FolderDetailView } from './views/SpaceFolderView'
 import { CalendarView }             from './views/CalendarView'
 import { ReportsView }              from './views/ReportsView'
 import { InboxView }                from './views/InboxView'
@@ -52,6 +53,8 @@ export default function App() {
       case 'all_tasks':      return <AllTasksView/>
       case 'projects':       return <ProjectsListView/>
       case 'project_detail': return <ProjectDetailView/>
+      case 'space_detail':   return <SpaceDetailView/>
+      case 'folder_detail':  return <FolderDetailView/>
       case 'calendar':       return <CalendarView/>
       case 'reports':        return <ReportsView/>
       case 'automations':    return <AutomationsView/>

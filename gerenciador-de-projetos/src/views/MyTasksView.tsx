@@ -1,14 +1,10 @@
 import React, { useState } from 'react'
-import { Search } from 'lucide-react'
+import { Search, CheckSquare } from 'lucide-react'
 import { useAppStore } from '../stores/useAppStore'
-import { TaskList } from '../components/tasks/TaskList'
-import { TaskDetail } from '../components/tasks/TaskDetail'
-
-type SortBy = 'status' | 'priority' | 'dueDate'
+import { TaskPanel } from '../components/tasks/TaskPanel'
 
 export function MyTasksView() {
-  const { tasks, selectedTaskId, projects } = useAppStore()
-  const [sortBy, setSortBy] = useState<SortBy>('status')
+  const { tasks, projects } = useAppStore()
   const [search, setSearch] = useState('')
 
   const filtered = tasks.filter(t =>
@@ -16,30 +12,26 @@ export function MyTasksView() {
     (search === '' || t.title.toLowerCase().includes(search.toLowerCase()))
   )
 
-  const defaultProject = projects[0]?.id ?? ''
+  const headerRight = (
+    <div className="relative">
+      <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+      <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..."
+        className="pl-7 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-400 transition-all w-44" />
+    </div>
+  )
 
   return (
-    <div className="flex flex-1 overflow-hidden">
-      <div className="flex flex-col flex-1 overflow-hidden">
-        <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-200 bg-white">
-          <h1 className="text-sm font-semibold text-gray-900 flex-1">Minhas tarefas</h1>
-          <div className="relative">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..."
-              className="pl-7 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-400 transition-all w-44" />
-          </div>
-          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
-            {(['status','priority','dueDate'] as SortBy[]).map(s => (
-              <button key={s} onClick={() => setSortBy(s)}
-                className={`px-2.5 py-1 text-xs rounded-md transition-colors ${sortBy === s ? 'bg-white text-gray-800 font-medium shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-                {{ status:'Status', priority:'Prioridade', dueDate:'Prazo' }[s]}
-              </button>
-            ))}
-          </div>
-        </div>
-        <TaskList tasks={filtered} projectId={defaultProject} sortBy={sortBy} />
-      </div>
-      {selectedTaskId && <TaskDetail />}
-    </div>
+    <TaskPanel
+      scopeKey="mytasks"
+      tasks={filtered}
+      title="Minhas tarefas"
+      icon={<CheckSquare size={15} className="text-brand-500 flex-shrink-0" />}
+      headerRight={headerRight}
+      showProject
+      defaultProjectId={projects[0]?.id}
+      groupOptions={['status','priority','dueDate','project']}
+      views={['overview','list','board','table','calendar','dashboard']}
+      defaultView="list"
+    />
   )
 }
