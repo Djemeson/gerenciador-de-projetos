@@ -45,6 +45,7 @@ interface AppState {
   filters:         FilterState
 
   newProjectModal: boolean
+  newProjectCtx:   { spaceId?: string; folderId?: string }
   gutModal:        { open: boolean; projectId: string | null }
   columnsModal:    string | null  // projectId
   newViewModal:    string | null  // projectId
@@ -56,7 +57,7 @@ interface AppState {
   setFilters:      (f: Partial<FilterState>) => void
   clearFilters:    () => void
 
-  openNewProject:  () => void
+  openNewProject:  (spaceId?: string, folderId?: string) => void
   closeNewProject: () => void
   openGUT:         (id: string) => void
   closeGUT:        () => void
@@ -123,7 +124,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   projects: [], tasks: [], spaces: [], folders: [], automations: [],
   activeView:'my_tasks', activeProjectId:null, selectedTaskId:null,
   filterPanelOpen:false, aiPanelOpen:false, filters:EMPTY_FILTER,
-  newProjectModal:false, gutModal:{open:false,projectId:null}, columnsModal:null, newViewModal:null,
+  newProjectModal:false, newProjectCtx:{}, gutModal:{open:false,projectId:null}, columnsModal:null, newViewModal:null,
 
   setView: (view, projectId) => set({ activeView:view, activeProjectId:projectId??null, selectedTaskId:null }),
   setSelectedTask: (id) => set({ selectedTaskId:id }),
@@ -132,8 +133,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   setFilters:  (f) => set(s => ({ filters:{ ...s.filters, ...f } })),
   clearFilters:() => set({ filters:EMPTY_FILTER }),
 
-  openNewProject:  () => set({ newProjectModal:true }),
-  closeNewProject: () => set({ newProjectModal:false }),
+  openNewProject:  (spaceId, folderId) => set({ newProjectModal:true, newProjectCtx:{ spaceId, folderId } }),
+  closeNewProject: () => set({ newProjectModal:false, newProjectCtx:{} }),
   openGUT:         (id) => set({ gutModal:{open:true,projectId:id} }),
   closeGUT:        () => set({ gutModal:{open:false,projectId:null} }),
   openColumnsModal: (id) => set({ columnsModal:id }),

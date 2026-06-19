@@ -1,16 +1,24 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui'
 import { useAppStore } from '../../stores/useAppStore'
 import { PROJECT_COLORS } from '../../types'
 
 export function NewProjectModal() {
-  const { newProjectModal, closeNewProject, addProject, spaces, folders } = useAppStore()
+  const { newProjectModal, newProjectCtx, closeNewProject, addProject, spaces, folders } = useAppStore()
   const [name,     setName]     = useState('')
   const [desc,     setDesc]     = useState('')
   const [color,    setColor]    = useState(PROJECT_COLORS[0])
   const [spaceId,  setSpaceId]  = useState<string>('')
   const [folderId, setFolderId] = useState<string>('')
+
+  // Pré-preenche espaço/pasta quando o modal é aberto a partir de um espaço/pasta
+  useEffect(() => {
+    if (newProjectModal) {
+      setSpaceId(newProjectCtx.spaceId ?? '')
+      setFolderId(newProjectCtx.folderId ?? '')
+    }
+  }, [newProjectModal, newProjectCtx.spaceId, newProjectCtx.folderId])
 
   const availableFolders = folders.filter(f => f.spaceId === spaceId)
 

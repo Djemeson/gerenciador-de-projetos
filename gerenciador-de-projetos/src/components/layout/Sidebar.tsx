@@ -162,18 +162,15 @@ export function Sidebar() {
             </div>
           )}
 
-          {/* Ungrouped projects */}
-          {ungrouped.length > 0 && (
-            <div className="space-y-0.5 mb-1">
-              {ungrouped.map(p => renderProject(p))}
-            </div>
+          {/* Empty state: no spaces yet */}
+          {spaces.length === 0 && !addingSpace && (
+            <button
+              onClick={() => setAddingSpace(true)}
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-cu-muted hover:bg-cu-hover hover:text-white transition-colors"
+            >
+              <Plus size={11}/> Criar espaço
+            </button>
           )}
-          <button
-            onClick={openNewProject}
-            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-cu-muted hover:bg-cu-hover hover:text-white transition-colors"
-          >
-            <Plus size={11}/> Novo projeto
-          </button>
 
           {/* Space groups */}
           {spaceGroups.map(({ space: s, folders: sfolders, ungrouped: sup }) => (
@@ -217,7 +214,7 @@ export function Sidebar() {
                         className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-cu-text hover:bg-cu-hover hover:text-white transition-colors">
                         <FolderOpen size={11}/> Nova pasta
                       </button>
-                      <button onClick={() => { openNewProject(); setSpaceMenu(null) }}
+                      <button onClick={() => { openNewProject(s.id); setSpaceMenu(null) }}
                         className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-cu-text hover:bg-cu-hover hover:text-white transition-colors">
                         <Plus size={11}/> Novo projeto
                       </button>
@@ -277,7 +274,7 @@ export function Sidebar() {
                               className="absolute right-0 top-5 z-50 bg-cu-active border border-cu-border rounded-xl shadow-2xl py-1 min-w-[140px]"
                               onMouseDown={e => e.stopPropagation()}
                             >
-                              <button onClick={() => { openNewProject(); setFolderMenu(null) }}
+                              <button onClick={() => { openNewProject(f.spaceId, f.id); setFolderMenu(null) }}
                                 className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-cu-text hover:bg-cu-hover hover:text-white transition-colors">
                                 <Plus size={11}/> Novo projeto
                               </button>
@@ -328,7 +325,7 @@ export function Sidebar() {
                       className="flex items-center gap-1 text-[11px] text-cu-muted hover:text-white px-2 py-1 rounded hover:bg-cu-hover transition-colors">
                       <FolderOpen size={10}/> Pasta
                     </button>
-                    <button onClick={openNewProject}
+                    <button onClick={() => openNewProject(s.id)}
                       className="flex items-center gap-1 text-[11px] text-cu-muted hover:text-white px-2 py-1 rounded hover:bg-cu-hover transition-colors">
                       <Plus size={10}/> Projeto
                     </button>
@@ -337,6 +334,18 @@ export function Sidebar() {
               )}
             </div>
           ))}
+
+          {/* Projetos sem espaço (legado) */}
+          {ungrouped.length > 0 && (
+            <div className="mt-3">
+              <div className="px-2 py-1 text-[10px] font-semibold text-cu-muted uppercase tracking-wider">
+                Sem espaço
+              </div>
+              <div className="space-y-0.5">
+                {ungrouped.map(p => renderProject(p))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
