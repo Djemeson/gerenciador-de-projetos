@@ -118,7 +118,7 @@ export function ProjectsListView() {
       <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-200 bg-white">
         <BarChart2 size={15} className="text-gray-400" />
         <h1 className="text-sm font-semibold text-gray-900 flex-1">Projetos</h1>
-        <Button variant="primary" size="sm" icon={<Plus size={13} />} onClick={openNewProject}>
+        <Button variant="primary" size="sm" icon={<Plus size={13} />} onClick={() => openNewProject()}>
           Novo projeto
         </Button>
       </div>
@@ -141,7 +141,7 @@ export function ProjectsListView() {
             </div>
           ))}
           {active.length === 0 && (
-            <p className="text-sm text-gray-400 text-center py-8">Nenhum projeto ativo. <button onClick={openNewProject} className="text-brand-600 hover:underline">Criar um</button></p>
+            <p className="text-sm text-gray-400 text-center py-8">Nenhum projeto ativo. <button onClick={() => openNewProject()} className="text-brand-600 hover:underline">Criar um</button></p>
           )}
         </div>
 
