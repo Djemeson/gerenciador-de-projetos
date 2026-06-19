@@ -1,7 +1,23 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Calendar, AlertCircle, Check, ChevronRight, ChevronDown, GitBranch, Trash2 } from 'lucide-react'
+import {
+  Calendar, AlertCircle, Check, ChevronRight, ChevronDown, GitBranch, Trash2, Search,
+  Circle, Diamond, NotepadText, Bug, Trophy, Target, ClipboardList, MessageSquare,
+} from 'lucide-react'
 import type { Task, Project, Priority, ColumnDef, TaskType } from '../../types'
 import { PRIORITY_LABEL, TASK_TYPE_META } from '../../types'
+
+// Ícones de tipo de tarefa no estilo ClickUp (cinza neutro)
+const TYPE_ICON: Record<TaskType, React.ElementType> = {
+  task:          Circle,
+  milestone:     Diamond,
+  meeting_note:  NotepadText,
+  bug:           Bug,
+  goal:          Trophy,
+  objective:     Target,
+  form_response: ClipboardList,
+  request:       MessageSquare,
+}
+const TYPE_ICON_COLOR = '#656f7d'
 import { useAppStore } from '../../stores/useAppStore'
 import { QuickAddRow } from './QuickAddRow'
 import { CustomFieldCell } from './CustomFieldCell'
@@ -31,6 +47,7 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
   const [addingSubtask, setAddingSubtask] = useState(false)
   const [confirmDel,    setConfirmDel]    = useState(false)
   const [typeOpen,      setTypeOpen]      = useState(false)
+  const [typeSearch,    setTypeSearch]    = useState('')
   const typeRef = useRef<HTMLDivElement>(null)
 
   const subtasks    = tasks.filter(t => t.parentId===task.id)
@@ -90,57 +107,76 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
           {expanded?<ChevronDown size={11}/>:<ChevronRight size={11}/>}
         </button>
 
-        {/* Status circle = task-type icon (merged, ClickUp-style) */}
-        <div ref={typeRef} className="relative flex-shrink-0 mr-2 flex items-center">
-          <button
-            onClick={toggleDone}
-            title={isDone ? 'Reabrir' : `${typeMeta.label} · concluir`}
-            className={`group/st relative w-[18px] h-[18px] rounded-full flex items-center justify-center border-2 transition-all hover:scale-110
-              ${isDone
-                ? 'bg-brand-500 border-brand-500'
-                : `${circle?.border ?? 'border-gray-300'} ${circle?.bg ?? ''} hover:border-brand-400`}`}
-          >
-            {isDone ? (
-              <Check size={10} className="text-white" strokeWidth={3}/>
-            ) : (
-              <>
-                {task.taskType && task.taskType!=='task' && (
-                  <span className="text-[10px] leading-none transition-opacity group-hover/st:opacity-0"
-                    style={{ color: typeMeta.color }}>{typeMeta.symbol}</span>
+        {/* Task-type icon — substitui o círculo (estilo ClickUp) */}
+        {(() => {
+          const TypeIcon  = TYPE_ICON[task.taskType ?? 'task']
+          const isDefault = !task.taskType || task.taskType==='task'
+          return (
+            <div ref={typeRef} className="relative flex-shrink-0 mr-2 flex items-center">
+              <button
+                onClick={toggleDone}
+                title={isDone ? 'Reabrir' : `${typeMeta.label} · clique para concluir`}
+                className="group/st relative w-[18px] h-[18px] flex items-center justify-center transition-transform hover:scale-110">
+                {isDone ? (
+                  <span className="w-[18px] h-[18px] rounded-full bg-emerald-500 flex items-center justify-center">
+                    <Check size={11} className="text-white" strokeWidth={3}/>
+                  </span>
+                ) : isDefault ? (
+                  <>
+                    <Circle size={16} strokeWidth={2} className="text-gray-300 transition-opacity group-hover/st:opacity-0"/>
+                    <Check size={12} strokeWidth={3} className="absolute text-emerald-500 opacity-0 transition-opacity group-hover/st:opacity-100"/>
+                  </>
+                ) : (
+                  <>
+                    <TypeIcon size={16} strokeWidth={2} style={{ color: TYPE_ICON_COLOR }} className="transition-opacity group-hover/st:opacity-0"/>
+                    <Check size={12} strokeWidth={3} className="absolute text-emerald-500 opacity-0 transition-opacity group-hover/st:opacity-100"/>
+                  </>
                 )}
-                <Check size={10} strokeWidth={3}
-                  className="absolute text-brand-400 opacity-0 transition-opacity group-hover/st:opacity-100"/>
-              </>
-            )}
-          </button>
+              </button>
 
-          {/* Type picker trigger (appears on row hover) */}
-          <button
-            onClick={e=>{e.stopPropagation();setTypeOpen(v=>!v)}}
-            title={`Tipo: ${typeMeta.label}`}
-            className="w-3 h-4 -ml-px flex items-center justify-center text-gray-300 hover:text-gray-500 opacity-0 group-hover:opacity-100 transition-all">
-            <ChevronDown size={9}/>
-          </button>
+              {/* Trigger do seletor de tipo (aparece no hover da linha) */}
+              <button
+                onClick={e=>{e.stopPropagation();setTypeSearch('');setTypeOpen(v=>!v)}}
+                title={`Tipo: ${typeMeta.label}`}
+                className="w-3 h-4 -ml-px flex items-center justify-center text-gray-300 hover:text-gray-500 opacity-0 group-hover:opacity-100 transition-all">
+                <ChevronDown size={9}/>
+              </button>
 
-          {typeOpen && (
-            <div className="absolute left-0 top-6 z-50 bg-white border border-gray-200 rounded-xl shadow-lg py-1.5 min-w-[190px]"
-              onMouseDown={e=>e.stopPropagation()}>
-              <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider px-3 py-1">Tipo de tarefa</p>
-              {TASK_TYPES.map(type => {
-                const m = TASK_TYPE_META[type]
-                return (
-                  <button key={type} onClick={()=>{updateTask(task.id,{taskType:type});setTypeOpen(false)}}
-                    className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-gray-50 transition-colors">
-                    <span className="w-5 h-5 rounded flex items-center justify-center text-sm flex-shrink-0"
-                      style={{ background: m.bg, color: m.color }}>{m.symbol}</span>
-                    <span className="text-xs text-gray-700">{m.label}</span>
-                    {(task.taskType??'task')===type && <Check size={10} className="ml-auto text-brand-500"/>}
-                  </button>
-                )
-              })}
+              {typeOpen && (
+                <div className="absolute left-0 top-6 z-50 bg-white border border-gray-200 rounded-xl shadow-xl py-2 w-[230px]"
+                  onMouseDown={e=>e.stopPropagation()}>
+                  {/* Busca */}
+                  <div className="px-2 pb-2">
+                    <div className="relative">
+                      <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400"/>
+                      <input autoFocus value={typeSearch} onChange={e=>setTypeSearch(e.target.value)}
+                        placeholder="Pesquisar..."
+                        className="w-full pl-7 pr-2 py-1.5 text-[12px] border border-gray-200 rounded-lg outline-none focus:ring-1 focus:ring-brand-400"/>
+                    </div>
+                  </div>
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-3 pb-1">Tipos de tarefa</p>
+                  <div className="max-h-[260px] overflow-y-auto">
+                    {TASK_TYPES.filter(type => TASK_TYPE_META[type].label.toLowerCase().includes(typeSearch.toLowerCase())).map(type => {
+                      const m = TASK_TYPE_META[type]
+                      const Icon = TYPE_ICON[type]
+                      const selected = (task.taskType??'task')===type
+                      return (
+                        <button key={type} onClick={()=>{updateTask(task.id,{taskType:type});setTypeOpen(false)}}
+                          className={`w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-gray-50 transition-colors ${selected?'bg-gray-50':''}`}>
+                          <Icon size={16} strokeWidth={2} style={{ color: TYPE_ICON_COLOR }} className="flex-shrink-0"/>
+                          <span className="text-[13px] text-gray-700">
+                            {m.label}{type==='task' && <span className="text-gray-400"> (padrão)</span>}
+                          </span>
+                          {selected && <Check size={13} className="ml-auto text-gray-600"/>}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          )
+        })()}
 
         {depth>0&&<GitBranch size={10} className="text-gray-300 flex-shrink-0 mr-1"/>}
 
