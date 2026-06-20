@@ -1,13 +1,14 @@
 import React, { useState } from 'react'
 import {
-  Eye, List, LayoutGrid, Table2, Calendar, Network, Activity, LayoutDashboard,
+  Eye, List, LayoutGrid, Table2, Calendar, Network, Activity, LayoutDashboard, Trash2, Check,
 } from 'lucide-react'
 import { useAppStore } from '../../stores/useAppStore'
 import { TaskList } from './TaskList'
 import { TaskDetail } from './TaskDetail'
 import { FilterPanel } from '../FilterPanel'
 import { AIPanel } from '../AIPanel'
-import type { Task, ColumnDef, ViewType } from '../../types'
+import type { Task, ColumnDef, ViewType, Priority, TaskStatus } from '../../types'
+import { PRIORITY_LABEL, STATUS_LABEL } from '../../types'
 
 export type GroupBy = 'status' | 'priority' | 'dueDate' | 'assignee' | 'project'
 
@@ -255,46 +256,85 @@ function OverviewView({ tasks, accent, pct, gut }: { tasks: Task[]; accent: stri
 
 // ── Board ───────────────────────────────────────────────────────────────────
 function BoardView({ tasks }: { tasks: Task[] }) {
-  const { updateTask, setSelectedTask } = useAppStore()
+  const { updateTask, deleteTask, setSelectedTask } = useAppStore()
+  const [sel, setSel] = useState<string[]>([])
   const cols: { status: 'todo'|'in_progress'|'done'; label: string; color: string }[] = [
     { status:'todo',        label:'A fazer',      color:'#888780' },
     { status:'in_progress', label:'Em progresso', color:'#378ADD' },
     { status:'done',        label:'Concluído',    color:'#1D9E75' },
   ]
+  const toggle = (id: string) => setSel(p => p.includes(id) ? p.filter(x=>x!==id) : [...p, id])
+  const clear  = () => setSel([])
+  const bulkStatus   = (s: TaskStatus) => { sel.forEach(id=>updateTask(id,{status:s})); clear() }
+  const bulkPriority = (p: Priority)   => { sel.forEach(id=>updateTask(id,{priority:p})); clear() }
+  const bulkDelete   = () => { sel.forEach(id=>deleteTask(id)); clear() }
+
   return (
-    <div className="flex gap-4 p-4 overflow-x-auto flex-1">
-      {cols.map(col => {
-        const colTasks = tasks.filter(t=>t.status===col.status&&!t.parentId)
-        return (
-          <div key={col.status} className="flex flex-col gap-2 min-w-[240px] max-w-[280px] flex-shrink-0">
-            <div className="flex items-center gap-2 px-1">
-              <span className="w-2 h-2 rounded-full" style={{background:col.color}}/>
-              <span className="text-xs font-medium text-gray-600">{col.label}</span>
-              <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{colTasks.length}</span>
+    <div className="flex flex-col flex-1 overflow-hidden">
+      <div className="flex gap-4 p-4 overflow-x-auto flex-1">
+        {cols.map(col => {
+          const colTasks = tasks.filter(t=>t.status===col.status&&!t.parentId)
+          return (
+            <div key={col.status} className="flex flex-col gap-2 min-w-[240px] max-w-[280px] flex-shrink-0">
+              <div className="flex items-center gap-2 px-1">
+                <span className="w-2 h-2 rounded-full" style={{background:col.color}}/>
+                <span className="text-xs font-medium text-gray-600">{col.label}</span>
+                <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{colTasks.length}</span>
+              </div>
+              <div className="flex flex-col gap-2 flex-1 bg-gray-50 rounded-xl p-2 min-h-[120px]"
+                onDragOver={e=>e.preventDefault()}
+                onDrop={e=>{const id=e.dataTransfer.getData('taskId');if(id)updateTask(id,{status:col.status})}}>
+                {colTasks.map(t=>{
+                  const selected = sel.includes(t.id)
+                  return (
+                    <div key={t.id} draggable
+                      onDragStart={e=>e.dataTransfer.setData('taskId',t.id)}
+                      onClick={()=> sel.length>0 ? toggle(t.id) : setSelectedTask(t.id)}
+                      className={`relative bg-white border rounded-lg p-3 cursor-pointer hover:shadow-sm transition-all group ${selected?'border-brand-400 ring-1 ring-brand-300':'border-gray-200 hover:border-brand-300'}`}>
+                      {/* Checkbox de seleção */}
+                      <button onClick={e=>{e.stopPropagation();toggle(t.id)}}
+                        className={`absolute top-2 right-2 w-4 h-4 rounded border flex items-center justify-center transition-all ${selected?'bg-brand-500 border-brand-500 opacity-100':'border-gray-300 bg-white opacity-0 group-hover:opacity-100'}`}>
+                        {selected && <Check size={10} className="text-white" strokeWidth={3}/>}
+                      </button>
+                      <p className="text-sm text-gray-800 mb-2 leading-5 pr-5">{t.title}</p>
+                      <div className="flex items-center justify-between">
+                        <span className={`text-[10px] font-medium ${
+                          t.priority==='urgent'?'text-red-500':t.priority==='high'?'text-orange-500':t.priority==='medium'?'text-blue-500':'text-gray-400'
+                        }`}>{PRIORITY_LABEL[t.priority]}</span>
+                        {t.dueDate&&<span className="text-[10px] text-gray-400">{new Date(t.dueDate).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}</span>}
+                        <span className="w-5 h-5 rounded-full bg-brand-100 text-brand-700 text-[9px] font-medium flex items-center justify-center">{t.assignee.slice(0,2)}</span>
+                      </div>
+                      {t.tags.length>0&&<div className="flex gap-1 mt-1.5">{t.tags.slice(0,2).map((tag:string)=><span key={tag} className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded">{tag}</span>)}</div>}
+                    </div>
+                  )
+                })}
+              </div>
             </div>
-            <div className="flex flex-col gap-2 flex-1 bg-gray-50 rounded-xl p-2 min-h-[120px]"
-              onDragOver={e=>e.preventDefault()}
-              onDrop={e=>{const id=e.dataTransfer.getData('taskId');if(id)updateTask(id,{status:col.status})}}>
-              {colTasks.map(t=>(
-                <div key={t.id} draggable
-                  onDragStart={e=>e.dataTransfer.setData('taskId',t.id)}
-                  onClick={()=>setSelectedTask(t.id)}
-                  className="bg-white border border-gray-200 rounded-lg p-3 cursor-pointer hover:border-brand-300 hover:shadow-sm transition-all group">
-                  <p className="text-sm text-gray-800 mb-2 leading-5">{t.title}</p>
-                  <div className="flex items-center justify-between">
-                    <span className={`text-[10px] font-medium ${
-                      t.priority==='urgent'?'text-red-500':t.priority==='high'?'text-orange-500':t.priority==='medium'?'text-blue-500':'text-gray-400'
-                    }`}>{t.priority}</span>
-                    {t.dueDate&&<span className="text-[10px] text-gray-400">{new Date(t.dueDate).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}</span>}
-                    <span className="w-5 h-5 rounded-full bg-brand-100 text-brand-700 text-[9px] font-medium flex items-center justify-center">{t.assignee.slice(0,2)}</span>
-                  </div>
-                  {t.tags.length>0&&<div className="flex gap-1 mt-1.5">{t.tags.slice(0,2).map((tag:string)=><span key={tag} className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded">{tag}</span>)}</div>}
-                </div>
-              ))}
-            </div>
-          </div>
-        )
-      })}
+          )
+        })}
+      </div>
+
+      {/* Barra de ações em massa */}
+      {sel.length>0 && (
+        <div className="border-t border-gray-200 bg-white shadow-lg px-4 py-2 flex items-center gap-3 flex-wrap">
+          <span className="text-xs font-medium text-gray-700">{sel.length} selecionadas</span>
+          <div className="flex-1"/>
+          <select onChange={e=>{if(e.target.value)bulkStatus(e.target.value as TaskStatus)}} defaultValue=""
+            className="text-xs px-2 py-1 border border-gray-200 rounded-lg outline-none cursor-pointer text-gray-600">
+            <option value="" disabled>Status...</option>
+            {(['todo','in_progress','done'] as TaskStatus[]).map(s=><option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+          </select>
+          <select onChange={e=>{if(e.target.value)bulkPriority(e.target.value as Priority)}} defaultValue=""
+            className="text-xs px-2 py-1 border border-gray-200 rounded-lg outline-none cursor-pointer text-gray-600">
+            <option value="" disabled>Prioridade...</option>
+            {(['urgent','high','medium','low'] as Priority[]).map(p=><option key={p} value={p}>{PRIORITY_LABEL[p]}</option>)}
+          </select>
+          <button onClick={bulkDelete} className="flex items-center gap-1 text-xs px-2 py-1 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors">
+            <Trash2 size={11}/> Excluir
+          </button>
+          <button onClick={clear} className="text-xs text-gray-400 hover:text-gray-600">Cancelar</button>
+        </div>
+      )}
     </div>
   )
 }

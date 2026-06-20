@@ -20,7 +20,7 @@ import { SettingsModal }            from './components/SettingsModal'
 import { ColumnsModal }             from './components/ColumnsModal'
 
 export default function App() {
-  const { activeView, tasks, projects, init } = useAppStore()
+  const { activeView, tasks, projects, init, undo } = useAppStore()
   const { quickCaptureHotkey }  = useSettingsStore()
   const { generate }            = useNotificationStore()
   const [captureOpen, setCaptureOpen] = useState(false)
@@ -45,6 +45,19 @@ export default function App() {
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [quickCaptureHotkey])
+
+  // Ctrl+Z / Cmd+Z → desfazer (mover/excluir/reordenar)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName
+      const editing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target as HTMLElement)?.isContentEditable
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z') && !e.shiftKey && !editing) {
+        e.preventDefault(); undo()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [undo])
 
   const view = () => {
     switch (activeView) {

@@ -31,6 +31,9 @@ export interface FilterState {
 }
 const EMPTY_FILTER: FilterState = { status:'all', priority:'all', assignee:'', tags:[], dueBefore:'', dueAfter:'' }
 
+// Snapshot para desfazer (mover/excluir/reordenar)
+interface Snapshot { projects: Project[]; tasks: Task[]; spaces: Space[]; folders: Folder[] }
+
 interface AppState {
   projects:    Project[]
   tasks:       Task[]
@@ -38,6 +41,7 @@ interface AppState {
   folders:     Folder[]
   automations: Automation[]
   inboxColumns: ColumnDef[]
+  undoStack:   Snapshot[]
 
   activeView:      View
   activeProjectId: string | null
@@ -54,6 +58,8 @@ interface AppState {
   columnsModal:    string | null  // projectId
   newViewModal:    string | null  // projectId
 
+  pushUndo:        () => void
+  undo:            () => void
   setView:         (view: View, projectId?: string) => void
   openSpace:       (id: string) => void
   openFolder:      (id: string) => void
@@ -76,11 +82,13 @@ interface AppState {
   addSpace:    (name: string, color: string, icon?: string) => Space
   updateSpace: (id: string, patch: Partial<Space>) => void
   deleteSpace: (id: string) => void
+  reorderSpace: (draggedId: string, targetId: string) => void
 
   // Folders
   addFolder:    (name: string, spaceId: string, icon?: string) => Folder
   updateFolder: (id: string, patch: Partial<Folder>) => void
   deleteFolder: (id: string) => void
+  reorderFolder: (draggedId: string, targetId: string) => void
 
   // Projects
   addProject:       (name: string, color: string, desc: string, spaceId?: string, folderId?: string, icon?: string) => void
@@ -102,6 +110,7 @@ interface AppState {
   // Tasks
   addTask:       (task: Omit<Task,'id'|'createdAt'|'updatedAt'>) => Task
   quickAddTask:  (title: string, projectId: string, status: TaskStatus, parentId?: string) => Task
+  reorderTask:   (draggedId: string, targetId: string) => void
   updateTask:    (id: string, patch: Partial<Task>) => void
   deleteTask:    (id: string) => void
   updateBlocks:  (taskId: string, blocks: ContentBlock[]) => void
@@ -129,11 +138,23 @@ interface AppState {
 function pProjects(p: Project[], t: Task[]) { localProjects.set(p as any); localTasks.set(t as any) }
 
 export const useAppStore = create<AppState>((set, get) => ({
-  projects: [], tasks: [], spaces: [], folders: [], automations: [], inboxColumns: [],
+  projects: [], tasks: [], spaces: [], folders: [], automations: [], inboxColumns: [], undoStack: [],
   activeView:'my_tasks', activeProjectId:null, activeSpaceId:null, activeFolderId:null, selectedTaskId:null,
   filterPanelOpen:false, aiPanelOpen:false, filters:EMPTY_FILTER,
   newProjectModal:false, newProjectCtx:{}, gutModal:{open:false,projectId:null}, columnsModal:null, newViewModal:null,
 
+  pushUndo: () => {
+    const { projects, tasks, spaces, folders, undoStack } = get()
+    set({ undoStack: [...undoStack.slice(-29), { projects, tasks, spaces, folders }] })
+  },
+  undo: () => {
+    const { undoStack } = get()
+    if (!undoStack.length) return
+    const snap = undoStack[undoStack.length - 1]
+    pProjects(snap.projects, snap.tasks)
+    saveJSON(SPACES_KEY, snap.spaces); saveJSON(FOLDERS_KEY, snap.folders)
+    set({ projects: snap.projects, tasks: snap.tasks, spaces: snap.spaces, folders: snap.folders, undoStack: undoStack.slice(0, -1) })
+  },
   setView: (view, projectId) => set({ activeView:view, activeProjectId:projectId??null, activeSpaceId:null, activeFolderId:null, selectedTaskId:null }),
   openSpace:  (id) => set({ activeView:'space_detail',  activeSpaceId:id, activeFolderId:null, activeProjectId:null, selectedTaskId:null }),
   openFolder: (id) => set({ activeView:'folder_detail', activeFolderId:id, activeSpaceId:null, activeProjectId:null, selectedTaskId:null }),
@@ -163,11 +184,23 @@ export const useAppStore = create<AppState>((set, get) => ({
     saveJSON(SPACES_KEY, spaces); set({ spaces })
   },
   deleteSpace: (id) => {
+    get().pushUndo()
     const spaces   = get().spaces.filter(s => s.id !== id)
     const folders  = get().folders.filter(f => f.spaceId !== id)
     const projects = get().projects.map(p => p.spaceId===id ? {...p,spaceId:null,folderId:null} : p)
     saveJSON(SPACES_KEY, spaces); saveJSON(FOLDERS_KEY, folders)
     pProjects(projects, get().tasks); set({ spaces, folders, projects })
+  },
+  reorderSpace: (draggedId, targetId) => {
+    if (draggedId === targetId) return
+    get().pushUndo()
+    const spaces = [...get().spaces]
+    const from = spaces.findIndex(s => s.id===draggedId)
+    const to   = spaces.findIndex(s => s.id===targetId)
+    if (from < 0 || to < 0) return
+    const [moved] = spaces.splice(from, 1)
+    spaces.splice(spaces.findIndex(s => s.id===targetId), 0, moved)
+    saveJSON(SPACES_KEY, spaces); set({ spaces })
   },
 
   // ── Folders ──────────────────────────────────────────────────────────
@@ -181,9 +214,23 @@ export const useAppStore = create<AppState>((set, get) => ({
     saveJSON(FOLDERS_KEY, folders); set({ folders })
   },
   deleteFolder: (id) => {
+    get().pushUndo()
     const folders  = get().folders.filter(f => f.id !== id)
     const projects = get().projects.map(p => p.folderId===id ? {...p,folderId:null} : p)
     saveJSON(FOLDERS_KEY, folders); pProjects(projects, get().tasks); set({ folders, projects })
+  },
+  reorderFolder: (draggedId, targetId) => {
+    if (draggedId === targetId) return
+    get().pushUndo()
+    const folders = [...get().folders]
+    const from = folders.findIndex(f => f.id===draggedId)
+    const to   = folders.findIndex(f => f.id===targetId)
+    if (from < 0 || to < 0) return
+    // Mantém a pasta no mesmo espaço do alvo
+    const moved = { ...folders[from], spaceId: folders[to].spaceId }
+    folders.splice(from, 1)
+    folders.splice(folders.findIndex(f => f.id===targetId), 0, moved)
+    saveJSON(FOLDERS_KEY, folders); set({ folders })
   },
 
   // ── Projects ─────────────────────────────────────────────────────────
@@ -199,11 +246,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     pProjects(projects, get().tasks); set({ projects })
   },
   moveProject: (id, spaceId, folderId) => {
+    get().pushUndo()
     const projects = get().projects.map(p => p.id===id ? {...p, spaceId, folderId, updatedAt:new Date().toISOString()} : p)
     pProjects(projects, get().tasks); set({ projects })
   },
   reorderProject: (draggedId, targetId) => {
     if (draggedId === targetId) return
+    get().pushUndo()
     const projects = [...get().projects]
     const from = projects.findIndex(p => p.id===draggedId)
     const to   = projects.findIndex(p => p.id===targetId)
@@ -218,11 +267,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     pProjects(projects, get().tasks); set({ projects })
   },
   deleteProject: (id) => {
+    get().pushUndo()
     const projects = get().projects.filter(p => p.id !== id)
     const tasks    = get().tasks.filter(t => t.projectId !== id)
     pProjects(projects, tasks); set({ projects, tasks })
   },
   archiveProject: (id) => {
+    get().pushUndo()
     const projects = get().projects.map(p => p.id===id ? {...p,archived:true,updatedAt:new Date().toISOString()} : p)
     pProjects(projects, get().tasks)
     set({ projects, activeView: get().activeProjectId===id ? 'projects' : get().activeView, activeProjectId: get().activeProjectId===id ? null : get().activeProjectId })
@@ -298,6 +349,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     get().runAutomations('task_created', t.id)
     return t
   },
+  reorderTask: (draggedId, targetId) => {
+    if (draggedId === targetId) return
+    get().pushUndo()
+    const tasks = [...get().tasks]
+    const from = tasks.findIndex(t => t.id===draggedId)
+    const to   = tasks.findIndex(t => t.id===targetId)
+    if (from < 0 || to < 0) return
+    const [moved] = tasks.splice(from, 1)
+    tasks.splice(tasks.findIndex(t => t.id===targetId), 0, moved)
+    pProjects(get().projects, tasks); set({ tasks })
+  },
   updateTask: (id, patch) => {
     const prev = get().tasks.find(t => t.id===id)
     const tasks = get().tasks.map(t => t.id===id ? {...t,...patch,updatedAt:new Date().toISOString()} : t)
@@ -307,6 +369,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (patch.assignee && prev?.assignee !== patch.assignee) get().runAutomations('assignee_changed', id, prev)
   },
   deleteTask: (id) => {
+    get().pushUndo()
     const toDelete = new Set<string>()
     const collect = (tid: string) => { toDelete.add(tid); get().tasks.filter(t => t.parentId===tid).forEach(t => collect(t.id)) }
     collect(id)

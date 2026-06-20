@@ -1,7 +1,10 @@
-import React, { useMemo } from 'react'
-import { BarChart2, TrendingUp, AlertTriangle, CheckCircle2, Clock, Printer, Users, Zap } from 'lucide-react'
+import React, { useMemo, useState } from 'react'
+import { BarChart2, TrendingUp, AlertTriangle, CheckCircle2, Clock, Printer, Users, Zap, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useAppStore } from '../stores/useAppStore'
 import { gutTier } from '../types'
+
+const isoDate = (d: Date) => { const x = new Date(d); x.setMinutes(x.getMinutes() - x.getTimezoneOffset()); return x.toISOString().slice(0, 10) }
+const weekStartFrom = (d: Date) => { const x = new Date(d); x.setHours(0,0,0,0); x.setDate(x.getDate() - x.getDay()); return x }
 
 function startOfWeek() {
   const d = new Date(); d.setHours(0,0,0,0)
@@ -13,6 +16,16 @@ export function ReportsView() {
 
   const now      = new Date()
   const weekStart= startOfWeek()
+
+  // Modal "Concluídas na semana" (com data editável)
+  const [completedOpen, setCompletedOpen] = useState(false)
+  const [weekRef, setWeekRef] = useState<Date>(() => startOfWeek())
+  const weekRefEnd = useMemo(() => { const x = new Date(weekRef); x.setDate(x.getDate() + 7); return x }, [weekRef])
+  const doneInWeek = useMemo(() =>
+    tasks.filter(t => t.status==='done' && !t.parentId && new Date(t.updatedAt) >= weekRef && new Date(t.updatedAt) < weekRefEnd)
+      .sort((a,b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+  , [tasks, weekRef, weekRefEnd])
+  const shiftWeek = (n: number) => setWeekRef(d => { const x = new Date(d); x.setDate(x.getDate() + n*7); return x })
 
   const stats = useMemo(() => {
     const active      = tasks.filter(t => t.status !== 'done' && !t.parentId)
@@ -94,7 +107,7 @@ export function ReportsView() {
 
         {/* KPI Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <KpiCard icon={<CheckCircle2 size={16} className="text-green-600" />} label="Concluídas esta semana" value={stats.doneThisWeek} sub={`${stats.done} total`} accent="green" />
+          <KpiCard icon={<CheckCircle2 size={16} className="text-green-600" />} label="Concluídas esta semana" value={stats.doneThisWeek} sub={`${stats.done} total · ver detalhes`} accent="green" onClick={() => { setWeekRef(startOfWeek()); setCompletedOpen(true) }} />
           <KpiCard icon={<TrendingUp    size={16} className="text-brand-600" />} label="Taxa de conclusão"      value={`${stats.completionRate}%`} sub={`${stats.done}/${stats.total} tarefas`} accent="brand" />
           <KpiCard icon={<AlertTriangle size={16} className="text-red-500" />}  label="Em atraso"              value={stats.overdue}  sub="tarefas atrasadas" accent="red" />
           <KpiCard icon={<Zap           size={16} className="text-orange-500" />} label="Urgentes ativas"      value={stats.urgent}   sub="precisam atenção" accent="orange" />
@@ -232,11 +245,51 @@ export function ReportsView() {
           </div>
         )}
       </div>
+
+      {/* Modal: Concluídas na semana (data editável) */}
+      {completedOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm" onClick={() => setCompletedOpen(false)}>
+          <div className="bg-white rounded-2xl shadow-xl w-[540px] max-w-[92vw] max-h-[80vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
+              <CheckCircle2 size={15} className="text-green-600" />
+              <span className="text-sm font-semibold text-gray-900 flex-1">Concluídas na semana</span>
+              <button onClick={() => setCompletedOpen(false)} className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100"><X size={14} /></button>
+            </div>
+
+            {/* Seletor de semana (data editável) */}
+            <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 flex-wrap">
+              <button onClick={() => shiftWeek(-1)} className="flex items-center gap-1 text-xs px-2 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50"><ChevronLeft size={13} /> Anterior</button>
+              <input type="date" value={isoDate(weekRef)} onChange={e => e.target.value && setWeekRef(weekStartFrom(new Date(e.target.value + 'T00:00:00')))}
+                className="text-xs px-2 py-1.5 border border-gray-200 rounded-lg outline-none text-gray-700" />
+              <button onClick={() => shiftWeek(1)} className="flex items-center gap-1 text-xs px-2 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50">Próxima <ChevronRight size={13} /></button>
+              <span className="text-xs text-gray-400 ml-auto">
+                {weekRef.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})} – {new Date(weekRefEnd.getTime()-1).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})} · {doneInWeek.length}
+              </span>
+            </div>
+
+            <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
+              {doneInWeek.length === 0 ? (
+                <p className="px-5 py-8 text-xs text-gray-400 text-center">Nenhuma tarefa concluída nesta semana.</p>
+              ) : doneInWeek.map(t => {
+                const p = projects.find(pr => pr.id === t.projectId)
+                return (
+                  <div key={t.id} className="flex items-center gap-2 px-5 py-2.5">
+                    <CheckCircle2 size={13} className="text-green-500 flex-shrink-0" />
+                    <span className="flex-1 text-xs text-gray-700 truncate">{t.title}</span>
+                    {p && <span className="text-[10px] text-gray-400 flex-shrink-0">{p.name}</span>}
+                    <span className="text-[10px] text-gray-400 flex-shrink-0">{new Date(t.updatedAt).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-function KpiCard({ icon, label, value, sub, accent }: { icon: React.ReactNode; label: string; value: string | number; sub: string; accent: string }) {
+function KpiCard({ icon, label, value, sub, accent, onClick }: { icon: React.ReactNode; label: string; value: string | number; sub: string; accent: string; onClick?: () => void }) {
   const accents: Record<string, string> = {
     green:  'border-green-100',
     brand:  'border-brand-100',
@@ -244,7 +297,8 @@ function KpiCard({ icon, label, value, sub, accent }: { icon: React.ReactNode; l
     orange: 'border-orange-100',
   }
   return (
-    <div className={`bg-white border rounded-xl p-4 ${accents[accent] ?? 'border-gray-200'}`}>
+    <div onClick={onClick}
+      className={`bg-white border rounded-xl p-4 ${accents[accent] ?? 'border-gray-200'} ${onClick ? 'cursor-pointer hover:shadow-sm hover:border-green-300 transition-all' : ''}`}>
       <div className="flex items-center justify-between mb-2">
         {icon}
       </div>

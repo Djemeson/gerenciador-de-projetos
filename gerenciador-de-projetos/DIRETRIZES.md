@@ -205,6 +205,28 @@ Regras:
 - Reordenar usa `reorderProject(draggedId, targetId)`; mover usa `moveProject`. O alvo válido
   fica destacado com um anel (`ring-brand-400`) durante o arraste.
 
+## 13.2. Fluidez (arrastar, teclado, desfazer, animações)
+
+- **Arrastar tarefas** na lista: soltar sobre outra reordena; soltar numa de outro
+  status muda o status (`reorderTask` + `updateTask`). Só tarefas-raiz (depth 0) arrastam.
+- **Arrastar pastas e espaços** na sidebar para reordenar (`reorderFolder`/`reorderSpace`),
+  além de projetos (item 13.1).
+- **Atalhos de teclado** na lista: `j`/`k` (ou ↓/↑) navegam, `e` abre a tarefa em foco,
+  `espaço` conclui/reabre. Ignorados quando o foco está num campo de texto.
+- **Desfazer**: `Ctrl/Cmd+Z` reverte mover/excluir/reordenar/arquivar via pilha de
+  snapshots no store (`pushUndo`/`undo`). Toda ação destrutiva/de movimentação chama
+  `pushUndo()` antes de alterar.
+- **Animações**: `.animate-fade-in` (em `index.css`) ao expandir grupos da lista e
+  espaços/pastas. Preferir CSS a dependências externas.
+- **Alvo de drop** sempre destacado com `ring-brand-400` durante o arraste.
+- A **largura do painel da tarefa** é salva por usuário (`tf_taskpanel_width`).
+
+## 13.3. Relatório semanal
+
+- O card **"Concluídas esta semana" é clicável** → abre um modal com a lista das tarefas
+  concluídas naquela semana, com **seletor de data** (Anterior/Próxima + campo de data)
+  para navegar para outras semanas (inclusive a anterior).
+
 ## 14. Painel da tarefa (TaskDetail)
 
 - Propriedades (Prioridade, Status, Prazo, Responsável) em **grade de 3 por linha**.
@@ -214,4 +236,4 @@ Regras:
 
 ---
 
-_Última atualização: 20/06/2026 (lote de correções 002)._
+_Última atualização: 20/06/2026 (lote de correções 003 — fluidez)._

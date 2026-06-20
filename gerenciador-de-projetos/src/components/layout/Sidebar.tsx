@@ -18,8 +18,8 @@ export function Sidebar() {
   const {
     activeView, activeProjectId, activeSpaceId, activeFolderId,
     projects, tasks, spaces, folders,
-    setView, openSpace, openFolder, openNewProject, addSpace, updateSpace, deleteSpace,
-    addFolder, updateFolder, deleteFolder,
+    setView, openSpace, openFolder, openNewProject, addSpace, updateSpace, deleteSpace, reorderSpace,
+    addFolder, updateFolder, deleteFolder, reorderFolder,
     updateProject, moveProject, reorderProject, archiveProject, deleteProject, openGUT,
   } = useAppStore()
   const { openSettings } = useSettingsStore()
@@ -32,6 +32,8 @@ export function Sidebar() {
   const [editingSpace,  setEditingSpace]  = useState<string|null>(null)
   const [editingFolder, setEditingFolder] = useState<string|null>(null)
   const [dragProjId,    setDragProjId]    = useState<string|null>(null)
+  const [dragFolderId,  setDragFolderId]  = useState<string|null>(null)
+  const [dragSpaceId,   setDragSpaceId]   = useState<string|null>(null)
   const [dropHint,      setDropHint]      = useState<string|null>(null)  // id do alvo destacado
   const [editingProject,setEditingProject]= useState<string|null>(null)
   const [spaceMenu,     setSpaceMenu]     = useState<string|null>(null)
@@ -345,10 +347,18 @@ export function Sidebar() {
 
               {/* Space header */}
               <div
-                onDragOver={e => { if (dragProjId) { e.preventDefault(); if (dropHint !== 'sp:'+s.id) setDropHint('sp:'+s.id) } }}
+                draggable={editingSpace !== s.id}
+                onDragStart={e => { setDragSpaceId(s.id); e.dataTransfer.effectAllowed = 'move' }}
+                onDragEnd={() => { setDragSpaceId(null); setDropHint(null) }}
+                onDragOver={e => { if (dragProjId || dragSpaceId) { e.preventDefault(); if (dropHint !== 'sp:'+s.id) setDropHint('sp:'+s.id) } }}
                 onDragLeave={() => setDropHint(h => (h === 'sp:'+s.id ? null : h))}
-                onDrop={e => { e.preventDefault(); onDropContainer(s.id, null) }}
-                className={`flex items-center gap-0.5 group/space rounded-lg ${activeView==='space_detail' && activeSpaceId===s.id ? 'bg-cu-active' : ''} ${dropHint==='sp:'+s.id ? 'ring-1 ring-brand-400 ring-inset' : ''}`}>
+                onDrop={e => {
+                  e.preventDefault()
+                  if (dragProjId) onDropContainer(s.id, null)
+                  else if (dragSpaceId && dragSpaceId !== s.id) reorderSpace(dragSpaceId, s.id)
+                  setDragSpaceId(null); setDropHint(null)
+                }}
+                className={`flex items-center gap-0.5 group/space rounded-lg ${activeView==='space_detail' && activeSpaceId===s.id ? 'bg-cu-active' : ''} ${dropHint==='sp:'+s.id ? 'ring-1 ring-brand-400 ring-inset' : ''} ${dragSpaceId===s.id ? 'opacity-40' : ''}`}>
                 <button
                   onClick={() => updateSpace(s.id, {collapsed: !s.collapsed})}
                   title={s.collapsed ? 'Expandir' : 'Recolher'}
@@ -428,16 +438,24 @@ export function Sidebar() {
               </div>
 
               {!s.collapsed && (
-                <div className="ml-3 pl-1.5 border-l border-cu-border/60">
+                <div className="ml-3 pl-1.5 border-l border-cu-border/60 animate-fade-in">
 
                   {/* Folders */}
                   {sfolders.map(({ folder: f, projects: fp }) => (
                     <div key={f.id} className="mt-0.5">
                       <div
-                        onDragOver={e => { if (dragProjId) { e.preventDefault(); if (dropHint !== 'fd:'+f.id) setDropHint('fd:'+f.id) } }}
+                        draggable={editingFolder !== f.id}
+                        onDragStart={e => { e.stopPropagation(); setDragFolderId(f.id); e.dataTransfer.effectAllowed = 'move' }}
+                        onDragEnd={() => { setDragFolderId(null); setDropHint(null) }}
+                        onDragOver={e => { if (dragProjId || dragFolderId) { e.preventDefault(); if (dropHint !== 'fd:'+f.id) setDropHint('fd:'+f.id) } }}
                         onDragLeave={() => setDropHint(h => (h === 'fd:'+f.id ? null : h))}
-                        onDrop={e => { e.preventDefault(); onDropContainer(f.spaceId, f.id) }}
-                        className={`flex items-center gap-0.5 group/folder rounded-lg ${activeView==='folder_detail' && activeFolderId===f.id ? 'bg-cu-active' : ''} ${dropHint==='fd:'+f.id ? 'ring-1 ring-brand-400 ring-inset' : ''}`}>
+                        onDrop={e => {
+                          e.preventDefault(); e.stopPropagation()
+                          if (dragProjId) onDropContainer(f.spaceId, f.id)
+                          else if (dragFolderId && dragFolderId !== f.id) reorderFolder(dragFolderId, f.id)
+                          setDragFolderId(null); setDropHint(null)
+                        }}
+                        className={`flex items-center gap-0.5 group/folder rounded-lg ${activeView==='folder_detail' && activeFolderId===f.id ? 'bg-cu-active' : ''} ${dropHint==='fd:'+f.id ? 'ring-1 ring-brand-400 ring-inset' : ''} ${dragFolderId===f.id ? 'opacity-40' : ''}`}>
                         <button
                           onClick={() => updateFolder(f.id, {collapsed: !f.collapsed})}
                           title={f.collapsed ? 'Expandir' : 'Recolher'}
@@ -513,7 +531,7 @@ export function Sidebar() {
                       </div>
 
                       {!f.collapsed && (
-                        <div className="ml-3 pl-1 space-y-0.5">
+                        <div className="ml-3 pl-1 space-y-0.5 animate-fade-in">
                           {fp.length === 0
                             ? <div className="pl-3 py-1 text-[11px] text-cu-muted/70 italic">Vazia</div>
                             : fp.map(p => renderProject(p, 0))}

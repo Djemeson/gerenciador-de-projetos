@@ -26,11 +26,16 @@ interface TaskRowProps {
   columns?:       ColumnDef[]
   orderedColumns?: ListColumn[]
   selected?:      boolean
+  focused?:       boolean
   onSelect?:      (id: string, e: React.MouseEvent) => void
+  dragTaskId?:    string | null
+  onDragStartTask?: (id: string) => void
+  onDropTask?:    (targetId: string) => void
 }
 
-export function TaskRow({ task, project, showProject=false, depth=0, columns=[], orderedColumns, selected=false, onSelect }: TaskRowProps) {
+export function TaskRow({ task, project, showProject=false, depth=0, columns=[], orderedColumns, selected=false, focused=false, onSelect, dragTaskId, onDragStartTask, onDropTask }: TaskRowProps) {
   const { updateTask, deleteTask, setSelectedTask, selectedTaskId, tasks } = useAppStore()
+  const [dropOver, setDropOver] = useState(false)
   const [expanded,      setExpanded]      = useState(true)
   const [addingSubtask, setAddingSubtask] = useState(false)
   const [confirmDel,    setConfirmDel]    = useState(false)
@@ -139,9 +144,18 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
   return (
     <>
       <div
+        draggable={!!onDragStartTask && depth===0}
+        onDragStart={e => { if (onDragStartTask) { onDragStartTask(task.id); e.dataTransfer.effectAllowed = 'move' } }}
+        onDragOver={e => { if (onDropTask && dragTaskId && dragTaskId!==task.id) { e.preventDefault(); if (!dropOver) setDropOver(true) } }}
+        onDragLeave={() => setDropOver(false)}
+        onDrop={e => { if (onDropTask) { e.preventDefault(); onDropTask(task.id) } setDropOver(false) }}
+        onDragEnd={() => setDropOver(false)}
         onMouseDown={handleMouseDown}
         onClick={handleClick}
         className={`flex items-center border-b border-gray-100 transition-colors group cursor-pointer
+          ${dragTaskId===task.id ? 'opacity-40' : ''}
+          ${dropOver ? 'border-t-2 border-t-brand-400' : ''}
+          ${focused ? 'ring-1 ring-inset ring-brand-300 bg-brand-50/40' : ''}
           ${selected  ? 'bg-brand-50 ring-1 ring-inset ring-brand-200' :
             isSelected? 'bg-brand-50/60' :
             isDone    ? 'bg-gray-50/40 hover:bg-gray-50' : 'hover:bg-gray-50'}`}
@@ -271,7 +285,7 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
         <>
           {subtasks.map(s=>(
             <TaskRow key={s.id} task={s} project={project} showProject={showProject}
-              depth={depth+1} columns={columns} onSelect={onSelect} selected={selected}/>
+              depth={depth+1} columns={columns} orderedColumns={orderedColumns} onSelect={onSelect} selected={selected}/>
           ))}
           {addingSubtask&&task.projectId&&(
             <div style={{paddingLeft:`${16+(depth+1)*20}px`}}>

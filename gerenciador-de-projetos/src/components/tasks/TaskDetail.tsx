@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react'
+import React, { useState, useRef, useCallback, useEffect } from 'react'
 import {
   X, Flag, Calendar, User, CheckSquare, Trash2, Plus, ListChecks, GitBranch,
   PanelRight, Square, Maximize2, ChevronDown, ChevronRight,
@@ -41,11 +41,13 @@ export function TaskDetail({ mode = 'side', onChangeMode }: Props) {
   } = useAppStore()
 
   // ── Resize (side mode only) — abre grande (metade da janela ou mais) ──────
-  const [width, setWidth]  = useState(() =>
-    typeof window !== 'undefined'
+  const [width, setWidth]  = useState(() => {
+    try { const saved = Number(localStorage.getItem('tf_taskpanel_width')); if (saved >= 420) return saved } catch {}
+    return typeof window !== 'undefined'
       ? Math.min(960, Math.max(560, Math.round(window.innerWidth * 0.55)))
       : 640
-  )
+  })
+  useEffect(() => { try { localStorage.setItem('tf_taskpanel_width', String(width)) } catch {} }, [width])
   const dragging = useRef(false)
   const startX   = useRef(0)
   const startW   = useRef(0)

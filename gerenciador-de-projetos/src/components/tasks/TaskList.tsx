@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react'
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { Plus, ChevronDown, ChevronRight, Trash2 } from 'lucide-react'
 import { useAppStore } from '../../stores/useAppStore'
 import { TaskRow } from './TaskRow'
@@ -23,11 +23,52 @@ interface TaskListProps {
 }
 
 export function TaskList({ tasks, projectId, scopeKey, columns=[], showProject=false, sortBy='status' }: TaskListProps) {
-  const { projects, activeProjectId, deleteTask, updateTask, filteredTasks } = useAppStore()
+  const { projects, activeProjectId, deleteTask, updateTask, reorderTask, filteredTasks } = useAppStore()
   const [collapsed,    setCollapsed]    = useState<Set<string>>(new Set(['done']))
   const [quickAdd,     setQuickAdd]     = useState<{key:string;status:TaskStatus}|null>(null)
   const [selectedIds,  setSelectedIds]  = useState<string[]>([])
   const [lastSelected, setLastSelected] = useState<string|null>(null)
+  const [dragTaskId,   setDragTaskId]   = useState<string|null>(null)
+  const [focusId,      setFocusId]      = useState<string|null>(null)
+
+  // Navegação por teclado (j/k navegar · e abrir · espaço concluir)
+  const rootIdsRef = useRef<string[]>([])
+  const focusIdRef = useRef<string|null>(null)
+  focusIdRef.current = focusId
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement
+      if (el && (el.tagName==='INPUT' || el.tagName==='TEXTAREA' || el.tagName==='SELECT' || el.isContentEditable)) return
+      const ids = rootIdsRef.current; if (!ids.length) return
+      const cur = focusIdRef.current
+      const idx = cur ? ids.indexOf(cur) : -1
+      if (e.key==='j' || e.key==='ArrowDown') { e.preventDefault(); setFocusId(ids[Math.min(ids.length-1, idx+1)] ?? ids[0]) }
+      else if (e.key==='k' || e.key==='ArrowUp') { e.preventDefault(); setFocusId(idx<=0 ? ids[0] : ids[idx-1]) }
+      else if (e.key==='e' && cur) { e.preventDefault(); useAppStore.getState().setSelectedTask(cur) }
+      else if (e.key===' ' && cur) {
+        e.preventDefault()
+        const t = useAppStore.getState().tasks.find(x => x.id===cur)
+        if (t) useAppStore.getState().updateTask(cur, { status: t.status==='done'?'todo':'done' })
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+
+  const handleDropTask = (targetId: string) => {
+    if (dragTaskId && dragTaskId !== targetId) {
+      const dragged = tasks.find(t => t.id===dragTaskId)
+      const target  = tasks.find(t => t.id===targetId)
+      if (dragged && target && dragged.status !== target.status) updateTask(dragTaskId, { status: target.status })
+      reorderTask(dragTaskId, targetId)
+    }
+    setDragTaskId(null)
+  }
+  const taskDragProps = {
+    dragTaskId,
+    onDragStartTask: (id: string) => setDragTaskId(id),
+    onDropTask: handleDropTask,
+  }
 
   const scope = scopeKey ?? (projectId ? 'project:'+projectId : 'global')
   const [colSort,    setColSort]    = useState<ColumnSort|null>(() => loadSort(scope))
@@ -61,6 +102,7 @@ export function TaskList({ tasks, projectId, scopeKey, columns=[], showProject=f
   }
 
   const rootTasks    = filteredTasks(tasks.filter(t=>!t.parentId))
+  rootIdsRef.current = rootTasks.map(t=>t.id)
   const resolvedPid  = projectId ?? activeProjectId ?? projects[0]?.id ?? ''
   const toggle = (k:string) => setCollapsed(p=>{const n=new Set(p);n.has(k)?n.delete(k):n.add(k);return n})
 
@@ -101,11 +143,11 @@ export function TaskList({ tasks, projectId, scopeKey, columns=[], showProject=f
           )}
         </div>
         {!isCollapsed&&(
-          <>
+          <div className="animate-fade-in">
             {sortTasks(items, colSort).map(t=>(
               <TaskRow key={t.id} task={t} project={projects.find(p=>p.id===t.projectId)}
                 showProject={showProject} columns={columns} orderedColumns={orderedColumns}
-                selected={selectedIds.includes(t.id)} onSelect={handleSelect}/>
+                selected={selectedIds.includes(t.id)} focused={focusId===t.id} onSelect={handleSelect} {...taskDragProps}/>
             ))}
             {isAdding&&<QuickAddRow projectId={resolvedPid} status={status} onDone={()=>setQuickAdd(null)}/>}
             {!isAdding&&status!=='done'&&(
@@ -114,7 +156,7 @@ export function TaskList({ tasks, projectId, scopeKey, columns=[], showProject=f
                 <Plus size={12}/> Adicionar tarefa
               </button>
             )}
-          </>
+          </div>
         )}
       </div>
     )
@@ -134,7 +176,7 @@ export function TaskList({ tasks, projectId, scopeKey, columns=[], showProject=f
   } else {
     const base=[...rootTasks].filter(t=>t.status!=='done').sort((a,b)=>{if(!a.dueDate)return 1;if(!b.dueDate)return-1;return new Date(a.dueDate).getTime()-new Date(b.dueDate).getTime()})
     const sorted=colSort?sortTasks(base,colSort):base
-    content = sorted.map(t=><TaskRow key={t.id} task={t} project={projects.find(p=>p.id===t.projectId)} showProject={showProject} columns={columns} orderedColumns={orderedColumns} selected={selectedIds.includes(t.id)} onSelect={handleSelect}/>)
+    content = sorted.map(t=><TaskRow key={t.id} task={t} project={projects.find(p=>p.id===t.projectId)} showProject={showProject} columns={columns} orderedColumns={orderedColumns} selected={selectedIds.includes(t.id)} focused={focusId===t.id} onSelect={handleSelect} {...taskDragProps}/>)
   }
 
   return (
