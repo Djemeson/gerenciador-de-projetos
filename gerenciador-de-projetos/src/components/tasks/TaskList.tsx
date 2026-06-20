@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useMemo } from 'react'
 import { Plus, ChevronDown, ChevronRight, Trash2 } from 'lucide-react'
 import { useAppStore } from '../../stores/useAppStore'
 import { TaskRow } from './TaskRow'
@@ -6,23 +6,59 @@ import { QuickAddRow } from './QuickAddRow'
 import { ColumnHeaders } from './ColumnHeaders'
 import type { Task, TaskStatus, Priority, ColumnDef } from '../../types'
 import { STATUS_LABEL, PRIORITY_LABEL } from '../../types'
+import {
+  buildColumns, loadSort, saveSort, loadOrder, saveOrder, loadLabels, saveLabels, sortTasks,
+  type ColumnSort,
+} from '../../lib/taskColumns'
 
 const STATUS_ORDER: TaskStatus[] = ['in_progress', 'todo', 'done']
 
 interface TaskListProps {
   tasks:        Task[]
   projectId?:   string
+  scopeKey?:    string
   columns?:     ColumnDef[]
   showProject?: boolean
   sortBy?:      'status' | 'priority' | 'dueDate' | 'project' | 'assignee'
 }
 
-export function TaskList({ tasks, projectId, columns=[], showProject=false, sortBy='status' }: TaskListProps) {
+export function TaskList({ tasks, projectId, scopeKey, columns=[], showProject=false, sortBy='status' }: TaskListProps) {
   const { projects, activeProjectId, deleteTask, updateTask, filteredTasks } = useAppStore()
   const [collapsed,    setCollapsed]    = useState<Set<string>>(new Set(['done']))
   const [quickAdd,     setQuickAdd]     = useState<{key:string;status:TaskStatus}|null>(null)
   const [selectedIds,  setSelectedIds]  = useState<string[]>([])
   const [lastSelected, setLastSelected] = useState<string|null>(null)
+
+  const scope = scopeKey ?? (projectId ? 'project:'+projectId : 'global')
+  const [colSort,    setColSort]    = useState<ColumnSort|null>(() => loadSort(scope))
+  const [colVersion, setColVersion] = useState(0)
+
+  const orderedColumns = useMemo(
+    () => buildColumns(scope, columns, showProject),
+    [scope, columns, showProject, colVersion],
+  )
+
+  const cycleSort = (key: string) => {
+    setColSort(prev => {
+      let next: ColumnSort | null
+      if (!prev || prev.key !== key) next = { key, dir: 'asc' }
+      else if (prev.dir === 'asc')   next = { key, dir: 'desc' }
+      else                            next = null
+      saveSort(scope, next)
+      return next
+    })
+  }
+  const reorderCol = (fromKey: string, toKey: string) => {
+    const keys = orderedColumns.map(c => c.key)
+    const from = keys.indexOf(fromKey), to = keys.indexOf(toKey)
+    if (from < 0 || to < 0) return
+    keys.splice(to, 0, keys.splice(from, 1)[0])
+    saveOrder(scope, keys); setColVersion(v => v + 1)
+  }
+  const renameCol = (key: string, label: string) => {
+    const labels = loadLabels(scope); labels[key] = label
+    saveLabels(scope, labels); setColVersion(v => v + 1)
+  }
 
   const rootTasks    = filteredTasks(tasks.filter(t=>!t.parentId))
   const resolvedPid  = projectId ?? activeProjectId ?? projects[0]?.id ?? ''
@@ -66,9 +102,9 @@ export function TaskList({ tasks, projectId, columns=[], showProject=false, sort
         </div>
         {!isCollapsed&&(
           <>
-            {items.map(t=>(
+            {sortTasks(items, colSort).map(t=>(
               <TaskRow key={t.id} task={t} project={projects.find(p=>p.id===t.projectId)}
-                showProject={showProject} columns={columns}
+                showProject={showProject} columns={columns} orderedColumns={orderedColumns}
                 selected={selectedIds.includes(t.id)} onSelect={handleSelect}/>
             ))}
             {isAdding&&<QuickAddRow projectId={resolvedPid} status={status} onDone={()=>setQuickAdd(null)}/>}
@@ -96,14 +132,17 @@ export function TaskList({ tasks, projectId, columns=[], showProject=false, sort
     const assignees=[...new Set(rootTasks.filter(t=>t.status!=='done').map(t=>t.assignee||'Sem responsável'))].sort()
     content = assignees.map(a=>{const items=rootTasks.filter(t=>(t.assignee||'Sem responsável')===a&&t.status!=='done'); return items.length?renderGroup('asg_'+a,a,items,'todo','#7B68EE'):null})
   } else {
-    const sorted=[...rootTasks].filter(t=>t.status!=='done').sort((a,b)=>{if(!a.dueDate)return 1;if(!b.dueDate)return-1;return new Date(a.dueDate).getTime()-new Date(b.dueDate).getTime()})
-    content = sorted.map(t=><TaskRow key={t.id} task={t} project={projects.find(p=>p.id===t.projectId)} showProject={showProject} columns={columns} selected={selectedIds.includes(t.id)} onSelect={handleSelect}/>)
+    const base=[...rootTasks].filter(t=>t.status!=='done').sort((a,b)=>{if(!a.dueDate)return 1;if(!b.dueDate)return-1;return new Date(a.dueDate).getTime()-new Date(b.dueDate).getTime()})
+    const sorted=colSort?sortTasks(base,colSort):base
+    content = sorted.map(t=><TaskRow key={t.id} task={t} project={projects.find(p=>p.id===t.projectId)} showProject={showProject} columns={columns} orderedColumns={orderedColumns} selected={selectedIds.includes(t.id)} onSelect={handleSelect}/>)
   }
 
   return (
     <div className="flex-1 overflow-y-auto flex flex-col">
       {/* Column headers */}
-      <ColumnHeaders projectId={resolvedPid} columns={columns} showProject={showProject}/>
+      <ColumnHeaders projectId={resolvedPid} columns={columns} showProject={showProject}
+        orderedColumns={orderedColumns} sort={colSort}
+        onSort={cycleSort} onReorder={reorderCol} onRename={renameCol}/>
       <div className="flex-1">{content}</div>
 
       {/* Multi-select action bar */}

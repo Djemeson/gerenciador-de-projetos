@@ -125,7 +125,7 @@ export function TaskPanel({
         {/* Content */}
         <div className="flex flex-1 overflow-hidden">
           {view==='overview'  && <OverviewView  tasks={tasks} accent={accent} pct={pct} gut={gut}/>}
-          {view==='list'      && <TaskList tasks={tasks} projectId={defaultProjectId} columns={columns} showProject={showProject} sortBy={group}/>}
+          {view==='list'      && <TaskList tasks={tasks} projectId={defaultProjectId} scopeKey={scopeKey} columns={columns} showProject={showProject} sortBy={group}/>}
           {view==='board'     && <BoardView     tasks={tasks}/>}
           {view==='table'     && <TableView     tasks={tasks} columns={columns} showProject={showProject}/>}
           {view==='calendar'  && <CalendarInline tasks={tasks}/>}

@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Search, Layers } from 'lucide-react'
 import { useAppStore } from '../stores/useAppStore'
 import { TaskPanel } from '../components/tasks/TaskPanel'
+import { INBOX_PROJECT_ID } from '../types'
 
 export function AllTasksView() {
   const { tasks, projects } = useAppStore()
@@ -9,6 +10,7 @@ export function AllTasksView() {
   const [filterProject, setFilterProject] = useState<string>('all')
 
   const filtered = tasks.filter(t =>
+    t.projectId !== INBOX_PROJECT_ID &&
     (filterProject === 'all' || t.projectId === filterProject) &&
     (search === '' || t.title.toLowerCase().includes(search.toLowerCase()))
   )

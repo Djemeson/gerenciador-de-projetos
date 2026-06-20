@@ -16,16 +16,18 @@ export function QuickAddRow({ projectId, status, parentId, onDone }: QuickAddRow
 
   useEffect(() => { ref.current?.focus() }, [])
 
-  const save = () => {
-    if (title.trim()) quickAddTask(title, projectId, status, parentId)
+  // keepOpen=true → cria e já espera a próxima (fluxo contínuo); false → fecha
+  const save = (keepOpen: boolean) => {
+    const t = title.trim()
+    if (t) quickAddTask(title, projectId, status, parentId)
     setTitle('')
-    onDone()
-    // Não abre o detalhe — o usuário clica quando quiser ver
+    if (keepOpen && t) { ref.current?.focus() }
+    else onDone()
   }
 
   const onKey = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter')  save()
-    if (e.key === 'Escape') onDone()
+    if (e.key === 'Enter')  { e.preventDefault(); save(true) }
+    if (e.key === 'Escape') { setTitle(''); onDone() }
   }
 
   return (
@@ -36,7 +38,7 @@ export function QuickAddRow({ projectId, status, parentId, onDone }: QuickAddRow
         value={title}
         onChange={e => setTitle(e.target.value)}
         onKeyDown={onKey}
-        onBlur={save}
+        onBlur={() => save(false)}
         placeholder="Nome da tarefa..."
         className="flex-1 text-sm bg-transparent outline-none text-gray-800 placeholder:text-gray-400"
       />

@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Search, CheckSquare } from 'lucide-react'
 import { useAppStore } from '../stores/useAppStore'
 import { TaskPanel } from '../components/tasks/TaskPanel'
+import { INBOX_PROJECT_ID } from '../types'
 
 export function MyTasksView() {
   const { tasks, projects } = useAppStore()
@@ -9,6 +10,7 @@ export function MyTasksView() {
 
   const filtered = tasks.filter(t =>
     t.assignee === 'DJ' &&
+    t.projectId !== INBOX_PROJECT_ID &&
     (search === '' || t.title.toLowerCase().includes(search.toLowerCase()))
   )
 

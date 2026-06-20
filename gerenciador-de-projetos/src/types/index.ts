@@ -53,6 +53,17 @@ export interface ColumnDef {
   width?: number
 }
 
+// ── Colunas da lista (sistema + personalizadas) — reordenáveis ──────────────
+export type SystemColumnKey = 'tags' | 'assignee' | 'dueDate' | 'priority' | 'project'
+export interface ListColumn {
+  key:    string                 // chave estável (sistema) ou id da coluna personalizada
+  label:  string
+  width:  number
+  kind:   'system' | 'custom'
+  system?: SystemColumnKey
+  col?:    ColumnDef
+}
+
 // ── Views ─────────────────────────────────────────────────────────────────
 export type ViewType = 'list' | 'board' | 'table' | 'calendar' | 'overview' | 'mindmap' | 'activity' | 'dashboard'
 

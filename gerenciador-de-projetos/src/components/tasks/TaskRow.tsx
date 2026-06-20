@@ -3,7 +3,7 @@ import {
   Calendar, AlertCircle, Check, ChevronRight, ChevronDown, GitBranch, Trash2, Search,
   Circle, Diamond, NotepadText, Bug, Trophy, Target, ClipboardList, MessageSquare,
 } from 'lucide-react'
-import type { Task, Project, Priority, ColumnDef, TaskType } from '../../types'
+import type { Task, Project, Priority, ColumnDef, TaskType, ListColumn } from '../../types'
 import { PRIORITY_LABEL, TASK_TYPE_META } from '../../types'
 
 // Ícones de tipo de tarefa no estilo ClickUp (cinza neutro)
@@ -32,16 +32,17 @@ const PRIORITY_CIRCLE: Record<Priority,{border:string;bg:string}> = {
 const TASK_TYPES: TaskType[] = ['task','milestone','meeting_note','bug','goal','objective','form_response','request']
 
 interface TaskRowProps {
-  task:         Task
-  project?:     Project
-  showProject?: boolean
-  depth?:       number
-  columns?:     ColumnDef[]
-  selected?:    boolean
-  onSelect?:    (id: string, e: React.MouseEvent) => void
+  task:           Task
+  project?:       Project
+  showProject?:   boolean
+  depth?:         number
+  columns?:       ColumnDef[]
+  orderedColumns?: ListColumn[]
+  selected?:      boolean
+  onSelect?:      (id: string, e: React.MouseEvent) => void
 }
 
-export function TaskRow({ task, project, showProject=false, depth=0, columns=[], selected=false, onSelect }: TaskRowProps) {
+export function TaskRow({ task, project, showProject=false, depth=0, columns=[], orderedColumns, selected=false, onSelect }: TaskRowProps) {
   const { updateTask, deleteTask, setSelectedTask, selectedTaskId, tasks } = useAppStore()
   const [expanded,      setExpanded]      = useState(true)
   const [addingSubtask, setAddingSubtask] = useState(false)
@@ -88,6 +89,50 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
     const diff=Math.floor((dt.getTime()-today.setHours(0,0,0,0))/86400000)
     if(diff===0)return'Hoje'; if(diff===1)return'Amanhã'
     return dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})
+  }
+
+  // Colunas a renderizar (ordem vem de cima; fallback = padrão do sistema)
+  const cols: ListColumn[] = orderedColumns ?? [
+    { key:'tags',     label:'Tags',        width:112, kind:'system', system:'tags' },
+    { key:'assignee', label:'Responsável', width:104, kind:'system', system:'assignee' },
+    { key:'dueDate',  label:'Prazo',       width:104, kind:'system', system:'dueDate' },
+    { key:'priority', label:'Prioridade',  width:100, kind:'system', system:'priority' },
+    ...(showProject ? [{ key:'project', label:'Projeto', width:112, kind:'system' as const, system:'project' as const }] : []),
+    ...columns.map(c => ({ key:c.id, label:c.name, width:c.width ?? 100, kind:'custom' as const, col:c })),
+  ]
+
+  const renderCellContent = (c: ListColumn): React.ReactNode => {
+    if (c.kind === 'custom' && c.col) return <CustomFieldCell task={task} column={c.col}/>
+    switch (c.system) {
+      case 'tags':
+        return <div className="flex gap-1 flex-wrap">
+          {task.tags.slice(0,2).map(t=>(
+            <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 truncate max-w-[60px]">{t}</span>
+          ))}
+        </div>
+      case 'assignee':
+        return task.assignee ? <div className="flex items-center gap-1 min-w-0">
+          <span className="w-5 h-5 rounded-full bg-brand-100 text-brand-700 text-[9px] font-medium flex items-center justify-center flex-shrink-0">{task.assignee.slice(0,2)}</span>
+          <span className="text-xs text-gray-500 truncate">{task.assignee}</span>
+        </div> : <span className="text-gray-200 text-xs">—</span>
+      case 'dueDate':
+        return task.dueDate ? (
+          <span className={`flex items-center gap-1 text-[11px] ${isOverdue?'text-red-500':'text-gray-400'}`}>
+            {isOverdue?<AlertCircle size={10}/>:<Calendar size={10}/>}{formatDate(task.dueDate)}
+          </span>
+        ) : <span className="text-gray-200 text-xs">—</span>
+      case 'priority':
+        return <span className={`text-[11px] font-medium ${
+          task.priority==='urgent'?'text-red-500':task.priority==='high'?'text-orange-500':task.priority==='medium'?'text-blue-500':'text-gray-400'}`}>
+          {PRIORITY_LABEL[task.priority]}
+        </span>
+      case 'project':
+        return project ? <span className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full font-medium truncate"
+          style={{background:project.color+'18',color:project.color}}>
+          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{background:project.color}}/>{project.name}
+        </span> : <span className="text-gray-300 text-[10px] italic">Sem projeto</span>
+      default: return null
+    }
   }
 
   return (
@@ -191,58 +236,11 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
           )}
         </div>
 
-        {/* Fixed columns */}
+        {/* Columns (ordem dinâmica) */}
         <div className="flex items-center flex-shrink-0">
-          {/* Tags */}
-          <div className="w-28 px-2 hidden lg:flex gap-1 flex-wrap">
-            {task.tags.slice(0,2).map(t=>(
-              <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 truncate max-w-[50px]">{t}</span>
-            ))}
-          </div>
-
-          {/* Assignee */}
-          <div className="w-20 px-2 hidden sm:flex items-center gap-1">
-            <span className="w-5 h-5 rounded-full bg-brand-100 text-brand-700 text-[9px] font-medium flex items-center justify-center">
-              {task.assignee.slice(0,2)}
-            </span>
-            <span className="text-xs text-gray-500 truncate">{task.assignee}</span>
-          </div>
-
-          {/* Due date */}
-          <div className="w-24 px-2 hidden md:flex items-center">
-            {task.dueDate?(
-              <span className={`flex items-center gap-1 text-[11px] ${isOverdue?'text-red-500':'text-gray-400'}`}>
-                {isOverdue?<AlertCircle size={10}/>:<Calendar size={10}/>}
-                {formatDate(task.dueDate)}
-              </span>
-            ):<span className="text-gray-200 text-xs">—</span>}
-          </div>
-
-          {/* Priority label */}
-          <div className="w-20 px-2 hidden md:flex items-center">
-            <span className={`text-[11px] font-medium ${
-              task.priority==='urgent'?'text-red-500':
-              task.priority==='high'  ?'text-orange-500':
-              task.priority==='medium'?'text-blue-500':'text-gray-400'}`}>
-              {PRIORITY_LABEL[task.priority]}
-            </span>
-          </div>
-
-          {/* Project badge */}
-          {showProject&&project&&(
-            <div className="w-24 px-2 hidden lg:flex items-center">
-              <span className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full font-medium truncate"
-                style={{background:project.color+'18',color:project.color}}>
-                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{background:project.color}}/>
-                {project.name}
-              </span>
-            </div>
-          )}
-
-          {/* Custom columns */}
-          {columns.map(col=>(
-            <div key={col.id} className="px-2 flex items-center border-l border-gray-100" style={{width:col.width??100,minWidth:col.width??100}}>
-              <CustomFieldCell task={task} column={col}/>
+          {cols.map(c => (
+            <div key={c.key} className="px-2 flex items-center" style={{ width: c.width, minWidth: c.width }}>
+              {renderCellContent(c)}
             </div>
           ))}
 
