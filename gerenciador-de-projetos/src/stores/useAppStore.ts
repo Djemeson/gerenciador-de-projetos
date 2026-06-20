@@ -7,11 +7,12 @@ import type {
   View, TaskStatus, Priority, Checklist, ChecklistItem, ContentBlock,
   TaskType, TaskOpenMode, CustomProjectView,
 } from '../types'
-import { calcGUT, migrateTask, migrateProject } from '../types'
+import { calcGUT, migrateTask, migrateProject, INBOX_PROJECT_ID } from '../types'
 
 const SPACES_KEY     = 'tf_spaces'
 const FOLDERS_KEY    = 'tf_folders'
 const AUTOMATIONS_KEY= 'tf_automations'
+const INBOX_COLS_KEY = 'tf_inbox_columns'
 
 function loadJSON<T>(key: string, fallback: T): T {
   try { return JSON.parse(localStorage.getItem(key) ?? 'null') ?? fallback }
@@ -36,6 +37,7 @@ interface AppState {
   spaces:      Space[]
   folders:     Folder[]
   automations: Automation[]
+  inboxColumns: ColumnDef[]
 
   activeView:      View
   activeProjectId: string | null
@@ -83,6 +85,7 @@ interface AppState {
   // Projects
   addProject:       (name: string, color: string, desc: string, spaceId?: string, folderId?: string, icon?: string) => void
   moveProject:      (id: string, spaceId: string | null, folderId: string | null) => void
+  reorderProject:   (draggedId: string, targetId: string) => void
   updateProject:    (id: string, patch: Partial<Project>) => void
   deleteProject:    (id: string) => void
   archiveProject:   (id: string) => void
@@ -126,7 +129,7 @@ interface AppState {
 function pProjects(p: Project[], t: Task[]) { localProjects.set(p as any); localTasks.set(t as any) }
 
 export const useAppStore = create<AppState>((set, get) => ({
-  projects: [], tasks: [], spaces: [], folders: [], automations: [],
+  projects: [], tasks: [], spaces: [], folders: [], automations: [], inboxColumns: [],
   activeView:'my_tasks', activeProjectId:null, activeSpaceId:null, activeFolderId:null, selectedTaskId:null,
   filterPanelOpen:false, aiPanelOpen:false, filters:EMPTY_FILTER,
   newProjectModal:false, newProjectCtx:{}, gutModal:{open:false,projectId:null}, columnsModal:null, newViewModal:null,
@@ -199,6 +202,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     const projects = get().projects.map(p => p.id===id ? {...p, spaceId, folderId, updatedAt:new Date().toISOString()} : p)
     pProjects(projects, get().tasks); set({ projects })
   },
+  reorderProject: (draggedId, targetId) => {
+    if (draggedId === targetId) return
+    const projects = [...get().projects]
+    const from = projects.findIndex(p => p.id===draggedId)
+    const to   = projects.findIndex(p => p.id===targetId)
+    if (from < 0 || to < 0) return
+    const [moved] = projects.splice(from, 1)
+    const insertAt = projects.findIndex(p => p.id===targetId)
+    projects.splice(insertAt, 0, moved)
+    pProjects(projects, get().tasks); set({ projects })
+  },
   updateProject: (id, patch) => {
     const projects = get().projects.map(p => p.id===id ? {...p,...patch,updatedAt:new Date().toISOString()} : p)
     pProjects(projects, get().tasks); set({ projects })
@@ -232,14 +246,26 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   addColumn: (projectId, col) => {
     const newCol: ColumnDef = { ...col, id:nanoid() }
+    if (projectId === INBOX_PROJECT_ID) {
+      const inboxColumns = [...get().inboxColumns, newCol]
+      saveJSON(INBOX_COLS_KEY, inboxColumns); set({ inboxColumns }); return
+    }
     const projects = get().projects.map(p => p.id===projectId ? {...p,columns:[...p.columns,newCol]} : p)
     pProjects(projects, get().tasks); set({ projects })
   },
   updateColumn: (projectId, colId, patch) => {
+    if (projectId === INBOX_PROJECT_ID) {
+      const inboxColumns = get().inboxColumns.map(c => c.id===colId ? {...c,...patch} : c)
+      saveJSON(INBOX_COLS_KEY, inboxColumns); set({ inboxColumns }); return
+    }
     const projects = get().projects.map(p => p.id!==projectId ? p : { ...p, columns:p.columns.map(c => c.id===colId ? {...c,...patch} : c) })
     pProjects(projects, get().tasks); set({ projects })
   },
   deleteColumn: (projectId, colId) => {
+    if (projectId === INBOX_PROJECT_ID) {
+      const inboxColumns = get().inboxColumns.filter(c => c.id!==colId)
+      saveJSON(INBOX_COLS_KEY, inboxColumns); set({ inboxColumns }); return
+    }
     const projects = get().projects.map(p => p.id!==projectId ? p : { ...p, columns:p.columns.filter(c => c.id!==colId) })
     pProjects(projects, get().tasks); set({ projects })
   },
@@ -369,13 +395,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     const spaces      = loadJSON<Space[]>(SPACES_KEY, [])
     const folders     = loadJSON<Folder[]>(FOLDERS_KEY, [])
     const automations = loadJSON<Automation[]>(AUTOMATIONS_KEY, [])
+    const inboxColumns= loadJSON<ColumnDef[]>(INBOX_COLS_KEY, [])
     if (projects.length===0) {
       const seeded = SEED_PROJECTS.map(p => ({ ...p, folderId:null, taskOpenMode:'side' as const, customViews:[] }))
       const seededTasks = SEED_TASKS.map(t => ({ ...t, taskType:'task' as const }))
       pProjects(seeded as any, seededTasks as any)
-      set({ projects: seeded as any, tasks: seededTasks as any, spaces, folders, automations })
+      set({ projects: seeded as any, tasks: seededTasks as any, spaces, folders, automations, inboxColumns })
     } else {
-      set({ projects, tasks, spaces, folders, automations })
+      set({ projects, tasks, spaces, folders, automations, inboxColumns })
     }
   },
 }))

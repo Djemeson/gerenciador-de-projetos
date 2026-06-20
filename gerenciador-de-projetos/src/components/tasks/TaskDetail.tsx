@@ -6,6 +6,7 @@ import {
 import { useAppStore } from '../../stores/useAppStore'
 import { PRIORITY_LABEL, STATUS_LABEL, TASK_TYPE_META } from '../../types'
 import type { Priority, TaskStatus, TaskOpenMode } from '../../types'
+import { TYPE_ICON, TYPE_ICON_COLOR } from '../../lib/taskTypeIcons'
 import { Button } from '../ui'
 import { TagInput } from '../ui/TagInput'
 import { QuickAddRow } from './QuickAddRow'
@@ -120,12 +121,10 @@ export function TaskDetail({ mode = 'side', onChangeMode }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0 bg-white">
         <div className="flex items-center gap-2 min-w-0">
-          {/* Type icon */}
-          <span className="w-5 h-5 rounded flex items-center justify-center text-sm flex-shrink-0"
-            style={{ background: typeMeta.bg, color: typeMeta.color }}
-            title={typeMeta.label}>
-            {typeMeta.symbol}
-          </span>
+          {/* Type icon — padrão (mesmo da lista) */}
+          {(() => { const Icon = TYPE_ICON[task.taskType ?? 'task']; return (
+            <Icon size={15} strokeWidth={2} style={{ color: TYPE_ICON_COLOR }} className="flex-shrink-0" />
+          ) })()}
           {project && <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: project.color }} />}
           <span className="text-xs text-gray-500 truncate">{project?.name}</span>
           {task.parentId && <span className="text-[10px] text-gray-400 flex items-center gap-0.5 flex-shrink-0"><GitBranch size={10} /> sub</span>}

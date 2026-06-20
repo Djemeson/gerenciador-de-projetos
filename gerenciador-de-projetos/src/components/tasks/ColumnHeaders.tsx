@@ -35,7 +35,7 @@ export function ColumnHeaders({
     return (
       <div className="flex items-center border-b-2 border-gray-200 bg-gray-50/80 sticky top-0 z-10 text-[11px] font-medium text-gray-500 select-none"
         style={{ minHeight: 34 }}>
-        <div style={{ width: 44 + 16 }} />
+        <div style={{ width: 64 }} />
 
         {/* Nome — clicável para ordenar por título */}
         <button onClick={() => onSort?.('title')}
@@ -54,11 +54,10 @@ export function ColumnHeaders({
               onDragLeave={() => setOverKey(k => (k === c.key ? null : k))}
               onDrop={e => { e.preventDefault(); if (dragKey && dragKey !== c.key) onReorder?.(dragKey, c.key); setDragKey(null); setOverKey(null) }}
               onDragEnd={() => { setDragKey(null); setOverKey(null) }}
-              className={`group/col px-2 flex items-center gap-0.5 h-8 cursor-grab active:cursor-grabbing border-l border-transparent
+              className={`group/col relative px-2 flex items-center h-8 cursor-grab active:cursor-grabbing border-l border-transparent
                 ${overKey === c.key ? 'border-l-brand-400 bg-brand-50/60' : ''} ${dragKey === c.key ? 'opacity-40' : ''}`}
               style={{ width: c.width, minWidth: c.width }}
             >
-              <GripVertical size={11} className="text-gray-300 opacity-0 group-hover/col:opacity-100 flex-shrink-0 -ml-1"/>
               {editingKey === c.key ? (
                 <input
                   autoFocus defaultValue={c.label}
@@ -76,6 +75,8 @@ export function ColumnHeaders({
                   <span className="truncate">{c.label}</span> <SortArrow k={c.key}/>
                 </button>
               )}
+              {/* Grip flutuante (não desloca o rótulo) */}
+              <GripVertical size={11} className="absolute right-0.5 top-1/2 -translate-y-1/2 text-gray-300 opacity-0 group-hover/col:opacity-100 pointer-events-none"/>
             </div>
           ))}
 

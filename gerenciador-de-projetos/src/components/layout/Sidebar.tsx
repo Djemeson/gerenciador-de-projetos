@@ -20,7 +20,7 @@ export function Sidebar() {
     projects, tasks, spaces, folders,
     setView, openSpace, openFolder, openNewProject, addSpace, updateSpace, deleteSpace,
     addFolder, updateFolder, deleteFolder,
-    updateProject, moveProject, archiveProject, deleteProject, openGUT,
+    updateProject, moveProject, reorderProject, archiveProject, deleteProject, openGUT,
   } = useAppStore()
   const { openSettings } = useSettingsStore()
   const notifCount = useNotificationStore(s => s.notifications.length)
@@ -31,6 +31,8 @@ export function Sidebar() {
   const [folderName,    setFolderName]    = useState('')
   const [editingSpace,  setEditingSpace]  = useState<string|null>(null)
   const [editingFolder, setEditingFolder] = useState<string|null>(null)
+  const [dragProjId,    setDragProjId]    = useState<string|null>(null)
+  const [dropHint,      setDropHint]      = useState<string|null>(null)  // id do alvo destacado
   const [editingProject,setEditingProject]= useState<string|null>(null)
   const [spaceMenu,     setSpaceMenu]     = useState<string|null>(null)
   const [folderMenu,    setFolderMenu]    = useState<string|null>(null)
@@ -143,13 +145,35 @@ export function Sidebar() {
     </div>
   )
 
+  // ─── Drag & drop de projetos ───────────────────────────────────────────────
+  const onDropProject = (target: Project) => {
+    if (dragProjId && dragProjId !== target.id) {
+      const dragged = projects.find(p => p.id === dragProjId)
+      if (dragged && (dragged.spaceId !== target.spaceId || dragged.folderId !== target.folderId))
+        moveProject(dragProjId, target.spaceId, target.folderId)
+      reorderProject(dragProjId, target.id)
+    }
+    setDragProjId(null); setDropHint(null)
+  }
+  const onDropContainer = (spaceId: string|null, folderId: string|null) => {
+    if (dragProjId) moveProject(dragProjId, spaceId, folderId)
+    setDragProjId(null); setDropHint(null)
+  }
+
   // ─── Project item ─────────────────────────────────────────────────────────────
   const renderProject = (p: Project, indent = 0) => {
     const isActive = activeView==='project_detail' && activeProjectId===p.id
     const tier     = gutTier(p.gut.score)
     const count    = taskCount(p.id)
     return (
-      <div key={p.id} className="flex items-center gap-0.5 group/proj">
+      <div key={p.id}
+        draggable
+        onDragStart={e => { setDragProjId(p.id); e.dataTransfer.effectAllowed = 'move' }}
+        onDragOver={e => { e.preventDefault(); if (dragProjId && dropHint !== p.id) setDropHint(p.id) }}
+        onDragLeave={() => setDropHint(h => (h === p.id ? null : h))}
+        onDrop={e => { e.preventDefault(); onDropProject(p) }}
+        onDragEnd={() => { setDragProjId(null); setDropHint(null) }}
+        className={`flex items-center gap-0.5 group/proj rounded-lg ${dragProjId===p.id ? 'opacity-40' : ''} ${dropHint===p.id && dragProjId!==p.id ? 'ring-1 ring-brand-400 ring-inset' : ''}`}>
         <button
           onClick={() => setView('project_detail', p.id)}
           className={`flex items-center gap-2 flex-1 min-w-0 py-1.5 rounded-lg transition-colors text-left
@@ -320,7 +344,11 @@ export function Sidebar() {
             <div key={s.id} className="mt-0.5">
 
               {/* Space header */}
-              <div className={`flex items-center gap-0.5 group/space rounded-lg ${activeView==='space_detail' && activeSpaceId===s.id ? 'bg-cu-active' : ''}`}>
+              <div
+                onDragOver={e => { if (dragProjId) { e.preventDefault(); if (dropHint !== 'sp:'+s.id) setDropHint('sp:'+s.id) } }}
+                onDragLeave={() => setDropHint(h => (h === 'sp:'+s.id ? null : h))}
+                onDrop={e => { e.preventDefault(); onDropContainer(s.id, null) }}
+                className={`flex items-center gap-0.5 group/space rounded-lg ${activeView==='space_detail' && activeSpaceId===s.id ? 'bg-cu-active' : ''} ${dropHint==='sp:'+s.id ? 'ring-1 ring-brand-400 ring-inset' : ''}`}>
                 <button
                   onClick={() => updateSpace(s.id, {collapsed: !s.collapsed})}
                   title={s.collapsed ? 'Expandir' : 'Recolher'}
@@ -405,7 +433,11 @@ export function Sidebar() {
                   {/* Folders */}
                   {sfolders.map(({ folder: f, projects: fp }) => (
                     <div key={f.id} className="mt-0.5">
-                      <div className={`flex items-center gap-0.5 group/folder rounded-lg ${activeView==='folder_detail' && activeFolderId===f.id ? 'bg-cu-active' : ''}`}>
+                      <div
+                        onDragOver={e => { if (dragProjId) { e.preventDefault(); if (dropHint !== 'fd:'+f.id) setDropHint('fd:'+f.id) } }}
+                        onDragLeave={() => setDropHint(h => (h === 'fd:'+f.id ? null : h))}
+                        onDrop={e => { e.preventDefault(); onDropContainer(f.spaceId, f.id) }}
+                        className={`flex items-center gap-0.5 group/folder rounded-lg ${activeView==='folder_detail' && activeFolderId===f.id ? 'bg-cu-active' : ''} ${dropHint==='fd:'+f.id ? 'ring-1 ring-brand-400 ring-inset' : ''}`}>
                         <button
                           onClick={() => updateFolder(f.id, {collapsed: !f.collapsed})}
                           title={f.collapsed ? 'Expandir' : 'Recolher'}
@@ -528,8 +560,11 @@ export function Sidebar() {
 
           {/* Projetos sem espaço (legado) */}
           {ungrouped.length > 0 && (
-            <div className="mt-3">
-              <div className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold text-cu-muted uppercase tracking-wider">
+            <div className="mt-3"
+              onDragOver={e => { if (dragProjId) { e.preventDefault(); if (dropHint !== 'none') setDropHint('none') } }}
+              onDragLeave={() => setDropHint(h => (h === 'none' ? null : h))}
+              onDrop={e => { e.preventDefault(); onDropContainer(null, null) }}>
+              <div className={`flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold text-cu-muted uppercase tracking-wider rounded ${dropHint==='none' ? 'ring-1 ring-brand-400 ring-inset' : ''}`}>
                 <List size={11}/> Sem espaço
               </div>
               <div className="space-y-0.5">

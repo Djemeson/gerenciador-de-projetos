@@ -8,7 +8,7 @@ import { ColumnHeaders } from '../components/tasks/ColumnHeaders'
 import { INBOX_PROJECT_ID } from '../types'
 
 export function InboxView() {
-  const { tasks, projects, selectedTaskId, updateTask } = useAppStore()
+  const { tasks, projects, selectedTaskId, updateTask, inboxColumns } = useAppStore()
   const [adding, setAdding] = useState(false)
 
   const inboxTasks = tasks.filter(t => t.projectId === INBOX_PROJECT_ID && !t.parentId)
@@ -22,8 +22,8 @@ export function InboxView() {
     updateTask(taskId, { projectId, status: 'todo' })
   }
 
-  // Inbox has no custom columns — ColumnHeaders works fine with empty array
-  const columns: any[] = []
+  // Colunas personalizadas da caixa de entrada (persistidas no store)
+  const columns = inboxColumns
 
   return (
     <div className="flex flex-1 overflow-hidden">
@@ -39,8 +39,8 @@ export function InboxView() {
           </button>
         </div>
 
-        {/* Column headers — same as task list (sem adicionar coluna na caixa de entrada) */}
-        <ColumnHeaders projectId={INBOX_PROJECT_ID} columns={columns} showProject={false} showAddColumn={false} />
+        {/* Column headers — agora com colunas personalizadas e botão de adicionar */}
+        <ColumnHeaders projectId={INBOX_PROJECT_ID} columns={columns} showProject={false} />
 
         <div className="flex-1 overflow-y-auto">
           {/* Empty state */}

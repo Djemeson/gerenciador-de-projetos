@@ -3,6 +3,7 @@ import { X, Trash2, Plus, Check, ChevronLeft, GripVertical } from 'lucide-react'
 import { Modal } from './ui/Modal'
 import { useAppStore } from '../stores/useAppStore'
 import type { ColumnType, DropdownOption } from '../types'
+import { INBOX_PROJECT_ID } from '../types'
 import { nanoid } from '../lib/nanoid'
 
 const OPTION_COLORS = [
@@ -26,8 +27,12 @@ const COLUMN_TYPES: TypeCard[] = [
 type Step = 'pick' | 'configure'
 
 export function ColumnsModal() {
-  const { columnsModal, closeColumnsModal, projects, addColumn, deleteColumn, updateColumn } = useAppStore()
-  const project = projects.find(p => p.id === columnsModal)
+  const { columnsModal, closeColumnsModal, projects, inboxColumns, addColumn, deleteColumn, updateColumn } = useAppStore()
+  const isInbox  = columnsModal === INBOX_PROJECT_ID
+  const project  = projects.find(p => p.id === columnsModal)
+  const targetId = columnsModal ?? ''
+  const cols     = isInbox ? inboxColumns : (project?.columns ?? [])
+  const title    = isInbox ? 'Caixa de entrada' : project?.name
 
   const [step,       setStep]       = useState<Step>('pick')
   const [selType,    setSelType]    = useState<TypeCard | null>(null)
@@ -45,12 +50,12 @@ export function ColumnsModal() {
     setColorPicker(null); setEditingCol(null)
   }
 
-  if (!columnsModal || !project) return null
+  if (!columnsModal || (!project && !isInbox)) return null
 
   const save = () => {
     if (!name.trim() || !selType) return
-    addColumn(project.id, {
-      name: name.trim(), type: selType.type, projectId: project.id,
+    addColumn(targetId, {
+      name: name.trim(), type: selType.type, projectId: targetId,
       dropdownOptions: selType.type === 'dropdown' ? opts : [],
       width: selType.type === 'checkbox' ? 80 : selType.type === 'text' ? 140 : 100,
     })
@@ -88,11 +93,11 @@ export function ColumnsModal() {
             ))}
           </div>
 
-          {project.columns.length > 0 && (
+          {cols.length > 0 && (
             <div className="border-t border-gray-100 pt-4">
               <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-2">Campos existentes</p>
               <div className="space-y-1.5">
-                {project.columns.map(col => {
+                {cols.map(col => {
                   const tc = COLUMN_TYPES.find(t => t.type === col.type)
                   return (
                     <div key={col.id} className="flex items-center gap-2.5 px-3 py-2 bg-gray-50 rounded-xl group border border-transparent hover:border-gray-200 transition-all">
@@ -102,7 +107,7 @@ export function ColumnsModal() {
                       </div>
                       {editingCol === col.id ? (
                         <input autoFocus defaultValue={col.name}
-                          onBlur={e => { updateColumn(project.id, col.id, { name: e.target.value }); setEditingCol(null) }}
+                          onBlur={e => { updateColumn(targetId, col.id, { name: e.target.value }); setEditingCol(null) }}
                           onKeyDown={e => { if (e.key==='Enter')(e.target as HTMLInputElement).blur(); if(e.key==='Escape')setEditingCol(null) }}
                           className="flex-1 text-xs px-2 py-0.5 border border-brand-300 rounded-lg outline-none"/>
                       ) : (
@@ -119,7 +124,7 @@ export function ColumnsModal() {
                           {col.dropdownOptions.length > 5 && <span className="text-[9px] text-gray-400">+{col.dropdownOptions.length-5}</span>}
                         </div>
                       )}
-                      <button onClick={() => deleteColumn(project.id, col.id)}
+                      <button onClick={() => deleteColumn(targetId, col.id)}
                         className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-all flex-shrink-0">
                         <Trash2 size={12}/>
                       </button>

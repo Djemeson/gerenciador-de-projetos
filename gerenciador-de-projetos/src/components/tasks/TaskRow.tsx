@@ -1,23 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react'
 import {
-  Calendar, AlertCircle, Check, ChevronRight, ChevronDown, GitBranch, Trash2, Search,
-  Circle, Diamond, NotepadText, Bug, Trophy, Target, ClipboardList, MessageSquare,
+  Calendar, AlertCircle, Check, ChevronRight, ChevronDown, GitBranch, Trash2, Search, Circle,
 } from 'lucide-react'
 import type { Task, Project, Priority, ColumnDef, TaskType, ListColumn } from '../../types'
 import { PRIORITY_LABEL, TASK_TYPE_META } from '../../types'
-
-// Ícones de tipo de tarefa no estilo ClickUp (cinza neutro)
-const TYPE_ICON: Record<TaskType, React.ElementType> = {
-  task:          Circle,
-  milestone:     Diamond,
-  meeting_note:  NotepadText,
-  bug:           Bug,
-  goal:          Trophy,
-  objective:     Target,
-  form_response: ClipboardList,
-  request:       MessageSquare,
-}
-const TYPE_ICON_COLOR = '#656f7d'
+import { TYPE_ICON, TYPE_ICON_COLOR } from '../../lib/taskTypeIcons'
 import { useAppStore } from '../../stores/useAppStore'
 import { QuickAddRow } from './QuickAddRow'
 import { CustomFieldCell } from './CustomFieldCell'
@@ -101,31 +88,45 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
     ...columns.map(c => ({ key:c.id, label:c.name, width:c.width ?? 100, kind:'custom' as const, col:c })),
   ]
 
+  const prioTextColor = task.priority==='urgent'?'text-red-500':task.priority==='high'?'text-orange-500':task.priority==='medium'?'text-blue-500':'text-gray-400'
+
+  // Conteúdo das células — editável inline (clicar edita o campo, não abre a tarefa)
   const renderCellContent = (c: ListColumn): React.ReactNode => {
     if (c.kind === 'custom' && c.col) return <CustomFieldCell task={task} column={c.col}/>
     switch (c.system) {
       case 'tags':
-        return <div className="flex gap-1 flex-wrap">
-          {task.tags.slice(0,2).map(t=>(
-            <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 truncate max-w-[60px]">{t}</span>
-          ))}
-        </div>
+        return task.tags.length ? (
+          <div className="flex gap-1 flex-wrap">
+            {task.tags.slice(0,2).map(t=>(
+              <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 truncate max-w-[60px]">{t}</span>
+            ))}
+            {task.tags.length>2 && <span className="text-[10px] text-gray-400">+{task.tags.length-2}</span>}
+          </div>
+        ) : <span className="text-gray-300 text-xs">—</span>
       case 'assignee':
-        return task.assignee ? <div className="flex items-center gap-1 min-w-0">
-          <span className="w-5 h-5 rounded-full bg-brand-100 text-brand-700 text-[9px] font-medium flex items-center justify-center flex-shrink-0">{task.assignee.slice(0,2)}</span>
-          <span className="text-xs text-gray-500 truncate">{task.assignee}</span>
-        </div> : <span className="text-gray-200 text-xs">—</span>
+        return (
+          <div className="flex items-center gap-1 min-w-0 w-full">
+            {task.assignee && <span className="w-5 h-5 rounded-full bg-brand-100 text-brand-700 text-[9px] font-medium flex items-center justify-center flex-shrink-0">{task.assignee.slice(0,2)}</span>}
+            <input value={task.assignee} onChange={e=>updateTask(task.id,{assignee:e.target.value})}
+              placeholder="—"
+              className="min-w-0 flex-1 bg-transparent border-none outline-none text-xs text-gray-500 placeholder:text-gray-300"/>
+          </div>
+        )
       case 'dueDate':
-        return task.dueDate ? (
-          <span className={`flex items-center gap-1 text-[11px] ${isOverdue?'text-red-500':'text-gray-400'}`}>
-            {isOverdue?<AlertCircle size={10}/>:<Calendar size={10}/>}{formatDate(task.dueDate)}
-          </span>
-        ) : <span className="text-gray-200 text-xs">—</span>
+        return (
+          <div className="flex items-center gap-1 w-full">
+            {task.dueDate && (isOverdue ? <AlertCircle size={10} className="text-red-500 flex-shrink-0"/> : <Calendar size={10} className="text-gray-400 flex-shrink-0"/>)}
+            <input type="date" value={task.dueDate ?? ''} onChange={e=>updateTask(task.id,{dueDate:e.target.value||null})}
+              className={`min-w-0 flex-1 bg-transparent border-none outline-none text-[11px] cursor-pointer ${isOverdue?'text-red-500':'text-gray-500'}`}/>
+          </div>
+        )
       case 'priority':
-        return <span className={`text-[11px] font-medium ${
-          task.priority==='urgent'?'text-red-500':task.priority==='high'?'text-orange-500':task.priority==='medium'?'text-blue-500':'text-gray-400'}`}>
-          {PRIORITY_LABEL[task.priority]}
-        </span>
+        return (
+          <select value={task.priority} onChange={e=>updateTask(task.id,{priority:e.target.value as Priority})}
+            className={`w-full bg-transparent border-none outline-none text-[11px] font-medium cursor-pointer ${prioTextColor}`}>
+            {(['urgent','high','medium','low'] as Priority[]).map(p=><option key={p} value={p}>{PRIORITY_LABEL[p]}</option>)}
+          </select>
+        )
       case 'project':
         return project ? <span className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full font-medium truncate"
           style={{background:project.color+'18',color:project.color}}>
@@ -239,7 +240,8 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
         {/* Columns (ordem dinâmica) */}
         <div className="flex items-center flex-shrink-0">
           {cols.map(c => (
-            <div key={c.key} className="px-2 flex items-center" style={{ width: c.width, minWidth: c.width }}>
+            <div key={c.key} onClick={e => e.stopPropagation()}
+              className="px-2 flex items-center" style={{ width: c.width, minWidth: c.width }}>
               {renderCellContent(c)}
             </div>
           ))}

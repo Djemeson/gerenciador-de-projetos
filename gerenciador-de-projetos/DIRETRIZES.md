@@ -94,7 +94,9 @@ mesmo componente serve a escopos diferentes (ex.: espaços), para remontar e rec
 - A setinha discreta ao lado (hover) abre o **seletor de tipo**, que segue o ClickUp:
   campo "Pesquisar...", cabeçalho "Tipos de tarefa", ícones cinza (sem chip colorido),
   "(padrão)" no Tarefa e ✓ no selecionado.
-- Mapa de ícones: `TYPE_ICON` em `components/tasks/TaskRow.tsx`. Novos tipos entram lá.
+- Mapa de ícones: **fonte única** em `lib/taskTypeIcons.ts` (`TYPE_ICON` + `TYPE_ICON_COLOR`).
+  `TaskRow` **e** `TaskDetail` usam o mesmo mapa — os ícones da lista e do painel são idênticos.
+  Novos tipos entram lá.
 
 ---
 
@@ -174,8 +176,13 @@ Regras:
 - A renderização das células é **dirigida pela ordem das colunas** (`ListColumn[]`):
   `TaskRow` e `ColumnHeaders` recebem `orderedColumns` de `TaskList`. Nunca cravar colunas
   no JSX de novo — adicionar tipos de coluna em `taskColumns.ts` + `renderCellContent` do `TaskRow`.
-- A caixa de entrada usa o `ColumnHeaders` em **modo legado** (sem reordenar/ordenar) e
-  **sem botão de adicionar coluna**.
+- A caixa de entrada usa o `ColumnHeaders` em **modo legado** (sem reordenar/ordenar), mas
+  **com colunas personalizadas e botão de adicionar** (as colunas da inbox ficam em
+  `inboxColumns` no store, persistidas em `tf_inbox_columns`).
+- **Clicar numa célula edita o campo inline** (prioridade, prazo, responsável, campos
+  personalizados) — nunca abrir a tarefa. As células têm `stopPropagation`; só o nome abre a tarefa.
+- O alinhamento é sagrado: cada valor fica **exatamente sob o cabeçalho da sua coluna**.
+  O ícone de arrastar (grip) é flutuante (absoluto) para não deslocar o rótulo.
 
 ## 12. Criação contínua
 
@@ -190,6 +197,14 @@ Regras:
 - Tarefas da caixa de entrada **não aparecem** em "Todas as tarefas" nem "Minhas tarefas"
   (só entram nas listas depois de receberem um projeto).
 
+## 13.1. Arrastar projetos (sidebar)
+
+- Projetos podem ser **arrastados** para: reordenar (soltar sobre outro projeto), mover para
+  uma **pasta** (soltar no cabeçalho da pasta), mover para a **raiz de um espaço** (soltar no
+  cabeçalho do espaço) ou tirar do espaço (soltar em "Sem espaço").
+- Reordenar usa `reorderProject(draggedId, targetId)`; mover usa `moveProject`. O alvo válido
+  fica destacado com um anel (`ring-brand-400`) durante o arraste.
+
 ## 14. Painel da tarefa (TaskDetail)
 
 - Propriedades (Prioridade, Status, Prazo, Responsável) em **grade de 3 por linha**.
@@ -199,4 +214,4 @@ Regras:
 
 ---
 
-_Última atualização: 20/06/2026._
+_Última atualização: 20/06/2026 (lote de correções 002)._
