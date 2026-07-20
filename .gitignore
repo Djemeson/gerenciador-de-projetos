@@ -1,0 +1,28 @@
+# Dependências
+node_modules/
+
+# Build
+dist/
+dist-ssr/
+
+# Variáveis de ambiente e segredos
+.env
+.env.local
+.env.*.local
+
+# Dados de execução local (gerados em runtime, não são código-fonte)
+sync-stores.json
+
+# Configurações locais de ferramentas
+.claude/settings.local.json
+.antigravity/
+
+# Editor / SO
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*

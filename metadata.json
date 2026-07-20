@@ -1,0 +1,1 @@
+{"name":"gerenciador-de-projetos","description":"Gerenciador de tarefas e produtividade com notas ricas, checklists interativos e comentários com áudio","requestFramePermissions":["microphone"],"majorCapabilities":["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]}

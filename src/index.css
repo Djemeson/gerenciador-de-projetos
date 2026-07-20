@@ -1,0 +1,451 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --white: #ffffff;
+    --bg-app: #EEEEF1;
+    --gray-50: #FAFAFA;
+    --gray-100: #F4F4F5;
+    --gray-200: #EAEAEC;
+    --gray-300: #D8D8DD;
+    --gray-400: #9B9EA8;
+    --gray-500: #71747E;
+    --gray-600: #52555D;
+    --gray-700: #3B3E45;
+    --gray-800: #26282E;
+    --gray-900: #17181C;
+    --shadow-color: rgba(23, 24, 28, 0.04);
+    --shadow-color-lg: rgba(23, 24, 28, 0.12);
+
+    /* `slate-*` (Tailwind padrão) em RGB puro — só existe para poder
+       aplicar opacidade (bg-slate-50/60 etc.) via rgb(.../<alpha-value>).
+       Valores idênticos ao slate nativo do Tailwind: sem mudança visual
+       no modo claro. */
+    --slate-50-rgb:  248 250 252;
+    --slate-100-rgb: 241 245 249;
+    --slate-200-rgb: 226 232 240;
+    --slate-300-rgb: 203 213 225;
+    --slate-400-rgb: 148 163 184;
+    --slate-500-rgb: 100 116 139;
+    --slate-600-rgb: 71 85 105;
+    --slate-700-rgb: 51 65 85;
+    --slate-800-rgb: 30 41 59;
+    --slate-900-rgb: 15 23 42;
+  }
+
+  .dark {
+    --white: #111216; /* panel/main background */
+    --bg-app: #08090C; /* app background */
+    --gray-50: #16171E; /* alt background / cards */
+    --gray-100: #1E2028; /* input / board columns / sub-panels */
+    --gray-200: #2A2C37; /* borders */
+    --gray-300: #3E4150; /* borders / scrollbar tracks */
+    --gray-400: #6B6F80; /* muted text / labels */
+    --gray-500: #8A8E9E; /* discreet text */
+    --gray-600: #AEB2C2; /* body text */
+    --gray-700: #CFD2E0; /* secondary text */
+    --gray-800: #E4E6F0; /* primary text */
+    --gray-900: #FFFFFF; /* prominent titles / white text */
+    --shadow-color: rgba(0, 0, 0, 0.35);
+    --shadow-color-lg: rgba(0, 0, 0, 0.6);
+
+    /* No modo escuro, `slate-*` passa a seguir a MESMA escala neutra do
+       `gray` (em vez do slate azulado padrão do Tailwind) — evita o
+       retângulo claro/dessaturado que aparecia sobre painéis escuros
+       (ex.: barra "Agrupar por" do projeto, cartões do GUT, cabeçalho
+       de colunas da lista). */
+    --slate-50-rgb:  22 23 30;
+    --slate-100-rgb: 30 32 40;
+    --slate-200-rgb: 42 44 55;
+    --slate-300-rgb: 62 65 80;
+    --slate-400-rgb: 107 111 128;
+    --slate-500-rgb: 138 142 158;
+    --slate-600-rgb: 174 178 194;
+    --slate-700-rgb: 207 210 224;
+    --slate-800-rgb: 228 230 240;
+    --slate-900-rgb: 255 255 255;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html, body, #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: 'cv11', 'ss01', 'calt';
+    letter-spacing: -0.011em;
+    @apply bg-gray-50 text-gray-900;
+  }
+
+  /* Dark mode overrides */
+  .dark {
+    color-scheme: dark;
+  }
+
+  .dark body {
+    background-color: var(--bg-app) !important;
+    color: var(--gray-800) !important;
+  }
+
+  /* Force bg-white class to use --white variable in dark mode */
+  .dark .bg-white {
+    background-color: var(--white) !important;
+  }
+
+  .dark .hover\:bg-gray-50:hover,
+  .dark .hover\:bg-gray-50\/50:hover {
+    background-color: var(--gray-50) !important;
+  }
+
+  .dark .focus\:bg-white:focus {
+    background-color: var(--white) !important;
+  }
+
+  /* Keep specific border and shadow properties in dark mode */
+  .dark .border,
+  .dark .border-b,
+  .dark .border-t,
+  .dark .border-l,
+  .dark .border-r {
+    border-color: var(--gray-200) !important;
+  }
+
+  .dark .shadow-sm {
+    box-shadow: 0 1px 2px 0 var(--shadow-color) !important;
+  }
+
+  .dark .shadow-md,
+  .dark .shadow-lg,
+  .dark .shadow-2xl {
+    box-shadow: 0 4px 12px 0 var(--shadow-color-lg) !important;
+  }
+
+  /* Subtasks background color, etc. */
+  .dark .bg-gray-50 {
+    background-color: var(--gray-50) !important;
+  }
+
+  .dark .bg-white\/50,
+  .dark .bg-gray-50\/50 {
+    background-color: rgba(22, 23, 30, 0.5) !important;
+  }
+
+  /* Rich text editor placeholder color */
+  .dark .rich-text:empty::before,
+  .dark .rich-text[data-empty="true"]::before {
+    color: var(--gray-500) !important;
+  }
+
+  /* Editor de texto rico (descrição/comentários) — sem o anel azul genérico de
+     foco (:focus-visible acima); o destaque de foco fica por conta do wrapper
+     (.rich-text-wrap:focus-within), mais discreto e alinhado ao resto do app. */
+  .rich-text:focus,
+  .rich-text:focus-visible {
+    outline: none;
+    box-shadow: none;
+  }
+
+  /* Títulos com tracking levemente mais fechado (acabamento minimalista) */
+  h1, h2, h3, h4 {
+    font-family: 'Outfit', 'Inter', system-ui, sans-serif;
+    letter-spacing: -0.025em;
+  }
+
+  /* Números tabulares por padrão em métricas/datas — evita "pulos" */
+  .tabnum, time, [data-num] {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum';
+  }
+
+  /* Seleção de texto na cor de destaque */
+  ::selection {
+    background: rgba(99, 102, 241, 0.18);
+    color: inherit;
+  }
+
+  /* Anel de foco consistente e discreto (acessível).
+     Só a sombra — sem mexer no raio, para não deformar botões redondos. */
+  :focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.35);
+  }
+
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(160, 160, 185, 0.25);
+    border-radius: 9999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(160, 160, 185, 0.45);
+  }
+
+  /* Sidebar dark scrollbar */
+  .sidebar-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+  }
+  .sidebar-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+}
+
+@layer utilities {
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Cartão premium: fundo branco, borda fina, sombra suave e transição.
+     Uso opcional — não substitui os cards existentes, apenas padroniza os novos. */
+  .card {
+    @apply bg-white border border-gray-200 rounded-xl shadow-sm;
+  }
+  .card-hover {
+    @apply transition-all duration-150 hover:shadow-md hover:border-gray-300;
+  }
+
+  /* Divisor em hairline (1px real, não some em telas retina) */
+  .hairline {
+    @apply border-gray-200;
+  }
+
+  /* Superfícies elevadas (menus, popovers, modais) */
+  .elevate {
+    @apply bg-white border border-gray-200 rounded-xl shadow-lg;
+  }
+}
+
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.animate-slide-in {
+  animation: slide-in 0.2s ease-out;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fade-in 0.16s ease-out;
+}
+
+/* Entrada suave de menus/popovers/modais (escala + leve subida) */
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.97) translateY(4px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.animate-scale-in {
+  animation: scale-in 0.14s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: top;
+}
+
+/* Fundo do overlay de modal com leve fade */
+@keyframes overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.animate-overlay-in {
+  animation: overlay-in 0.18s ease-out;
+}
+
+/* Chevron suave ao colapsar */
+.tf-chevron { transition: transform 0.15s ease; }
+.tf-chevron-open { transform: rotate(0deg); }
+.tf-chevron-closed { transform: rotate(-90deg); }
+
+/* Editor de texto rico (contentEditable estilo TickTick/Notion) */
+.rich-text:empty::before,
+.rich-text[data-empty="true"]::before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  pointer-events: none;
+  position: absolute;
+}
+.rich-text { white-space: pre-wrap; word-break: break-word; position: relative; }
+.rich-text:focus { outline: none; }
+.rich-text b, .rich-text strong { font-weight: 600; }
+.rich-text i, .rich-text em { font-style: italic; }
+.rich-text h1 { font-size: 1.4rem; font-weight: 700; line-height: 1.25; margin: 0.5em 0 0.2em; }
+.rich-text h2 { font-size: 1.2rem; font-weight: 700; line-height: 1.3; margin: 0.45em 0 0.2em; }
+.rich-text h3 { font-size: 1.05rem; font-weight: 600; line-height: 1.3; margin: 0.4em 0 0.15em; }
+.rich-text ul { list-style: disc; padding-left: 1.4em; margin: 0.2em 0; }
+.rich-text ol { list-style: decimal; padding-left: 1.5em; margin: 0.2em 0; }
+.rich-text li { margin: 0.1em 0; }
+.rich-text blockquote { border-left: 3px solid #d4d4d8; padding-left: 0.75em; color: #52525b; margin: 0.3em 0; }
+.rich-text hr { border: none; border-top: 1px solid #e4e4e7; margin: 0.7em 0; }
+.rich-text img { max-width: 100%; max-height: 22rem; border-radius: 8px; margin: 0.35em 0; display: block; cursor: zoom-in; }
+.rich-text audio { display: block; margin: 0.35em 0; height: 34px; max-width: 320px; }
+.rich-text .todo-item { display: flex; align-items: flex-start; gap: 0.45em; margin: 0.15em 0; }
+.rich-text .todo-box {
+  flex: 0 0 auto; width: 16px; height: 16px; margin-top: 3px;
+  border: 1.5px solid #a1a1aa; border-radius: 4px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; user-select: none;
+}
+.rich-text .todo-item[data-checked="true"] .todo-box { background: #1D9E75; border-color: #1D9E75; }
+.rich-text .todo-item[data-checked="true"] .todo-box::after { content: "✓"; color: #fff; font-size: 11px; line-height: 1; }
+.rich-text .todo-item[data-checked="true"] .todo-text { text-decoration: line-through; color: #9ca3af; }
+.rich-text .todo-text { flex: 1 1 auto; min-width: 0; }
+.rich-text .file-chip {
+  display: inline-flex; align-items: center; gap: 0.4em; background: #f4f4f5;
+  border: 1px solid #e4e4e7; border-radius: 8px; padding: 0.25em 0.6em;
+  font-size: 0.8rem; color: #3f3f46; cursor: pointer; text-decoration: none; margin: 0.2em 0;
+}
+.rich-text .file-chip:hover { border-color: #c7d2fe; color: #4f46e5; }
+
+/* ── Campos de IA (estilo Gemini) ──────────────────────────────────────────
+   Gradiente azul → roxo → rosa, usado em qualquer coluna/campo gerado por IA
+   (ícone, texto, borda, badge) para ficar visualmente distinguível dos
+   campos comuns. Fonte única — não cravar o gradiente solto em outro lugar. */
+:root {
+  --ai-gradient: linear-gradient(90deg, #4285F4 0%, #9B72CB 50%, #D96570 100%);
+}
+.ai-gradient-bg  { background: var(--ai-gradient); }
+.ai-gradient-text {
+  background: var(--ai-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.ai-gradient-border {
+  border-image: var(--ai-gradient) 1;
+}
+.ai-gradient-ring {
+  box-shadow: 0 0 0 1.5px rgba(155, 114, 203, 0.45);
+}
+
+/* ── Linha-guia da pasta (sidebar) — réplica do protótipo original ──────────
+   left:22px (mesmo x do ícone da pasta), dash 9px de largura em top:14px,
+   segmento vertical de -7px até o fundo de cada item. O cabeçalho da pasta
+   desenha o próprio talo inicial — começando em top:100% (fora da própria
+   caixa, nunca sobre o ícone/texto da pasta) e descendo 6px — que se conecta
+   ao primeiro projeto (cujo ::before sobe -7px acima de si, cobrindo o
+   intervalo). Empilhados sem gap entre as linhas, os segmentos formam uma
+   linha contínua — não usar border-l num container por fora (não alinha
+   com o ícone). */
+.folder-line-head-dark::before,
+.folder-line-head-light::before {
+  content: '';
+  position: absolute;
+  left: 48px;
+  top: 100%;
+  height: 6px;
+  width: 1px;
+}
+.folder-line-item-dark::before,
+.folder-line-item-light::before {
+  content: '';
+  position: absolute;
+  left: 48px;
+  top: -7px;
+  bottom: 0;
+  width: 1px;
+}
+.folder-line-item-dark::after,
+.folder-line-item-light::after {
+  content: '';
+  position: absolute;
+  left: 48px;
+  top: 14px;
+  width: 15px;
+  height: 1px;
+}
+.folder-line-item-last-dark::before,
+.folder-line-item-last-light::before {
+  bottom: auto !important;
+  height: 21px !important;
+}
+.folder-line-head-dark::before,
+.folder-line-item-dark::before,
+.folder-line-item-dark::after {
+  background: rgba(255,255,255,.14);
+}
+.folder-line-head-light::before,
+.folder-line-item-light::before,
+.folder-line-item-light::after {
+  background: #D8D8DD;
+}
+
+/* ── Slider customizado (matriz GUT) — trilho preenchido por gradiente
+   inline + polegar circular com anel colorido, no lugar do slider nativo
+   do navegador (visual inconsistente entre browsers/SOs). ──────────────── */
+.gut-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 9999px;
+  outline: none;
+  cursor: pointer;
+}
+.gut-range::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 9999px;
+}
+.gut-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  margin-top: 0;
+  border-radius: 50%;
+  background: var(--white);
+  border: 2.5px solid var(--thumb-color, currentColor);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.15s ease;
+}
+.gut-range::-webkit-slider-thumb:hover,
+.gut-range::-webkit-slider-thumb:active {
+  transform: scale(1.2);
+}
+.gut-range::-moz-range-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: transparent;
+}
+.gut-range::-moz-range-thumb {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--white);
+  border: 2.5px solid var(--thumb-color, currentColor);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.gut-range::-moz-range-thumb:hover,
+.gut-range::-moz-range-thumb:active {
+  transform: scale(1.2);
+}
+
+@keyframes ai-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+.ai-generating {
+  animation: ai-pulse 1.1s ease-in-out infinite;
+}
