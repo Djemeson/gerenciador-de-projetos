@@ -6,7 +6,7 @@ import { Select } from '../ui/Select'
 import { IconColorPicker } from '../ui/IconColorPicker'
 import { getIconComponent } from '../../lib/sidebarIcons'
 import { useAppStore } from '../../stores/useAppStore'
-import { PROJECT_COLORS } from '../../types'
+import { PROJECT_COLORS, DEFAULT_FOLDER_COLOR } from '../../types'
 
 export function NewProjectModal() {
   const { newProjectModal, newProjectCtx, closeNewProject, addProject, spaces: allSpaces, folders, activeWorkspaceId } = useAppStore()
@@ -14,23 +14,28 @@ export function NewProjectModal() {
   const [name,     setName]     = useState('')
   const [desc,     setDesc]     = useState('')
   const [color,    setColor]    = useState(PROJECT_COLORS[0])
-  const [icon,     setIcon]     = useState<string|undefined>(undefined)
+  const [icon,     setIcon]     = useState<string|undefined>('circle')
   const [pickerOpen, setPickerOpen] = useState(false)
   const [spaceId,  setSpaceId]  = useState<string>('')
   const [folderId, setFolderId] = useState<string>('')
   const iconBtnRef = useRef<HTMLButtonElement>(null)
 
-  // Pré-preenche espaço/pasta quando o modal é aberto a partir de um espaço/pasta
+  // Pré-preenche espaço/pasta quando o modal é aberto a partir de um espaço/pasta —
+  // e, se nasce dentro de uma pasta, herda a cor do ícone da pasta por padrão (ainda editável).
   useEffect(() => {
     if (newProjectModal) {
       setSpaceId(newProjectCtx.spaceId ?? '')
       setFolderId(newProjectCtx.folderId ?? '')
+      if (newProjectCtx.folderId) {
+        const f = folders.find(x => x.id === newProjectCtx.folderId)
+        if (f) setColor(f.color ?? DEFAULT_FOLDER_COLOR)
+      }
     }
-  }, [newProjectModal, newProjectCtx.spaceId, newProjectCtx.folderId])
+  }, [newProjectModal, newProjectCtx.spaceId, newProjectCtx.folderId, folders])
 
   const availableFolders = folders.filter(f => f.spaceId === spaceId)
 
-  const reset = () => { setName(''); setDesc(''); setColor(PROJECT_COLORS[0]); setIcon(undefined); setPickerOpen(false); setSpaceId(''); setFolderId('') }
+  const reset = () => { setName(''); setDesc(''); setColor(PROJECT_COLORS[0]); setIcon('circle'); setPickerOpen(false); setSpaceId(''); setFolderId('') }
   const handleClose = () => { reset(); closeNewProject() }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -89,7 +94,7 @@ export function NewProjectModal() {
             </div>
             <div>
               <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Pasta</label>
-              <Select value={folderId} onChange={setFolderId} ariaLabel="Pasta"
+              <Select value={folderId} onChange={v => { setFolderId(v); const f = folders.find(x => x.id === v); if (f) setColor(f.color ?? DEFAULT_FOLDER_COLOR) }} ariaLabel="Pasta"
                 disabled={!spaceId || availableFolders.length===0}
                 options={[{ value:'', label:'Nenhuma' }, ...availableFolders.map(f => ({ value:f.id, label:f.name }))]}/>
             </div>

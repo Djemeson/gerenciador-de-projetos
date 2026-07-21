@@ -21,10 +21,13 @@ export const EXTRA_SYSTEM: { key: string; label: string; width: number; system: 
 export const BASE_SYSTEM_TOGGLEABLE = SYSTEM
 
 export interface ColumnSort { key: string; dir: 'asc' | 'desc' }
+// Classificação multi-nível (estilo Notion): lista ordenada de regras aplicadas em sequência.
+export type MultiSort = ColumnSort[]
 
 const OKEY = (s: string) => `tf_cols_${s}`
 const LKEY = (s: string) => `tf_collabels_${s}`
 const SKEY = (s: string) => `tf_colsort_${s}`
+const MSKEY = (s: string) => `tf_multisort_${s}`
 const HKEY = (s: string) => `tf_colhidden_${s}`   // colunas de sistema/personalizadas ocultadas
 const EKEY = (s: string) => `tf_colextra_${s}`    // propriedades extras ligadas
 const WKEY = (s: string) => `tf_colwidths_${s}`   // larguras personalizadas das colunas
@@ -39,6 +42,8 @@ export const loadLabels = (scope: string): Record<string, string>       => read<
 export const saveLabels = (scope: string, l: Record<string, string>)    => { try { localStorage.setItem(LKEY(scope), JSON.stringify(l)) } catch {} }
 export const loadSort   = (scope: string): ColumnSort | null            => read<ColumnSort | null>(SKEY(scope), null)
 export const saveSort   = (scope: string, s: ColumnSort | null)         => { try { s ? localStorage.setItem(SKEY(scope), JSON.stringify(s)) : localStorage.removeItem(SKEY(scope)) } catch {} }
+export const loadMultiSort = (scope: string): MultiSort                  => read<MultiSort>(MSKEY(scope), [])
+export const saveMultiSort = (scope: string, s: MultiSort)              => { try { s.length ? localStorage.setItem(MSKEY(scope), JSON.stringify(s)) : localStorage.removeItem(MSKEY(scope)) } catch {} }
 export const loadWidths = (scope: string): Record<string, number>       => read<Record<string, number>>(WKEY(scope), {})
 export const saveWidths = (scope: string, w: Record<string, number>)    => { try { localStorage.setItem(WKEY(scope), JSON.stringify(w)) } catch {} }
 
@@ -121,3 +126,31 @@ export function sortTasks(tasks: Task[], sort: ColumnSort | null): Task[] {
     return 0
   })
 }
+
+// Classificação multi-nível (Notion): aplica cada regra em sequência; a próxima só desempata a anterior.
+export function sortTasksMulti(tasks: Task[], sorts: MultiSort): Task[] {
+  if (!sorts.length) return tasks
+  return [...tasks].sort((a, b) => {
+    for (const s of sorts) {
+      const dir = s.dir === 'asc' ? 1 : -1
+      const va = cmpValue(a, s.key), vb = cmpValue(b, s.key)
+      if (va < vb) return -1 * dir
+      if (va > vb) return  1 * dir
+    }
+    return 0
+  })
+}
+
+// Rótulos amigáveis dos campos classificáveis (para a UI de classificação).
+export const SORT_FIELDS: { key: string; label: string }[] = [
+  { key:'title',     label:'Nome' },
+  { key:'priority',  label:'Prioridade' },
+  { key:'status',    label:'Status' },
+  { key:'dueDate',   label:'Prazo' },
+  { key:'assignee',  label:'Responsável' },
+  { key:'tags',      label:'Etiquetas' },
+  { key:'taskType',  label:'Tipo' },
+  { key:'gut',       label:'GUT' },
+  { key:'createdAt', label:'Data de criação' },
+  { key:'updatedAt', label:'Data de atualização' },
+]

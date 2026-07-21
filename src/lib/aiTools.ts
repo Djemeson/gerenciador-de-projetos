@@ -217,8 +217,11 @@ export function executeTool(name: ToolName, rawArgs: string, ctx: ToolCtx): Tool
   let args: any = {}
   try { args = JSON.parse(rawArgs || '{}') } catch { /* args inválidos — segue com {} */ }
 
-  const workspaceProjects = ctx.projects.filter(p => p.workspaceId === ctx.activeWorkspaceId && !p.archived)
-  const workspaceTasks = ctx.tasks.filter(t => t.workspaceId === ctx.activeWorkspaceId)
+  // '__all__' = escopo global (todos os workspaces) — usado quando o usuário remove o
+  // chip do workspace atual no painel de IA. Senão, filtra pelo workspace ativo.
+  const allScope = ctx.activeWorkspaceId === '__all__'
+  const workspaceProjects = ctx.projects.filter(p => (allScope || p.workspaceId === ctx.activeWorkspaceId) && !p.archived)
+  const workspaceTasks = ctx.tasks.filter(t => allScope || t.workspaceId === ctx.activeWorkspaceId)
 
   switch (name) {
     case 'list_projects': {

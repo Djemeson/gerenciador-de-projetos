@@ -19,13 +19,68 @@ import { taskProgress } from '../../lib/taskProgress'
 import { QuickAddRow } from './QuickAddRow'
 import { BlockEditor, openData } from './BlockEditor'
 import { nanoid } from '../../lib/nanoid'
-import { TaskInsights } from './TaskInsights'
 import { generateChecklistItems, generateProjectEnrichment } from '../../lib/aiProjectGen'
 import { createTaskTree } from '../../lib/aiTaskCreate'
 
 interface Props {
   mode?: TaskOpenMode
   onChangeMode?: (mode: TaskOpenMode) => void
+}
+
+// Linha de subtarefa recursiva — mostra subtarefas de subtarefas (netos, bisnetos...)
+// com linha-guia de hierarquia, igual ao padrão já usado no painel de tarefas.
+function SubtaskTreeItem({ task, depth, editMode }: { task: import('../../types').Task; depth: number; editMode: boolean }) {
+  const { updateTask, deleteTask, setSelectedTask, getSubtasks } = useAppStore()
+  const [expanded, setExpanded] = useState(true)
+  const children = getSubtasks(task.id)
+  const hasChildren = children.length > 0
+  const sColor = task.status==='done' ? '#1D9E75' : task.status==='in_progress' ? '#378ADD' : '#888780'
+  const sPrio  = PRIORITY_OPTIONS.find(o => o.value===task.priority)
+  return (
+    <div>
+      <div onClick={() => setSelectedTask(task.id)}
+        className="w-full flex items-center justify-between text-left px-3 py-2 rounded-xl border border-gray-100 hover:border-gray-200 hover:bg-gray-50/50 cursor-pointer group transition-all">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          {hasChildren ? (
+            <button onClick={e => { e.stopPropagation(); setExpanded(v => !v) }}
+              className="w-3.5 h-3.5 flex items-center justify-center text-gray-300 hover:text-gray-500 flex-shrink-0">
+              {expanded ? <ChevronDown size={11}/> : <ChevronRight size={11}/>}
+            </button>
+          ) : <span className="w-3.5 flex-shrink-0"/>}
+          <button
+            onClick={e => { e.stopPropagation(); updateTask(task.id, { status: task.status === 'done' ? 'todo' : 'done' }) }}
+            className="w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all hover:scale-110 active:scale-95 focus:outline-none"
+            style={{ borderColor: sColor }}
+            title={task.status === 'done' ? 'Marcar como a fazer' : 'Marcar como concluído'}
+          >
+            {task.status==='done' && <span className="w-2 h-2 rounded-full" style={{ background: sColor }} />}
+          </button>
+          <span className={`text-sm truncate font-medium ${task.status==='done' ? 'line-through text-gray-400 font-normal' : 'text-gray-700'}`}>{task.title}</span>
+          {hasChildren && (
+            <span className="text-[10px] text-gray-300 flex-shrink-0 tabnum">
+              {children.filter(c=>c.status==='done').length}/{children.length}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {sPrio && (
+            <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
+              style={{ background: sPrio.color+'15', color: sPrio.color }}>{sPrio.label}</span>
+          )}
+          {editMode && (
+            <button onClick={e => { e.stopPropagation(); deleteTask(task.id) }} className="p-1 rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors">
+              <X size={12} />
+            </button>
+          )}
+        </div>
+      </div>
+      {hasChildren && expanded && (
+        <div className="ml-[27px] pl-3 border-l border-gray-100 space-y-1 mt-1">
+          {children.map(c => <SubtaskTreeItem key={c.id} task={c} depth={depth+1} editMode={editMode}/>)}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function humanSize(bytes?: number) {
@@ -159,10 +214,20 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
   // ── Sugestões por IA (checklist / subtarefas) ─────────────────────────
   const [aiChecklistLoading, setAiChecklistLoading] = useState(false)
   const [aiSubtaskLoading,   setAiSubtaskLoading]   = useState(false)
+  const [aiMenuOpen, setAiMenuOpen] = useState(false)
+  const aiMenuRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!aiMenuOpen) return
+    const h = (e: MouseEvent) => { if (!aiMenuRef.current?.contains(e.target as Node)) setAiMenuOpen(false) }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [aiMenuOpen])
   const [aiNotice, setAiNotice] = useState('')
 
   // ── Comentários ───────────────────────────────────────────────────────
   const [commentDraft, setCommentDraft] = useState('')
+  const [replyingTo, setReplyingTo] = useState<string | null>(null)
+  const [replyDraft, setReplyDraft] = useState('')
   const [recordingComment, setRecordingComment] = useState(false)
   const [pendingCommentAttachment, setPendingCommentAttachment] = useState<{ name: string; data: string; mimeType: string } | null>(null)
   const [pendingCommentAudio, setPendingCommentAudio] = useState<{ data: string } | null>(null)
@@ -207,12 +272,19 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
     return (block?.text ?? '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
   }
 
+  // Todos os itens do MESMO projeto (tarefas, subtarefas e itens de checklist), usados como
+  // contexto de "o que já existe" ao enriquecer com IA — evita duplicação/retrabalho (item 34).
+  const projectTasks = task.projectId ? tasks.filter(t => t.projectId === task.projectId) : []
+  const projectChecklistItems = projectTasks.flatMap(t => t.checklists.flatMap(cl => cl.items.map(i => i.text))).filter(Boolean)
+
   const handleAISuggestChecklist = async () => {
     if (aiChecklistLoading) return
     setAiChecklistLoading(true); setAiNotice('')
     try {
       const targetCl = task.checklists[0]
-      const existingItems = targetCl ? targetCl.items.map(i => i.text) : []
+      // Considera os itens da própria checklist + todos os outros checklists do projeto
+      // (evita repetir passos que já existem em outra tarefa do projeto).
+      const existingItems = [...new Set([...(targetCl ? targetCl.items.map(i => i.text) : []), ...projectChecklistItems])].filter(Boolean)
       const { items } = await generateChecklistItems(
         { title: task.title, description: taskDescriptionText() }, existingItems, '', { openAIKey, geminiApiKey }
       )
@@ -235,7 +307,12 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
     if (aiSubtaskLoading || !task.projectId) return
     setAiSubtaskLoading(true); setAiNotice('')
     try {
-      const existing = subtasks.map(s => ({ title: s.title, taskType: s.taskType ?? ('task' as const), isSubtask: false }))
+      // "Existentes" = subtarefas diretas desta tarefa + todas as outras tarefas/subtarefas
+      // do projeto (evita sugerir algo que já existe em outra parte do projeto — item 34).
+      const existing = [
+        ...subtasks.map(s => ({ title: s.title, taskType: s.taskType ?? ('task' as const), isSubtask: true })),
+        ...projectTasks.filter(t => t.id !== task.id).map(t => ({ title: t.title, taskType: t.taskType ?? ('task' as const), isSubtask: !!t.parentId })),
+      ]
       const { tasks: more } = await generateProjectEnrichment(
         { name: task.title, description: taskDescriptionText() }, existing, '', { openAIKey, geminiApiKey }
       )
@@ -315,6 +392,12 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
     setPendingCommentAttachment(null)
     setPendingCommentAudio(null)
     setMicError(null)
+  }
+  const postReply = (parentId: string) => {
+    if (!replyDraft.trim()) return
+    addComment(task.id, { text: replyDraft.trim(), parentId })
+    setReplyDraft('')
+    setReplyingTo(null)
   }
   const pickCommentAttachment = () => commentFileRef.current?.click()
   const onCommentAttachPicked = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -516,6 +599,40 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Menu de ferramentas de IA */}
+          <div className="relative" ref={aiMenuRef}>
+            <button
+              onClick={() => setAiMenuOpen(v => !v)}
+              title="Ferramentas de IA"
+              className={`w-8 h-8 flex items-center justify-center rounded-xl border transition-all shadow-sm cursor-pointer ${
+                aiMenuOpen ? 'bg-brand-50 border-brand-200 text-brand-700' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-brand-600'
+              }`}
+            >
+              <Wand2 size={15}/>
+            </button>
+            {aiMenuOpen && (
+              <div className="absolute right-0 top-full mt-1.5 w-60 bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 z-50 animate-scale-in">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 pb-1">Ferramentas de IA</p>
+                <button
+                  onClick={() => { setAiMenuOpen(false); handleAISuggestSubtasks() }}
+                  disabled={aiSubtaskLoading || !task.projectId}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-wait transition-colors"
+                >
+                  {aiSubtaskLoading ? <Loader2 size={14} className="animate-spin text-gray-400"/> : <GitBranch size={14} className="text-gray-400"/>}
+                  Sugerir subtarefas
+                </button>
+                <button
+                  onClick={() => { setAiMenuOpen(false); handleAISuggestChecklist() }}
+                  disabled={aiChecklistLoading}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-wait transition-colors"
+                >
+                  {aiChecklistLoading ? <Loader2 size={14} className="animate-spin text-gray-400"/> : <ListChecks size={14} className="text-gray-400"/>}
+                  Sugerir itens de checklist
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* Strategic Focus Button */}
           <button
             onClick={() => handleModeChange(activeMode === 'full' ? 'center' : 'full')}
@@ -581,14 +698,12 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
                     <X size={16}/>
                   </button>
                 </div>
-                <div className="flex-1 overflow-y-auto px-6 md:px-16 py-8">
-                  <div className="max-w-3xl mx-auto">
-                    <BlockEditor
-                      blocks={task.blocks}
-                      onChange={blocks => updateBlocks(task.id, blocks)}
-                      placeholder="Escreva uma descrição... Selecione qualquer texto para ver opções flutuantes estilo Word."
-                    />
-                  </div>
+                <div className="flex-1 overflow-y-auto px-6 md:px-10 py-6">
+                  <BlockEditor
+                    blocks={task.blocks}
+                    onChange={blocks => updateBlocks(task.id, blocks)}
+                    placeholder="Escreva uma descrição... Selecione qualquer texto para ver opções flutuantes estilo Word."
+                  />
                 </div>
               </div>
             )}
@@ -638,47 +753,18 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
                       <Pencil size={12}/>
                     </button>
                   )}
+                  <button onClick={() => handleModeChange('full')} title="Expandir para o modo completo"
+                    className="text-gray-300 hover:text-brand-600 transition-colors">
+                    <Maximize2 size={12}/>
+                  </button>
                 </div>
               </div>
-              
+
               {!subtasksSectionCollapsed && (
                 <>
                   {subtasks.length > 0 && (
                     <div className="space-y-1">
-                      {subtasks.map(s => {
-                        const sColor = s.status==='done' ? '#1D9E75' : s.status==='in_progress' ? '#378ADD' : '#888780'
-                        const sPrio  = PRIORITY_OPTIONS.find(o => o.value===s.priority)
-                        return (
-                          <div key={s.id} onClick={() => setSelectedTask(s.id)}
-                            className="w-full flex items-center justify-between text-left px-3 py-2 rounded-xl border border-gray-100 hover:border-gray-200 hover:bg-gray-50/50 cursor-pointer group transition-all">
-                            <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                              <button
-                                onClick={e => {
-                                  e.stopPropagation()
-                                  updateTask(s.id, { status: s.status === 'done' ? 'todo' : 'done' })
-                                }}
-                                className="w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all hover:scale-110 active:scale-95 focus:outline-none"
-                                style={{ borderColor: sColor }}
-                                title={s.status === 'done' ? 'Marcar como a fazer' : 'Marcar como concluído'}
-                              >
-                                {s.status==='done' && <span className="w-2 h-2 rounded-full" style={{ background: sColor }} />}
-                              </button>
-                              <span className={`text-sm truncate font-medium ${s.status==='done' ? 'line-through text-gray-400 font-normal' : 'text-gray-700'}`}>{s.title}</span>
-                            </div>
-                            <div className="flex items-center gap-2 flex-shrink-0">
-                              {sPrio && (
-                                <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
-                                  style={{ background: sPrio.color+'15', color: sPrio.color }}>{sPrio.label}</span>
-                              )}
-                              {subtaskEditMode && (
-                                <button onClick={e => { e.stopPropagation(); deleteTask(s.id) }} className="p-1 rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors">
-                                  <X size={12} />
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        )
-                      })}
+                      {subtasks.map(s => <SubtaskTreeItem key={s.id} task={s} depth={0} editMode={subtaskEditMode}/>)}
                     </div>
                   )}
 
@@ -713,6 +799,10 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
                   title="Criar novo Checklist"
                 >
                   <Plus size={16} />
+                </button>
+                <button onClick={() => handleModeChange('full')} title="Expandir para o modo completo"
+                  className="p-1 text-gray-300 hover:text-brand-600 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer">
+                  <Maximize2 size={13}/>
                 </button>
               </div>
 
@@ -923,11 +1013,11 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
             </div>
 
             {!anexosCollapsed && (
-              <div className="space-y-2">
+              <div className="space-y-1">
                 {attachments.map(b => {
                   const isPdfFile = b.mimeType === 'application/pdf' || (b.name ?? '').toLowerCase().endsWith('.pdf')
                   const isAudioFile = b.type === 'audio'
-                  
+
                   let cardClass = "bg-gray-50 border border-gray-100 hover:bg-gray-100/50"
                   let iconColor = "text-gray-400"
                   if (isPdfFile) {
@@ -939,24 +1029,22 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
                   }
 
                   return (
-                    <div key={b.id} className={`flex items-center justify-between px-4 py-3 rounded-xl transition-all ${cardClass}`}>
-                      <button onClick={() => openData(b.data, b.mimeType)} className="flex items-center gap-3 min-w-0 text-left flex-1">
-                        <FileText size={16} className={`${iconColor} flex-shrink-0`} />
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-gray-700 truncate">{b.name || 'Arquivo'}</p>
-                        </div>
+                    <div key={b.id} className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg transition-all ${cardClass}`}>
+                      <button onClick={() => openData(b.data, b.mimeType)} className="flex items-center gap-2 min-w-0 text-left flex-1">
+                        <FileText size={13} className={`${iconColor} flex-shrink-0`} />
+                        <p className="text-[12px] font-medium text-gray-700 truncate">{b.name || 'Arquivo'}</p>
                       </button>
 
-                      <div className="flex items-center gap-3 flex-shrink-0">
+                      <div className="flex items-center gap-2 flex-shrink-0">
                         {isAudioFile ? (
-                          <span className="text-xs font-bold text-rose-400">0:42</span>
+                          <span className="text-[10px] font-bold text-rose-400 tabnum">0:42</span>
                         ) : b.size ? (
-                          <span className="text-xs font-semibold text-gray-400">{humanSize(b.size)}</span>
+                          <span className="text-[10px] font-semibold text-gray-400 tabnum">{humanSize(b.size)}</span>
                         ) : null}
 
                         {anexosEditMode && (
-                          <button onClick={() => removeAttachment(b.id)} className="p-1 rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors">
-                            <X size={12} />
+                          <button onClick={() => removeAttachment(b.id)} className="p-0.5 rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors">
+                            <X size={11} />
                           </button>
                         )}
                       </div>
@@ -997,38 +1085,71 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
             </div>
 
             {!commentsSectionCollapsed && (
-              <div className="space-y-4">
-                {task.comments.length > 0 && (
-                  <div className="space-y-4">
-                    {task.comments.map(cm => (
-                      <div key={cm.id} className="flex gap-3 group items-start">
-                        <span className={`w-8 h-8 rounded-full bg-gradient-to-br ${getAvatarBg(cm.author)} text-xs font-bold flex items-center justify-center flex-shrink-0 shadow-sm border border-white/10`}>
-                          {cm.author.slice(0, 2).toUpperCase()}
-                        </span>
-                        <div className="flex-1 min-w-0 bg-gray-50/40 border border-gray-100/80 rounded-xl px-4 py-3 shadow-xs">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-gray-700">{cm.author}</span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] text-gray-400 font-semibold">{formatCommentTime(cm.createdAt)}</span>
-                              {commentEditMode && (
-                                <button onClick={() => removeComment(task.id, cm.id)}
-                                  className="text-gray-300 hover:text-red-500 p-0.5 rounded transition-colors"><X size={11} /></button>
-                              )}
-                            </div>
-                          </div>
-                          {cm.text && <p className="text-sm text-gray-600 leading-relaxed mt-1 whitespace-pre-wrap">{cm.text}</p>}
-                          {cm.attachment && (
-                            <button onClick={() => openData(cm.attachment!.data, cm.attachment!.mimeType)}
-                              className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100/80 transition-all border border-indigo-100/40 shadow-xs">
-                              <FileText size={12} />{cm.attachment.name}
-                            </button>
+              <div className="space-y-3">
+                {task.comments.length > 0 && (() => {
+                  // Thread estilo Slack: comentários-raiz (sem parentId) e suas respostas aninhadas.
+                  const roots = task.comments.filter(c => !c.parentId)
+                  const repliesOf = (id: string) => task.comments.filter(c => c.parentId === id)
+                  const renderComment = (cm: typeof task.comments[number], isReply: boolean) => (
+                    <div key={cm.id} className="flex gap-2 group/cm items-start">
+                      <span className={`${isReply ? 'w-5 h-5 text-[8px]' : 'w-6 h-6 text-[9px]'} rounded-full bg-gradient-to-br ${getAvatarBg(cm.author)} font-bold flex items-center justify-center flex-shrink-0 shadow-sm border border-white/10`}>
+                        {cm.author.slice(0, 2).toUpperCase()}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-[11.5px] font-bold text-gray-700">{cm.author}</span>
+                          <span className="text-[9.5px] text-gray-400 font-semibold">{formatCommentTime(cm.createdAt)}</span>
+                          {commentEditMode && (
+                            <button onClick={() => removeComment(task.id, cm.id)}
+                              className="ml-auto text-gray-300 hover:text-red-500 p-0.5 rounded transition-colors opacity-0 group-hover/cm:opacity-100"><X size={11} /></button>
                           )}
-                          {cm.audio && <audio src={cm.audio.data} controls className="mt-2 h-8 max-w-[240px] rounded-lg" />}
                         </div>
+                        {cm.text && <p className="text-[13px] text-gray-600 leading-snug whitespace-pre-wrap">{cm.text}</p>}
+                        {cm.attachment && (
+                          <button onClick={() => openData(cm.attachment!.data, cm.attachment!.mimeType)}
+                            className="mt-1 inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100/80 transition-all border border-indigo-100/40">
+                            <FileText size={11} />{cm.attachment.name}
+                          </button>
+                        )}
+                        {cm.audio && <audio src={cm.audio.data} controls className="mt-1 h-7 max-w-[220px] rounded-lg" />}
+                        {!isReply && (
+                          <button onClick={() => { setReplyingTo(replyingTo === cm.id ? null : cm.id); setReplyDraft('') }}
+                            className="mt-0.5 text-[10px] font-semibold text-gray-400 hover:text-brand-600 transition-colors">
+                            Responder
+                          </button>
+                        )}
+                        {replyingTo === cm.id && (
+                          <div className="mt-1.5 flex items-center gap-2">
+                            <input
+                              autoFocus value={replyDraft}
+                              onChange={e => setReplyDraft(e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); postReply(cm.id) } if (e.key === 'Escape') { setReplyingTo(null); setReplyDraft('') } }}
+                              placeholder="Responder…"
+                              className="flex-1 text-[12px] px-3 py-1.5 border border-gray-200 rounded-full outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-400 bg-white"
+                            />
+                            <button onClick={() => postReply(cm.id)} className="p-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-full transition-colors flex-shrink-0" title="Enviar">
+                              <Send size={12} />
+                            </button>
+                          </div>
+                        )}
                       </div>
-                    ))}
-                  </div>
-                )}
+                    </div>
+                  )
+                  return (
+                    <div className="space-y-2.5">
+                      {roots.map(root => (
+                        <div key={root.id} className="space-y-1.5">
+                          {renderComment(root, false)}
+                          {repliesOf(root.id).length > 0 && (
+                            <div className="ml-4 pl-3 border-l-2 border-gray-100 space-y-1.5">
+                              {repliesOf(root.id).map(reply => renderComment(reply, true))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })()}
 
                 {/* Pending attachments/audio inside comment section */}
                 {(pendingCommentAttachment || pendingCommentAudio || recordingComment || micError) && (
@@ -1121,6 +1242,7 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
           <SideProp label="Projeto">
             {projectOptions.length > 0 ? (
               <Select value={task.projectId ?? ''} options={projectOptions} ariaLabel="Projeto" pill
+                searchable searchPlaceholder="Buscar projeto..."
                 onChange={v => updateTask(task.id, { projectId: v })} />
             ) : (
               <span className="text-sm text-gray-400">—</span>
@@ -1162,8 +1284,6 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
           <SideProp label="Etiquetas">
             <TagInput value={task.tags} onChange={tags => updateTask(task.id, { tags })} />
           </SideProp>
-
-          <TaskInsights task={task} />
 
           {/* Botão excluir integrado no rodapé da barra lateral de forma muito limpa */}
           <div className="pt-4 mt-6 border-t border-gray-100">

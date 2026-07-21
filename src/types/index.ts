@@ -1,6 +1,6 @@
 export type Priority   = 'low' | 'medium' | 'high' | 'urgent'
 export type TaskStatus = 'todo' | 'in_progress' | 'done'
-export type View       = 'my_tasks' | 'all_tasks' | 'projects' | 'project_detail' | 'space_detail' | 'folder_detail' | 'calendar' | 'reports' | 'inbox' | 'automations'
+export type View       = 'my_tasks' | 'all_tasks' | 'projects' | 'project_detail' | 'space_detail' | 'folder_detail' | 'calendar' | 'reports' | 'inbox' | 'automations' | 'goals'
 
 export const INBOX_PROJECT_ID = '__inbox__'
 
@@ -14,6 +14,50 @@ export interface Workspace {
 }
 
 export const DEFAULT_WORKSPACE_ID = 'default'
+
+// ── Metas / Objetivos (OKR-like) ────────────────────────────────────────────
+// Uma Meta agrupa alvos mensuráveis (targets). O progresso da meta é a média do
+// progresso de seus alvos (ou manual, se não houver alvos).
+export type GoalTargetType = 'number' | 'currency' | 'percent' | 'boolean'
+export interface GoalTarget {
+  id: string
+  name: string
+  type: GoalTargetType
+  start: number      // valor inicial
+  current: number    // valor atual
+  target: number     // valor-alvo
+}
+export type GoalStatus = 'on_track' | 'at_risk' | 'off_track' | 'done'
+export interface Goal {
+  id: string
+  workspaceId: string
+  name: string
+  description: string
+  color: string
+  status: GoalStatus
+  targetDate: string | null   // prazo (ISO date) opcional
+  targets: GoalTarget[]
+  createdAt: string
+  updatedAt: string
+}
+export const GOAL_STATUS_META: Record<GoalStatus, { label: string; color: string }> = {
+  on_track:  { label: 'No caminho', color: '#1D9E75' },
+  at_risk:   { label: 'Em risco',   color: '#D89A18' },
+  off_track: { label: 'Atrasada',   color: '#E24B4A' },
+  done:      { label: 'Concluída',  color: '#378ADD' },
+}
+// Progresso de um alvo (0–100) considerando início→alvo.
+export function goalTargetProgress(t: GoalTarget): number {
+  if (t.type === 'boolean') return t.current >= t.target ? 100 : 0
+  const span = t.target - t.start
+  if (span === 0) return t.current >= t.target ? 100 : 0
+  return Math.max(0, Math.min(100, Math.round(((t.current - t.start) / span) * 100)))
+}
+// Progresso da meta = média dos alvos (0 se não houver alvos).
+export function goalProgress(g: Goal): number {
+  if (!g.targets.length) return g.status === 'done' ? 100 : 0
+  return Math.round(g.targets.reduce((s, t) => s + goalTargetProgress(t), 0) / g.targets.length)
+}
 
 // ── Spaces ────────────────────────────────────────────────────────────────
 export interface Space {
@@ -56,6 +100,7 @@ export interface DropdownOption {
   id: string
   label: string
   color: string   // hex
+  icon?: string   // nome do ícone lucide (kebab-case), opcional — substitui o círculo de cor
 }
 
 export interface ColumnDef {
@@ -160,6 +205,7 @@ export interface TaskComment {
   attachment?: { name: string; data: string; mimeType: string }
   audio?: { data: string }
   createdAt: string
+  parentId?: string | null   // resposta a outro comentário (thread estilo Slack)
 }
 
 export type ContentBlockType = 'text' | 'image' | 'audio' | 'file'

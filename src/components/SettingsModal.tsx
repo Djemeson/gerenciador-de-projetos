@@ -6,10 +6,7 @@ import { RefreshCw, Copy, Check, Link, AlertCircle, Wifi, Smartphone, Sparkles, 
 
 export function SettingsModal() {
   const { settingsOpen, closeSettings, quickCaptureHotkey, updateSetting, openAIKey, geminiApiKey } = useSettingsStore()
-  const {
-    syncCode, syncStatus, lastSyncedAt, isSyncActive,
-    generateSyncCode, activateSync, disableSync, pullStateFromServer
-  } = useAppStore()
+  const { syncCode, cloudSyncStatus, lastSyncedAt, pushToCloud, linkToCode, generateNewCode } = useAppStore()
 
   const [capturing, setCapturing] = useState(false)
   const [hotkey, setHotkey] = useState(quickCaptureHotkey)
@@ -20,11 +17,32 @@ export function SettingsModal() {
   const [showOpenAIKey, setShowOpenAIKey] = useState(false)
   const [showGeminiKey, setShowGeminiKey] = useState(false)
 
-  // Sync state UI
+  // Sync code UI
   const [inputCode, setInputCode] = useState('')
   const [copied, setCopied] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [showConfirmLink, setShowConfirmLink] = useState(false)
+
+  const handleLinkDevice = () => {
+    if (!inputCode.trim()) { setErrorMessage('Digite um código válido.'); return }
+    setErrorMessage('')
+    setShowConfirmLink(true)
+  }
+
+  const handleConfirmLink = async (mode: 'pull' | 'push') => {
+    setErrorMessage('')
+    const success = await linkToCode(inputCode, mode)
+    if (success) { setShowConfirmLink(false); setInputCode('') }
+    else setErrorMessage('Código inválido ou erro ao conectar.')
+  }
+
+  const handleCopy = () => {
+    if (syncCode) {
+      navigator.clipboard.writeText(syncCode)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
 
   const captureKey = (e: React.KeyboardEvent) => {
     e.preventDefault()
@@ -39,47 +57,6 @@ export function SettingsModal() {
       setHotkey(hk)
       updateSetting('quickCaptureHotkey', hk)
       setCapturing(false)
-    }
-  }
-
-  const handleGenerate = async () => {
-    try {
-      setErrorMessage('')
-      await generateSyncCode()
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Erro ao gerar código.')
-    }
-  }
-
-  const handleLinkDevice = () => {
-    if (!inputCode.trim()) {
-      setErrorMessage('Digite um código válido.')
-      return
-    }
-    setErrorMessage('')
-    setShowConfirmLink(true)
-  }
-
-  const handleConfirmLink = async (forceUpload: boolean) => {
-    try {
-      setErrorMessage('')
-      const success = await activateSync(inputCode, forceUpload)
-      if (success) {
-        setShowConfirmLink(false)
-        setInputCode('')
-      } else {
-        setErrorMessage('Código inválido ou erro ao conectar.')
-      }
-    } catch (err: any) {
-      setErrorMessage('Erro na sincronização.')
-    }
-  }
-
-  const handleCopy = () => {
-    if (syncCode) {
-      navigator.clipboard.writeText(syncCode)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
     }
   }
 
@@ -194,180 +171,149 @@ export function SettingsModal() {
             Mantenha suas tarefas, projetos, espaços e automações sincronizados em tempo real entre o computador, celular ou outros navegadores.
           </p>
 
-          {isSyncActive && syncCode ? (
-            /* Active Sync View */
-            <div className="bg-emerald-50/40 border border-emerald-100 rounded-xl p-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="relative">
-                    <Wifi className="text-emerald-600" size={18} />
-                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-500 rounded-full animate-ping"></span>
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-emerald-900">Sincronização Ativa</h4>
-                    <p className="text-[10px] text-emerald-600">Dispositivo vinculado com sucesso</p>
-                  </div>
+          <div className="bg-emerald-50/40 border border-emerald-100 rounded-xl p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Wifi className="text-emerald-600" size={18} />
+                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-500 rounded-full animate-ping"></span>
                 </div>
-                <div className="flex items-center gap-1.5 bg-emerald-100/60 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full font-bold">
-                  {syncStatus === 'syncing' ? (
-                    <>
-                      <RefreshCw size={10} className="animate-spin" />
-                      <span>Sincronizando...</span>
-                    </>
-                  ) : (
-                    <span>Conectado</span>
-                  )}
+                <div>
+                  <h4 className="text-xs font-bold text-emerald-900">Sincronização Ativa</h4>
+                  <p className="text-[10px] text-emerald-600">Este dispositivo está conectado à nuvem</p>
                 </div>
               </div>
+              <div className="flex items-center gap-1.5 bg-emerald-100/60 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                {cloudSyncStatus === 'syncing' ? (
+                  <>
+                    <RefreshCw size={10} className="animate-spin" />
+                    <span>Sincronizando...</span>
+                  </>
+                ) : cloudSyncStatus === 'error' ? (
+                  <span className="text-red-600">Erro ao sincronizar</span>
+                ) : (
+                  <span>Conectado</span>
+                )}
+              </div>
+            </div>
 
-              {/* Sync Code display */}
-              <div className="bg-white border border-emerald-200/50 rounded-lg p-3 flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] text-gray-400 block font-medium">Código de Sincronização</span>
-                  <span className="text-lg font-mono font-bold text-gray-800 tracking-wider">{syncCode}</span>
-                </div>
-                <button 
-                  onClick={handleCopy}
-                  className="p-2 border border-gray-100 rounded-lg hover:bg-gray-50 transition-colors text-gray-500 hover:text-gray-700"
-                  title="Copiar código"
+            {/* Sync Code display */}
+            <div className="bg-white border border-emerald-200/50 rounded-lg p-3 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] text-gray-400 block font-medium">Código de Sincronização</span>
+                <span className="text-lg font-mono font-bold text-gray-800 tracking-wider">{syncCode || '...'}</span>
+              </div>
+              <button
+                onClick={handleCopy}
+                className="p-2 border border-gray-100 rounded-lg hover:bg-gray-50 transition-colors text-gray-500 hover:text-gray-700"
+                title="Copiar código"
+              >
+                {copied ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
+              </button>
+            </div>
+            <p className="text-[10px] text-gray-400 -mt-2">
+              Use este código em outro dispositivo (menu "Vincular dispositivo" abaixo) pra sincronizar os dois.
+            </p>
+
+            {/* Sync stats & controls */}
+            <div className="flex items-center justify-between text-[11px] text-gray-500 pt-1 border-t border-emerald-100/70">
+              <span className="pt-3">Última sincronização: <strong className="text-gray-700 font-semibold">{lastSyncedAt || 'agora mesmo'}</strong></span>
+              <div className="flex items-center gap-2 pt-3">
+                <button
+                  onClick={() => pushToCloud()}
+                  disabled={cloudSyncStatus === 'syncing'}
+                  className="flex items-center gap-1 text-brand-600 hover:text-brand-700 disabled:text-gray-400 font-semibold transition-colors cursor-pointer"
                 >
-                  {copied ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
+                  <RefreshCw size={11} className={cloudSyncStatus === 'syncing' ? 'animate-spin' : ''} />
+                  <span>Sincronizar agora</span>
                 </button>
               </div>
+            </div>
+          </div>
 
-              {/* Sync stats & controls */}
-              <div className="flex items-center justify-between text-[11px] text-gray-500 pt-1">
-                <span>Última sincronização: <strong className="text-gray-700 font-semibold">{lastSyncedAt || 'agora mesmo'}</strong></span>
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => pullStateFromServer()}
-                    disabled={syncStatus === 'syncing'}
-                    className="flex items-center gap-1 text-brand-600 hover:text-brand-700 disabled:text-gray-400 font-semibold transition-colors cursor-pointer"
+          {/* Link Existing Code */}
+          <div className="border border-gray-200/60 bg-white rounded-lg p-3.5 flex flex-col justify-between space-y-3 mt-3">
+            <div>
+              <h4 className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                <Link size={14} className="text-indigo-500" />
+                Vincular a outro dispositivo
+              </h4>
+              <p className="text-[10px] text-gray-400 mt-1">
+                Insira o código de sincronização de outro dispositivo para conectar os dois.
+              </p>
+            </div>
+
+            <div className="flex gap-1.5">
+              <input
+                type="text"
+                placeholder="Ex: TF-A1B2C3"
+                value={inputCode}
+                onChange={(e) => setInputCode(e.target.value.toUpperCase())}
+                className="flex-1 min-w-0 px-2.5 py-1 text-xs border rounded-lg uppercase tracking-wider font-mono outline-none focus:ring-1 focus:ring-brand-500"
+              />
+              <button
+                onClick={handleLinkDevice}
+                className="px-3 py-1 bg-gray-900 hover:bg-black text-white text-[11px] font-bold rounded-lg cursor-pointer active:scale-[0.98] transition-all shadow-xs"
+              >
+                Conectar
+              </button>
+            </div>
+
+            {showConfirmLink && (
+              <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3.5 space-y-2.5">
+                <div className="flex gap-2">
+                  <AlertCircle size={15} className="text-indigo-600 shrink-0 mt-0.5" />
+                  <div>
+                    <h5 className="text-[11px] font-bold text-indigo-900">Como você deseja sincronizar os dados?</h5>
+                    <p className="text-[10px] text-indigo-700 mt-0.5">
+                      Você está vinculando o código <strong className="font-semibold font-mono">{inputCode}</strong>. Escolha como mesclar as informações deste navegador:
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <button
+                    onClick={() => handleConfirmLink('pull')}
+                    className="py-1.5 bg-white border border-indigo-200 hover:bg-indigo-50 text-indigo-900 text-[10px] font-bold rounded-lg cursor-pointer transition-colors flex flex-col items-center justify-center p-2 text-center"
                   >
-                    <RefreshCw size={11} className={syncStatus === 'syncing' ? 'animate-spin' : ''} />
-                    <span>Sincronizar</span>
+                    <span>Baixar da nuvem</span>
+                    <span className="text-[8px] font-normal text-indigo-500 mt-0.5">Substitui dados locais</span>
                   </button>
-                  <span className="text-gray-300">|</span>
-                  <button 
-                    onClick={disableSync}
-                    className="text-red-500 hover:text-red-600 font-semibold transition-colors cursor-pointer"
+                  <button
+                    onClick={() => handleConfirmLink('push')}
+                    className="py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold rounded-lg cursor-pointer transition-all flex flex-col items-center justify-center p-2 text-center shadow-xs"
                   >
-                    Desconectar
+                    <span>Enviar dados locais</span>
+                    <span className="text-[8px] font-normal text-indigo-200 mt-0.5">Substitui dados da nuvem</span>
+                  </button>
+                </div>
+
+                <div className="flex justify-end pt-1">
+                  <button
+                    onClick={() => setShowConfirmLink(false)}
+                    className="text-[9px] font-bold text-gray-500 hover:text-gray-700 font-semibold"
+                  >
+                    Cancelar
                   </button>
                 </div>
               </div>
-            </div>
-          ) : (
-            /* Inactive Sync View */
-            <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 space-y-4">
-              <div className="grid grid-cols-1 gap-3">
+            )}
 
-                {/* Generate New Code */}
-                <div className="border border-gray-200/60 bg-white rounded-lg p-3.5 flex flex-col justify-between space-y-3">
-                  <div>
-                    <h4 className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
-                      <Smartphone size={14} className="text-brand-500" />
-                      Novo por aqui?
-                    </h4>
-                    <p className="text-[10px] text-gray-400 mt-1">
-                      Gere um código exclusivo para sincronizar este dispositivo atual para a nuvem.
-                    </p>
-                  </div>
-                  <button 
-                    onClick={handleGenerate}
-                    disabled={syncStatus === 'syncing'}
-                    className="w-full py-1.5 bg-brand-600 hover:bg-brand-700 active:scale-[0.98] transition-all text-white text-[11px] font-bold rounded-lg cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
-                  >
-                    {syncStatus === 'syncing' ? (
-                      <RefreshCw size={12} className="animate-spin" />
-                    ) : (
-                      <Wifi size={12} />
-                    )}
-                    <span>Gerar Novo Código</span>
-                  </button>
-                </div>
-
-                {/* Link Existing Code */}
-                <div className="border border-gray-200/60 bg-white rounded-lg p-3.5 flex flex-col justify-between space-y-3">
-                  <div>
-                    <h4 className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
-                      <Link size={14} className="text-indigo-500" />
-                      Vincular dispositivo
-                    </h4>
-                    <p className="text-[10px] text-gray-400 mt-1">
-                      Insira o código de sincronização de outro dispositivo para conectar.
-                    </p>
-                  </div>
-                  
-                  <div className="flex gap-1.5">
-                    <input 
-                      type="text" 
-                      placeholder="Ex: TF-A1B2C3" 
-                      value={inputCode}
-                      onChange={(e) => setInputCode(e.target.value.toUpperCase())}
-                      className="flex-1 min-w-0 px-2.5 py-1 text-xs border rounded-lg uppercase tracking-wider font-mono outline-none focus:ring-1 focus:ring-brand-500"
-                    />
-                    <button 
-                      onClick={handleLinkDevice}
-                      className="px-3 py-1 bg-gray-900 hover:bg-black text-white text-[11px] font-bold rounded-lg cursor-pointer active:scale-[0.98] transition-all shadow-xs"
-                    >
-                      Conectar
-                    </button>
-                  </div>
-                </div>
-
+            {errorMessage && (
+              <div className="flex items-center gap-1.5 bg-red-50 border border-red-100 text-red-700 text-[10px] px-3 py-2 rounded-lg">
+                <AlertCircle size={13} className="shrink-0" />
+                <span>{errorMessage}</span>
               </div>
+            )}
 
-              {/* Confirmation screen for link */}
-              {showConfirmLink && (
-                <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3.5 space-y-2.5">
-                  <div className="flex gap-2">
-                    <AlertCircle size={15} className="text-indigo-600 shrink-0 mt-0.5" />
-                    <div>
-                      <h5 className="text-[11px] font-bold text-indigo-900">Como você deseja sincronizar os dados?</h5>
-                      <p className="text-[10px] text-indigo-700 mt-0.5">
-                        Você está vinculando o código <strong className="font-semibold font-mono">{inputCode}</strong>. Escolha como mesclar as informações deste navegador:
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-2 pt-1">
-                    <button 
-                      onClick={() => handleConfirmLink(false)}
-                      className="py-1.5 bg-white border border-indigo-200 hover:bg-indigo-50 text-indigo-900 text-[10px] font-bold rounded-lg cursor-pointer transition-colors flex flex-col items-center justify-center p-2 text-center"
-                    >
-                      <span>Baixar da nuvem</span>
-                      <span className="text-[8px] font-normal text-indigo-500 mt-0.5">Substitui dados locais</span>
-                    </button>
-                    <button 
-                      onClick={() => handleConfirmLink(true)}
-                      className="py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold rounded-lg cursor-pointer transition-all flex flex-col items-center justify-center p-2 text-center shadow-xs"
-                    >
-                      <span>Enviar dados locais</span>
-                      <span className="text-[8px] font-normal text-indigo-200 mt-0.5">Substitui dados da nuvem</span>
-                    </button>
-                  </div>
-
-                  <div className="flex justify-end pt-1">
-                    <button 
-                      onClick={() => setShowConfirmLink(false)}
-                      className="text-[9px] font-bold text-gray-500 hover:text-gray-700 font-semibold"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Error indicator */}
-              {errorMessage && (
-                <div className="flex items-center gap-1.5 bg-red-50 border border-red-100 text-red-700 text-[10px] px-3 py-2 rounded-lg">
-                  <AlertCircle size={13} className="shrink-0" />
-                  <span>{errorMessage}</span>
-                </div>
-              )}
-            </div>
-          )}
+            <button
+              onClick={generateNewCode}
+              className="flex items-center gap-1.5 text-[10px] text-gray-400 hover:text-gray-600 font-medium transition-colors self-start"
+            >
+              <Smartphone size={11} />
+              Começar um grupo de sincronização novo (desvincula este dispositivo do código atual)
+            </button>
+          </div>
         </div>
 
       </div>

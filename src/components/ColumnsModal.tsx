@@ -5,6 +5,8 @@ import { useAppStore } from '../stores/useAppStore'
 import type { ColumnType, DropdownOption } from '../types'
 import { INBOX_PROJECT_ID } from '../types'
 import { FIELD_TYPE_ICON } from '../lib/fieldTypeIcons'
+import { IconColorPicker } from './ui/IconColorPicker'
+import { getIconComponent } from '../lib/sidebarIcons'
 import { nanoid } from '../lib/nanoid'
 import {
   EXTRA_SYSTEM, BASE_SYSTEM_TOGGLEABLE,
@@ -88,26 +90,45 @@ export function ColumnsModal() {
     { id: nanoid(), label: 'Opção 1', color: OPTION_COLORS[0] },
     { id: nanoid(), label: 'Opção 2', color: OPTION_COLORS[5] },
   ])
-  const [colorPicker, setColorPicker] = useState<string | null>(null)  // optId sendo editado
+  const [colorPicker, setColorPicker] = useState<{ id: string; anchor: HTMLElement } | null>(null)  // opção sendo editada (ícone+cor)
   const [editingCol,  setEditingCol]  = useState<string | null>(null)
+  const [editingFieldId, setEditingFieldId] = useState<string | null>(null)  // campo sendo editado por completo
   const [search,      setSearch]      = useState('')
   const [refreshTick, setRefreshTick] = useState(0)   // força reler localStorage após toggles
 
   const reset = () => {
     setTab('create'); setStep('pick'); setSelType(null); setName(''); setSearch('')
     setOpts([{ id:nanoid(), label:'Opção 1', color:OPTION_COLORS[0] },{ id:nanoid(), label:'Opção 2', color:OPTION_COLORS[5] }])
-    setColorPicker(null); setEditingCol(null)
+    setColorPicker(null); setEditingCol(null); setEditingFieldId(null)
   }
 
   if (!columnsModal || (!project && !isInbox)) return null
 
+  // Editar um campo personalizado já criado — carrega tipo/nome/opções no formulário.
+  const startEditField = (col: typeof cols[number]) => {
+    const tc = typeCardOf(col.type)
+    if (!tc) return
+    setSelType(tc)
+    setName(col.name)
+    setOpts((col.type === 'dropdown' || col.type === 'labels') && col.dropdownOptions.length
+      ? col.dropdownOptions.map(o => ({ ...o }))
+      : [{ id:nanoid(), label:'Opção 1', color:OPTION_COLORS[0] }])
+    setEditingFieldId(col.id)
+    setTab('create'); setStep('configure')
+  }
+
   const save = () => {
     if (!name.trim() || !selType) return
-    addColumn(targetId, {
-      name: name.trim(), type: selType.type, projectId: targetId,
-      dropdownOptions: (selType.type === 'dropdown' || selType.type === 'labels') ? opts : [],
-      width: selType.type === 'checkbox' ? 80 : selType.type === 'text' ? 140 : 100,
-    })
+    const dropdownOptions = (selType.type === 'dropdown' || selType.type === 'labels') ? opts : []
+    if (editingFieldId) {
+      updateColumn(targetId, editingFieldId, { name: name.trim(), dropdownOptions })
+    } else {
+      addColumn(targetId, {
+        name: name.trim(), type: selType.type, projectId: targetId,
+        dropdownOptions,
+        width: selType.type === 'checkbox' ? 80 : selType.type === 'text' ? 140 : 100,
+      })
+    }
     reset()
   }
 
@@ -261,18 +282,21 @@ export function ColumnsModal() {
                   </div>
 
                   <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                    {opts.map((opt, idx) => (
+                    {opts.map((opt, idx) => {
+                      const OptIcon = getIconComponent(opt.icon)
+                      return (
                       <div key={opt.id} className="group">
                         <div className="flex items-center gap-2">
                           <GripVertical size={13} className="text-gray-200 flex-shrink-0"/>
                           <button
-                            onClick={() => setColorPicker(colorPicker===opt.id ? null : opt.id)}
-                            className="w-6 h-6 rounded-full border-2 border-white shadow ring-1 ring-gray-200 hover:ring-gray-400 hover:scale-110 transition-all flex-shrink-0"
-                            style={{ background: opt.color }}
-                            title="Clique para trocar a cor"
-                          />
-                          <span className="inline-flex items-center text-[11px] px-2 py-0.5 rounded-full font-medium flex-shrink-0"
+                            onClick={e => setColorPicker(colorPicker?.id===opt.id ? null : { id: opt.id, anchor: e.currentTarget })}
+                            className="w-6 h-6 rounded-full border-2 border-white shadow ring-1 ring-gray-200 hover:ring-gray-400 hover:scale-110 transition-all flex-shrink-0 flex items-center justify-center"
+                            style={OptIcon ? { background: opt.color + '25', color: opt.color } : { background: opt.color }}
+                            title="Clique para escolher ícone e cor"
+                          >{OptIcon && <OptIcon size={13}/>}</button>
+                          <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium flex-shrink-0"
                             style={{ background: opt.color + '25', color: opt.color }}>
+                            {OptIcon && <OptIcon size={11}/>}
                             {opt.label || `Opção ${idx+1}`}
                           </span>
                           <input value={opt.label} onChange={e => updateOpt(opt.id, { label: e.target.value })}
@@ -282,17 +306,18 @@ export function ColumnsModal() {
                             <X size={12}/>
                           </button>
                         </div>
-                        {colorPicker === opt.id && (
-                          <div className="mt-2 ml-8 flex flex-wrap gap-2 p-3 bg-gray-50 rounded-xl border border-gray-200">
-                            {OPTION_COLORS.map(c => (
-                              <button key={c} onClick={() => { updateOpt(opt.id, { color: c }); setColorPicker(null) }}
-                                className={`w-7 h-7 rounded-full hover:scale-110 transition-all border-2 ${opt.color===c?'border-gray-700 scale-110':'border-white shadow-sm'}`}
-                                style={{ background: c }}/>
-                            ))}
-                          </div>
+                        {colorPicker?.id === opt.id && (
+                          <IconColorPicker
+                            mode="icon" theme="light" color={opt.color} icon={opt.icon}
+                            anchor={colorPicker.anchor}
+                            onPickColor={c => updateOpt(opt.id, { color: c ?? opt.color })}
+                            onPickIcon={name => updateOpt(opt.id, { icon: name || undefined })}
+                            onClose={() => setColorPicker(null)}
+                          />
                         )}
                       </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
               )}
@@ -303,7 +328,7 @@ export function ColumnsModal() {
                 </button>
                 <button onClick={save} disabled={!name.trim()}
                   className="flex-1 py-2.5 text-sm bg-brand-600 text-white rounded-xl hover:bg-brand-700 disabled:opacity-40 transition-colors font-semibold flex items-center justify-center gap-1.5 shadow-sm">
-                  <Check size={14}/> Criar campo
+                  <Check size={14}/> {editingFieldId ? 'Salvar alterações' : 'Criar campo'}
                 </button>
               </div>
             </div>
@@ -360,6 +385,10 @@ export function ColumnsModal() {
                           <span onDoubleClick={() => setEditingCol(c.id)} title="Duplo-clique para renomear"
                             className="text-xs text-gray-700 flex-1 truncate cursor-text">{c.name} <span className="text-gray-400">({tc?.label})</span></span>
                         )}
+                        <button onClick={() => startEditField(c)}
+                          className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-brand-500 transition-all flex-shrink-0" title="Editar campo">
+                          <SlidersHorizontal size={12}/>
+                        </button>
                         <button onClick={() => deleteColumn(targetId, c.id)}
                           className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-all flex-shrink-0" title="Excluir campo">
                           <Trash2 size={12}/>

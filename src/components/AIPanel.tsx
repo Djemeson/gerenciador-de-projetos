@@ -62,7 +62,7 @@ Regras:
 }
 
 export function AIPanel() {
-  const { toggleAIPanel, tasks, projects, activeWorkspaceId, addTask, quickAddTask, updateTask, deleteTask, addChecklist, addChecklistItem, addProject } = useAppStore()
+  const { toggleAIPanel, tasks, projects, workspaces, activeWorkspaceId, activeProjectId, addTask, quickAddTask, updateTask, deleteTask, addChecklist, addChecklistItem, addProject } = useAppStore()
   const { openAIKey, geminiApiKey, openSettings } = useSettingsStore()
 
   const [view, setView] = useState<View>('chat')
@@ -71,6 +71,18 @@ export function AIPanel() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+
+  // ── Contexto (chips): a conversa é GLOBAL (todos os workspaces), mas o workspace e o
+  // projeto atuais vêm pré-marcados como chips removíveis. Removê-los amplia o escopo. ──
+  const activeWorkspace = workspaces.find(w => w.id === activeWorkspaceId)
+  const activeProject = projects.find(p => p.id === activeProjectId)
+  const [scopeWorkspace, setScopeWorkspace] = useState(true)
+  const [scopeProjectId, setScopeProjectId] = useState<string | null>(activeProjectId)
+  // Reflete a navegação: ao abrir dentro de um projeto/workspace, marca-o por padrão.
+  useEffect(() => { setScopeProjectId(activeProjectId); setScopeWorkspace(true) }, [activeProjectId, activeWorkspaceId])
+  const scopeProject = projects.find(p => p.id === scopeProjectId)
+  // Workspace efetivo passado às ferramentas: real quando o chip está ativo, '__all__' (global) quando removido.
+  const effectiveWorkspaceId = scopeWorkspace ? activeWorkspaceId : '__all__'
 
   const mode: Mode = openAIKey ? 'openai' : geminiApiKey ? 'gemini' : 'none'
 
@@ -95,8 +107,17 @@ export function AIPanel() {
   }
 
   const ctx = {
-    tasks, projects, activeWorkspaceId,
+    tasks, projects, activeWorkspaceId: effectiveWorkspaceId,
     addTask, quickAddTask, updateTask, deleteTask, addChecklist, addChecklistItem, addProject,
+  }
+
+  // Nota de foco injetada no prompt: informa à IA o escopo escolhido pelos chips.
+  const scopeNote = (): string => {
+    const parts: string[] = []
+    if (scopeWorkspace && activeWorkspace) parts.push(`workspace "${activeWorkspace.name}"`)
+    else parts.push('todos os workspaces')
+    if (scopeProject) parts.push(`com foco no projeto "${scopeProject.name}"`)
+    return `Escopo atual do usuário: ${parts.join(', ')}. Priorize esse contexto ao responder, mas você pode consultar fora dele se o usuário pedir explicitamente.`
   }
 
   const runTool = (toolName: ToolName, rawArgs: string) => executeTool(toolName, rawArgs, ctx)
@@ -105,7 +126,7 @@ export function AIPanel() {
     const collected: ChatToolCall[] = []
     let pendingConfirm: ChatMessage['pendingConfirm']
     let working: any[] = [
-      { role: 'system', content: systemPrompt() },
+      { role: 'system', content: systemPrompt() + '\n' + scopeNote() },
       ...history.map(m => ({ role: m.role, content: m.content })),
     ]
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
@@ -134,14 +155,15 @@ export function AIPanel() {
   }
 
   const callGemini = async (history: ChatMessage[]): Promise<{ text: string; toolCalls: ChatToolCall[] }> => {
-    const active = tasks.filter(t => t.workspaceId === activeWorkspaceId && t.status !== 'done').slice(0, 30)
+    const inScope = (wid: string) => !scopeWorkspace || wid === activeWorkspaceId
+    const active = tasks.filter(t => inScope(t.workspaceId) && t.status !== 'done').slice(0, 30)
     const overdue = active.filter(t => t.dueDate && new Date(t.dueDate) < new Date()).length
-    const wsProjects = projects.filter(p => p.workspaceId === activeWorkspaceId && !p.archived)
+    const wsProjects = projects.filter(p => inScope(p.workspaceId) && !p.archived)
     const contextBlurb = `Contexto (somente consulta, sem execução de ações): ${wsProjects.length} projetos ativos; ${active.length} tarefas ativas; ${overdue} atrasadas. Projetos: ${wsProjects.map(p => p.name).join(', ') || 'nenhum'}.`
     const transcript = history.map(m => `${m.role === 'user' ? 'Usuário' : 'Assistente'}: ${m.content}`).join('\n')
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiApiKey}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: `${systemPrompt()}\n${contextBlurb}\n\n${transcript}` }] }] }),
+      body: JSON.stringify({ contents: [{ parts: [{ text: `${systemPrompt()}\n${scopeNote()}\n${contextBlurb}\n\n${transcript}` }] }] }),
     })
     if (!res.ok) throw new Error(`Erro do Gemini (${res.status})`)
     const data = await res.json()
@@ -286,6 +308,35 @@ export function AIPanel() {
         </div>
       ) : (
         <>
+          {/* Chips de contexto (workspace / projeto) — removíveis; sem eles, escopo global */}
+          <div className="flex items-center gap-1.5 px-3 py-2 border-b border-gray-100 flex-wrap">
+            <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Contexto:</span>
+            {scopeWorkspace && activeWorkspace ? (
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 border border-brand-100">
+                {activeWorkspace.name}
+                <button onClick={() => setScopeWorkspace(false)} title="Remover (usar todos os workspaces)" className="text-brand-400 hover:text-brand-700"><X size={10}/></button>
+              </span>
+            ) : (
+              <button onClick={() => setScopeWorkspace(true)}
+                className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-gray-50 text-gray-500 border border-gray-200 hover:border-brand-300 hover:text-brand-600">
+                Todos os workspaces
+              </button>
+            )}
+            {scopeProject && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full text-white border max-w-[140px]"
+                style={{ background: scopeProject.color, borderColor: scopeProject.color }}>
+                <span className="truncate">{scopeProject.name}</span>
+                <button onClick={() => setScopeProjectId(null)} title="Remover foco no projeto" className="text-white/70 hover:text-white flex-shrink-0"><X size={10}/></button>
+              </span>
+            )}
+            {!scopeProject && activeProject && (
+              <button onClick={() => setScopeProjectId(activeProject.id)}
+                className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-gray-50 text-gray-500 border border-gray-200 hover:border-brand-300 hover:text-brand-600">
+                + {activeProject.name}
+              </button>
+            )}
+          </div>
+
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {conv.messages.length === 0 && (

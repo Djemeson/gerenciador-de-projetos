@@ -3,6 +3,14 @@ import { ChevronDown, Check, Star, Mail, Phone, Globe, User, Sparkles, RefreshCw
 import type { Task, ColumnDef } from '../../types'
 import { useAppStore } from '../../stores/useAppStore'
 import { useSettingsStore } from '../../stores/useSettingsStore'
+import { getIconComponent } from '../../lib/sidebarIcons'
+
+// Marcador de opção (dropdown/rótulos): ícone escolhido, senão o círculo de cor.
+function OptionMarker({ icon, color, size = 10 }: { icon?: string; color: string; size?: number }) {
+  const Icon = getIconComponent(icon)
+  if (Icon) return <Icon size={size} style={{ color }} className="flex-shrink-0"/>
+  return <span className="rounded-full flex-shrink-0" style={{ width: size*0.6, height: size*0.6, background: color }}/>
+}
 
 interface Props { task: Task; column: ColumnDef }
 
@@ -50,7 +58,7 @@ export function CustomFieldCell({ task, column }: Props) {
               className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium truncate"
               style={{ background: selected.color + '25', color: selected.color }}
             >
-              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: selected.color }}/>
+              <OptionMarker icon={selected.icon} color={selected.color} size={11}/>
               {selected.label}
             </span>
           ) : (
@@ -71,7 +79,7 @@ export function CustomFieldCell({ task, column }: Props) {
             {column.dropdownOptions.map(opt => (
               <button key={opt.id} onClick={() => { update(opt.label); setDropOpen(false) }}
                 className="w-full text-left px-3 py-1.5 flex items-center gap-2 hover:bg-gray-50 transition-colors">
-                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: opt.color }}/>
+                <OptionMarker icon={opt.icon} color={opt.color} size={12}/>
                 <span className="text-[12px] text-gray-700 flex-1">{opt.label}</span>
                 {value === opt.label && <Check size={11} className="text-brand-500 flex-shrink-0"/>}
               </button>

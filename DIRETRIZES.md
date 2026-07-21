@@ -92,7 +92,7 @@ Regras:
 - **Botão `+` do espaço abre um menu** (Pasta / Projeto) em vez de criar direto. As duas
   opções — e o botão `+` da pasta (que cria projeto direto, sem menu, pasta não tem
   sub-pasta) — criam o item **instantaneamente** com nome/ícone padrão (pasta = "Nova
-  Pasta"; projeto = "Novo Projeto", ícone `list`, cor da pasta quando criado dentro de
+  Pasta"; projeto = "Novo Projeto", ícone `circle`, cor da pasta quando criado dentro de
   uma, senão índigo) e entram **direto em modo de renomear** com o texto **selecionado**
   (`renameInput` tem `onFocus` → `select()`), pronto pra digitar por cima — mesmo fluxo do
   duplo-clique, só que disparado automaticamente na criação. **Não abre mais o
@@ -405,6 +405,13 @@ Regras:
 - Ações: `setView(view, projectId?)`, `openSpace(id)`, `openFolder(id)`.
   Cada uma **zera os outros ids** ativos para não vazar contexto.
 - Roteamento em `App.tsx` (switch por `activeView`).
+- **Metas/Objetivos** (`View 'goals'`, `views/GoalsView.tsx`): item "Metas" no nav primário
+  da sidebar (entre Calendário e Projetos, ícone `Target`). Entidade `Goal` (`types/index.ts`)
+  com alvos mensuráveis (`GoalTarget`: number/currency/percent/boolean); progresso da meta =
+  média do progresso dos alvos (`goalProgress`/`goalTargetProgress`). Isolada por workspace
+  (`workspaceId`, ações `addGoal`/`updateGoal`/`deleteGoal`, persistência `tf_goals`). Cards
+  com anel de progresso + status (`GOAL_STATUS_META`) + prazo + barras dos alvos; criação/edição
+  no `GoalEditor` (modal). Não é uma tela com `TaskPanel` — é uma seção própria de OKRs.
 
 ---
 
@@ -762,12 +769,58 @@ tarefa (corrige o bug do "trecho até dar Enter"). Não recriar um textarea/tipt
   para áudio inline na descrição — não recriar essa lógica de captura de microfone de novo,
   só reaproveitar o padrão).
 - Linha de adicionar: avatar "DJ" (autor único do app, mesmo texto fixo do rodapé da
-  sidebar — não existe conta multiusuário) + input (**Enter posta**) + botão de anexar
-  (seletor de arquivo) + botão de gravar áudio (alterna gravação, ícone `Mic`/`MicOff`).
+  sidebar — **não existe conta multiusuário dentro do app**, nem tela de login — ver seção 15
+  sobre o código de sincronização entre dispositivos, que não é um sistema de contas)
+  + input (**Enter posta**) + botão de anexar (seletor de arquivo) + botão de gravar áudio
+  (alterna gravação, ícone `Mic`/`MicOff`).
 - Ações na store: `addComment(taskId, patch)` / `removeComment(taskId, commentId)`
   (`useAppStore.ts`), mesmo padrão de `addChecklist`/`removeChecklist` (mapeia `tasks`,
   persiste via `pProjects`, atualiza `updatedAt`). `addComment` aceita texto e/ou anexo e/ou
   áudio (usado tanto pelo texto simples quanto pelas gravações/anexos).
+
+---
+
+## 15. Sincronização entre dispositivos (sem tela de login)
+
+- **Continua sendo um app de um único dono** (não é multiusuário — seção 14.2) e **sem
+  tela de login** — abre direto, como sempre foi. Testamos login com Google numa rodada
+  anterior (histórico na conversa), mas a página `/__/auth/handler` do Firebase depende de
+  o projeto ter o Firebase Hosting inicializado, o que gerou bugs difíceis de reproduzir;
+  foi abandonado em favor do modelo abaixo, que não passa pelo Google.
+- **Autenticação anônima e silenciosa** (`src/lib/firebase.ts`, `ensureSignedIn`,
+  `src/stores/useAuthStore.ts`) roda em segundo plano em toda carga do app, sem nenhuma UI.
+  Ela existe **só para satisfazer as regras de segurança do Firestore** (`request.auth !=
+  null`) — não é um sistema de contas.
+- **Quem controla o acesso de verdade é o código de sincronização** (`TF-XXXXXX`,
+  `useAppStore.ts`: `syncCode`, gerado automaticamente na primeira vez que o app roda e
+  guardado em `localStorage` (`tf_sync_code`). Qualquer dispositivo que souber o código
+  entra no mesmo grupo de sincronização — é o mesmo modelo de "senha compartilhada" do
+  sistema antigo baseado em arquivo, só que agora no Firestore. UI em `SettingsModal.tsx`:
+  mostra o código atual (copiável), permite **vincular** a um código de outro dispositivo
+  (`linkToCode`, com escolha entre "baixar da nuvem" ou "enviar dados locais") e **começar
+  um grupo novo** (`generateNewCode`).
+- **Armazenamento**: Firebase Firestore, documento único `syncGroups/{code}` com todo o
+  estado do app (projetos, tarefas, espaços, pastas, automações, metas, colunas do inbox e
+  visualizações personalizadas). `localStorage` continua como cache local instantâneo
+  (`localStore.ts`, `saveJSON`/`loadJSON` em `useAppStore.ts`) — a nuvem é a camada de
+  sincronização por cima, não substitui o cache local.
+- **Tempo real**: `onSnapshot` no documento do grupo (não é polling). Toda alteração local
+  já passava por `saveJSON`/`pProjects`, que dispara `triggerSyncPush` (debounce de 1.5s)
+  → `pushToCloud()`. Ao aplicar um snapshot vindo da nuvem, `snap.metadata.hasPendingWrites`
+  é checado para ignorar o eco da própria escrita (evita loop push→pull→push).
+- **Anexos e áudio** (`Task.comments[].attachment/audio`, `Task.blocks[].data`) são base64
+  grandes demais para o documento único do Firestore (limite de 1 MiB). Ficam de fora dele:
+  sobem como documentos próprios em `syncGroups/{code}/attachments/{id}`
+  (`src/lib/cloudAttachments.ts`, `stripAndUploadAttachments`/`hydrateAttachments`).
+  **Anexos acima de ~900KB não sincronizam** (ficam só no dispositivo onde foram criados) —
+  é uma limitação conhecida do plano gratuito do Firestore, não um bug.
+- **Regras de segurança**: `firestore.rules` na raiz — qualquer usuário autenticado (mesmo
+  anônimo) lê/escreve um grupo `syncGroups/{code}` se souber o código; a segurança real está
+  no código em si ser difícil de adivinhar, não em regras por dono (não tem "dono" — é
+  compartilhado por quem tiver o código, igual ao sistema antigo).
+- **IA (`/api/insights`)**: lógica compartilhada em `api/_lib/insights.ts`, usada tanto pelo
+  `server.ts` (dev local, Express) quanto por `api/insights.ts` (função serverless da Vercel
+  em produção) — não duplicar essa lógica entre os dois.
 
 ---
 

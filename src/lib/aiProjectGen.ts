@@ -58,6 +58,12 @@ Responda SOMENTE com um JSON válido (sem markdown, sem texto antes ou depois), 
 Regras do nome:
 - "name" é um TÍTULO curto (2 a 6 palavras) — nunca repita a frase do contexto inteira. Ex.: contexto "Precisamos organizar a mudança do escritório até o fim do mês" → name "Mudança de Escritório", não a frase toda.
 
+Regra CRÍTICA — transforme requisitos em TRABALHO, não copie o enunciado:
+- O contexto do usuário costuma DESCREVER o produto/funcionalidades desejadas (ex.: "quero botões interativos", "o fluxo faz perguntas com botões", "uma tela que mostra X"). NÃO devolva esses itens como tarefas literais ("Criar botões interativos", "Fazer perguntas com botões") — isso apenas repete o que ele já disse e não ajuda.
+- Em vez disso, converta cada funcionalidade/requisito no TRABALHO DE PROJETO necessário para entregá-lo: descoberta, definição de escopo, levantamento de requisitos, desenho do fluxo/arquitetura, prototipação, implementação, testes e validação. Pense "o que precisa ser DECIDIDO, DESENHADO e FEITO para que essa funcionalidade exista?".
+- Ex.: contexto "quero um fluxo com botões interativos que fazem perguntas" → tarefas como "Definir o escopo e os objetivos do fluxo interativo", "Mapear as perguntas e as ramificações de decisão", "Desenhar o wireframe do fluxo", "Implementar os componentes de botão e navegação", "Testar o fluxo com usuários" — e NÃO "Criar botões", "Fazer perguntas com botões".
+- Comece o projeto (ou cada fase) pelas tarefas de definição/planejamento antes das de execução, como um gestor de projeto real faria.
+
 Regras da hierarquia:
 - Cada "milestone" é uma FASE que deve conter várias tarefas dentro dela — nunca crie um "milestone" como item solto sem subtarefas. Se um marco não tiver pelo menos 2 tarefas para agrupar, não use o tipo "milestone" para ele.
 - Organize o projeto em torno de 1 a 3 marcos (fases), cada um com as tarefas de execução daquela fase como subtarefas.
@@ -73,6 +79,8 @@ function enrichSystemPrompt(): string {
 ${TASK_TYPE_GUIDE}
 
 Você receberá o nome/descrição do projeto, a lista de itens que JÁ EXISTEM (não repita nem reformule esses) e, opcionalmente, contexto adicional do usuário. Se não houver contexto adicional, analise as tarefas existentes e sugira o que está faltando para completar o projeto (lacunas óbvias, marcos ainda não cobertos, subtarefas de itens que parecem incompletos).
+
+Regra CRÍTICA — transforme requisitos em TRABALHO, não copie o enunciado: quando o contexto adicional descrever uma funcionalidade/produto desejado (ex.: "botões interativos", "um fluxo que faz perguntas"), NÃO devolva itens literais que só repetem isso ("Criar botões interativos"). Converta cada funcionalidade no trabalho de projeto necessário para entregá-la — definição de escopo, desenho do fluxo, implementação, testes e validação. Comece pelas tarefas de definição/planejamento.
 
 Responda SOMENTE com um JSON válido (sem markdown, sem texto antes ou depois), no formato exato:
 {
@@ -318,7 +326,7 @@ export interface ExistingTaskSummary { title: string; taskType: TaskType; isSubt
  *  local não tem como "descobrir lacunas" em tarefas existentes sem um modelo
  *  de verdade) — nesse caso retorna lista vazia. */
 export async function generateProjectEnrichment(
-  project: { name: string; description: string },
+  project: { name: string; description: string; spaceName?: string; folderName?: string },
   existingTasks: ExistingTaskSummary[],
   additionalContext: string,
   keys: { openAIKey: string; geminiApiKey: string }
@@ -326,7 +334,13 @@ export async function generateProjectEnrichment(
   const existingList = existingTasks
     .map(t => `- [${t.taskType}]${t.isSubtask ? ' (subtarefa)' : ''} ${t.title}`)
     .join('\n')
-  const userPrompt = `Projeto: ${project.name}\nDescrição: ${project.description || '(sem descrição)'}\n\nItens já existentes:\n${existingList || '(nenhum item ainda)'}\n\n${additionalContext.trim() ? `Contexto adicional do usuário:\n${additionalContext.trim()}` : 'Nenhum contexto adicional foi fornecido — analise as tarefas existentes e sugira o que falta para completar o projeto.'}`
+  // Contexto do container (Espaço → Pasta → Projeto): a pasta/espaço costumam dizer a área
+  // ou o tema do projeto, ajudando a IA a sugerir itens coerentes com esse contexto (item 35).
+  const containerLine = [
+    project.spaceName ? `Espaço: ${project.spaceName}` : '',
+    project.folderName ? `Pasta: ${project.folderName}` : '',
+  ].filter(Boolean).join('\n')
+  const userPrompt = `${containerLine ? containerLine + '\n' : ''}Projeto: ${project.name}\nDescrição: ${project.description || '(sem descrição)'}\n\nItens já existentes:\n${existingList || '(nenhum item ainda)'}\n\n${additionalContext.trim() ? `Contexto adicional do usuário:\n${additionalContext.trim()}` : 'Nenhum contexto adicional foi fornecido — analise as tarefas existentes e sugira o que falta para completar o projeto.'}`
 
   if (keys.openAIKey.trim()) {
     const raw = await callOpenAIRaw(enrichSystemPrompt(), userPrompt, keys.openAIKey.trim())

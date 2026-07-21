@@ -10,12 +10,10 @@ dist-ssr/
 .env.local
 .env.*.local
 
-# Dados de execução local (gerados em runtime, não são código-fonte)
-sync-stores.json
-
 # Configurações locais de ferramentas
 .claude/settings.local.json
 .antigravity/
+.firebase/
 
 # Editor / SO
 .vscode/*

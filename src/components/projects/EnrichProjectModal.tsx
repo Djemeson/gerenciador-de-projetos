@@ -24,9 +24,13 @@ function getSpeechRecognition(): (new () => MinimalSpeechRecognition) | null {
 type Step = 'input' | 'loading' | 'preview'
 
 export function EnrichProjectModal() {
-  const { enrichProjectModal, closeEnrichProject, projects, tasks: allTasks, addTask } = useAppStore()
+  const { enrichProjectModal, closeEnrichProject, projects, tasks: allTasks, addTask, spaces, folders } = useAppStore()
   const { openAIKey, geminiApiKey } = useSettingsStore()
   const project = projects.find(p => p.id === enrichProjectModal)
+  // Contexto do container (Espaço → Pasta) para a IA enriquecer coerente com a área do projeto.
+  const projectFolder = project?.folderId ? folders.find(f => f.id === project.folderId) : undefined
+  const projectSpace = project?.spaceId ? spaces.find(s => s.id === project.spaceId) : undefined
+  const containerCtx = { spaceName: projectSpace?.name, folderName: projectFolder?.name }
 
   const [step, setStep] = useState<Step>('input')
   const [context, setContext] = useState('')
@@ -89,7 +93,7 @@ export function EnrichProjectModal() {
     setStep('loading'); setError('')
     try {
       const { tasks, usedAI: ai } = await generateProjectEnrichment(
-        { name: project.name, description: project.description },
+        { name: project.name, description: project.description, ...containerCtx },
         existing, context.trim(), { openAIKey, geminiApiKey }
       )
       if (tasks.length === 0) {
@@ -110,7 +114,7 @@ export function EnrichProjectModal() {
     try {
       const combinedExisting = [...existing, ...flattenGeneratedTasks(suggestions)]
       const { tasks: more, usedAI: ai } = await generateProjectEnrichment(
-        { name: project.name, description: project.description }, combinedExisting, context.trim(), { openAIKey, geminiApiKey }
+        { name: project.name, description: project.description, ...containerCtx }, combinedExisting, context.trim(), { openAIKey, geminiApiKey }
       )
       if (more.length > 0) {
         setSuggestions(prev => [...prev, ...more])

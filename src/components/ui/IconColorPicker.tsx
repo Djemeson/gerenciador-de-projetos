@@ -2,8 +2,9 @@ import React, { useState } from 'react'
 import { Slash, Pipette, Plus, X, Pencil, Check } from 'lucide-react'
 import {
   ICON_CATEGORIES, SWATCH_COLORS, getIconComponent, normalizeSearch,
-  loadSavedColors, saveSavedColors,
+  loadSavedColors, saveSavedColors, loadRecentIcons, addRecentIcon,
 } from '../../lib/sidebarIcons'
+import { iconLabel } from '../../lib/iconLabelsPt'
 import { FloatingPanel } from './FloatingPanel'
 
 interface IconColorPickerProps {
@@ -31,10 +32,16 @@ export function IconColorPicker({ mode, theme = 'dark', color, icon, onPickColor
   const [savedColors, setSavedColors] = useState<string[]>(() => loadSavedColors())
   const [editingSaved, setEditingSaved] = useState(false)
   const [askColorOnIconChange, setAskColorOnIconChange] = useState(false)
+  const [recentIcons, setRecentIcons] = useState<string[]>(() => loadRecentIcons())
 
   const isCustomActive = !!color && !SWATCH_COLORS.includes(color) && !savedColors.includes(color)
 
   const pickColor = (c: string | undefined) => onPickColor(c)
+  const pickIcon = (name: string) => {
+    addRecentIcon(name)
+    setRecentIcons(loadRecentIcons())
+    onPickIcon?.(name)
+  }
 
   const saveCurrentColor = () => {
     if (savedColors.includes(customColor)) return
@@ -152,29 +159,74 @@ export function IconColorPicker({ mode, theme = 'dark', color, icon, onPickColor
 
       {mode === 'icon' && (
         <div className="grid grid-cols-10 gap-1.5 max-h-[220px] overflow-y-auto sidebar-scroll pr-1">
-          {ICON_CATEGORIES.map(cat => {
-            const catMatches = q.length > 0 && normalizeSearch(cat.label).includes(q)
-            const visibleIcons = cat.icons.filter(n => q.length === 0 || catMatches || normalizeSearch(n).includes(q))
-            if (visibleIcons.length === 0) return null
-            return (
-              <React.Fragment key={cat.label}>
-                <div className={`col-span-10 text-[10.5px] font-bold uppercase tracking-wider pt-1.5 first:pt-0 ${mutedCls}`}>{cat.label}</div>
-                {visibleIcons.map(name => {
-                  const Icon = getIconComponent(name)
-                  if (!Icon) return null
-                  const selected = icon === name
-                  return (
-                    <button
-                      key={name} type="button" title={name}
-                      onClick={() => onPickIcon?.(name)}
-                      className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${selected ? (dark ? 'bg-brand-500/25' : 'bg-brand-50') : hoverBtnCls}`}
-                      style={{ color: color || '#6366F1' }}
-                    ><Icon size={16}/></button>
-                  )
-                })}
-              </React.Fragment>
-            )
-          })}
+          {q.length > 0 ? (() => {
+            // Busca: mesmo ícone pode existir em mais de uma categoria (browsing temático) —
+            // dedupe pra não repetir o mesmo ícone várias vezes no resultado da busca.
+            const seen = new Set<string>()
+            const results: string[] = []
+            ICON_CATEGORIES.forEach(cat => {
+              const catMatches = normalizeSearch(cat.label).includes(q)
+              cat.icons.forEach(n => {
+                if (seen.has(n)) return
+                if (catMatches || normalizeSearch(n).includes(q) || normalizeSearch(iconLabel(n)).includes(q)) { seen.add(n); results.push(n) }
+              })
+            })
+            if (results.length === 0) {
+              return <div className={`col-span-10 text-center text-xs py-4 ${mutedCls}`}>Nenhum ícone encontrado</div>
+            }
+            return results.map(name => {
+              const Icon = getIconComponent(name)
+              if (!Icon) return null
+              const selected = icon === name
+              return (
+                <button
+                  key={name} type="button" title={iconLabel(name)}
+                  onClick={() => pickIcon(name)}
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${selected ? (dark ? 'bg-brand-500/25' : 'bg-brand-50') : hoverBtnCls}`}
+                  style={{ color: color || '#6366F1' }}
+                ><Icon size={16}/></button>
+              )
+            })
+          })() : (
+            <>
+              {recentIcons.length > 0 && (
+                <React.Fragment key="recent">
+                  <div className={`col-span-10 text-[10.5px] font-bold uppercase tracking-wider pt-1.5 first:pt-0 ${mutedCls}`}>Recentemente usados</div>
+                  {recentIcons.map(name => {
+                    const Icon = getIconComponent(name)
+                    if (!Icon) return null
+                    const selected = icon === name
+                    return (
+                      <button
+                        key={'recent-'+name} type="button" title={iconLabel(name)}
+                        onClick={() => pickIcon(name)}
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${selected ? (dark ? 'bg-brand-500/25' : 'bg-brand-50') : hoverBtnCls}`}
+                        style={{ color: color || '#6366F1' }}
+                      ><Icon size={16}/></button>
+                    )
+                  })}
+                </React.Fragment>
+              )}
+              {ICON_CATEGORIES.map(cat => (
+                <React.Fragment key={cat.label}>
+                  <div className={`col-span-10 text-[10.5px] font-bold uppercase tracking-wider pt-1.5 first:pt-0 ${mutedCls}`}>{cat.label}</div>
+                  {cat.icons.map(name => {
+                    const Icon = getIconComponent(name)
+                    if (!Icon) return null
+                    const selected = icon === name
+                    return (
+                      <button
+                        key={name} type="button" title={iconLabel(name)}
+                        onClick={() => pickIcon(name)}
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${selected ? (dark ? 'bg-brand-500/25' : 'bg-brand-50') : hoverBtnCls}`}
+                        style={{ color: color || '#6366F1' }}
+                      ><Icon size={16}/></button>
+                    )
+                  })}
+                </React.Fragment>
+              ))}
+            </>
+          )}
         </div>
       )}
 

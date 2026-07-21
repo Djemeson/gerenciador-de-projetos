@@ -1,0 +1,19 @@
+rules_version = '2';
+
+// App de uso pessoal, sem tela de login (ver DIRETRIZES.md, seção 15). Cada dispositivo
+// se autentica de forma anônima e silenciosa só para satisfazer estas regras — quem
+// controla o acesso de verdade é o código de sincronização (ex: TF-A1B2C3), que funciona
+// como uma senha compartilhada: qualquer app autenticado que souber o código lê/escreve
+// aquele grupo. A subcoleção attachments guarda blobs de áudio/anexos grandes demais para
+// caber no documento principal do grupo.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /syncGroups/{code} {
+      allow read, write: if request.auth != null;
+
+      match /attachments/{attachmentId} {
+        allow read, write: if request.auth != null;
+      }
+    }
+  }
+}

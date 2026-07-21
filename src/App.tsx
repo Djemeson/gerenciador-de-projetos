@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo } from 'react'
 import { Menu }                     from 'lucide-react'
 import { useAppStore }              from './stores/useAppStore'
+import { useAuthStore }             from './stores/useAuthStore'
 import { useSettingsStore, matchHotkey } from './stores/useSettingsStore'
 import { useNotificationStore }     from './stores/useNotificationStore'
 import { Sidebar }                  from './components/layout/Sidebar'
@@ -13,6 +14,7 @@ import { CalendarView }             from './views/CalendarView'
 import { ReportsView }              from './views/ReportsView'
 import { InboxView }                from './views/InboxView'
 import { AutomationsView }          from './views/AutomationsView'
+import { GoalsView }                from './views/GoalsView'
 import { NewProjectModal }          from './components/projects/NewProjectModal'
 import { AIProjectModal }           from './components/projects/AIProjectModal'
 import { EnrichProjectModal }       from './components/projects/EnrichProjectModal'
@@ -24,9 +26,10 @@ import { ColumnsModal }             from './components/ColumnsModal'
 import { NewViewModal }             from './components/tasks/NewViewModal'
 
 export default function App() {
-  const { activeView, tasks: allTasks, projects, init, undo, activeWorkspaceId, quickCaptureOpen, toggleQuickCapture, closeQuickCapture, toggleMobileSidebar } = useAppStore()
+  const { activeView, tasks: allTasks, projects, init, undo, activeWorkspaceId, quickCaptureOpen, toggleQuickCapture, closeQuickCapture, toggleMobileSidebar, startCloudSync, stopCloudSync } = useAppStore()
   const { quickCaptureHotkey }  = useSettingsStore()
   const generate                = useNotificationStore(s => s.generate)
+  const { user, init: initAuth } = useAuthStore()
 
   // useMemo (não recalcular a cada render): allTasks.filter cria uma referência nova toda
   // vez, e como esse array é dependência do useEffect abaixo, isso disparava o efeito em
@@ -35,10 +38,25 @@ export default function App() {
   // (erro React #185 "Maximum update depth exceeded") assim que havia tarefas com prazo.
   const tasks = useMemo(() => allTasks.filter(t => t.workspaceId === activeWorkspaceId), [allTasks, activeWorkspaceId])
 
-  useEffect(() => { init() }, [])
+  useEffect(() => { init(); initAuth() }, [])
 
+  // Liga a sincronização em tempo real com o Firestore assim que o login anônimo (silencioso,
+  // sem tela) resolve — o Firestore exige *algum* usuário autenticado pelas regras de
+  // segurança, mesmo sem conta visível.
   useEffect(() => {
-    if (tasks.length === 0) return
+    if (user) {
+      startCloudSync()
+      return () => stopCloudSync()
+    }
+  }, [user])
+
+  // Todos os hooks (useEffect) precisam rodar sempre, em toda renderização — inclusive
+  // enquanto a tela de login/carregamento está sendo exibida. Por isso ficam todos ANTES
+  // dos `return` condicionais abaixo (regra dos Hooks do React); colocá-los depois faz o
+  // número de hooks mudar entre a tela de login e o app principal, e o React trava com
+  // tela branca (sem erro visível) assim que o login termina.
+  useEffect(() => {
+    if (!user || tasks.length === 0) return
     const enriched = tasks.map(t => ({
       id: t.id, title: t.title, dueDate: t.dueDate, status: t.status,
       projectName: projects.find(p => p.id===t.projectId)?.name ?? '',
@@ -46,7 +64,7 @@ export default function App() {
     generate(enriched)
     const interval = setInterval(() => generate(enriched), 60_000)
     return () => clearInterval(interval)
-  }, [tasks, projects])
+  }, [user, tasks, projects])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -81,6 +99,7 @@ export default function App() {
       case 'calendar':       return <CalendarView/>
       case 'reports':        return <ReportsView/>
       case 'automations':    return <AutomationsView/>
+      case 'goals':          return <GoalsView/>
       default:               return <MyTasksView/>
     }
   }
@@ -99,7 +118,7 @@ export default function App() {
             >
               <Menu size={20} />
             </button>
-            <span className="font-extrabold text-[15px] text-gray-800 tracking-tight">taskflow</span>
+            <span className="font-extrabold text-[15px] text-gray-800 tracking-tight">Gerenciador de Projetos</span>
           </div>
           <button 
             onClick={toggleQuickCapture}

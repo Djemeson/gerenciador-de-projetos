@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronDown, Check } from 'lucide-react'
+import { ChevronDown, Check, Search } from 'lucide-react'
 
 // ── Dropdown premium reutilizável ────────────────────────────────────────────
 // Substitui os <select> nativos por um menu estilizado, consistente com o design
@@ -30,21 +30,29 @@ interface SelectProps {
   className?: string                 // no wrapper
   buttonClassName?: string           // sobrescreve/estende o gatilho
   ariaLabel?: string
+  searchable?: boolean               // mostra barra de busca no topo do dropdown (listas longas, ex.: projetos)
+  searchPlaceholder?: string
 }
 
 export function Select({
   value, onChange, options, placeholder = 'Selecionar',
   variant = 'default', size = 'sm', align = 'left', disabled = false,
   stop = false, colorText = false, pill = false, className = '', buttonClassName = '', ariaLabel,
+  searchable = false, searchPlaceholder = 'Buscar...',
 }: SelectProps) {
   const [open, setOpen]   = useState(false)
   const [hi, setHi]       = useState(0)      // índice destacado (teclado)
+  const [query, setQuery] = useState('')
+  const searchRef = useRef<HTMLInputElement>(null)
   const [coords, setCoords] = useState<{ left: number; top: number; width: number; drop: 'down' | 'up' }>({ left: 0, top: 0, width: 0, drop: 'down' })
   const btnRef  = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
   const selected = options.find(o => o.value === value)
   const stopIf = (e: React.SyntheticEvent) => { if (stop) e.stopPropagation() }
+  const visibleOptions = searchable && query.trim()
+    ? options.filter(o => o.label.toLowerCase().includes(query.trim().toLowerCase()))
+    : options
 
   const place = () => {
     const el = btnRef.current
@@ -72,11 +80,11 @@ export function Select({
     const onScroll = () => setOpen(false)
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { setOpen(false); btnRef.current?.focus() }
-      else if (e.key === 'ArrowDown') { e.preventDefault(); setHi(h => Math.min(h + 1, options.length - 1)) }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); setHi(h => Math.min(h + 1, visibleOptions.length - 1)) }
       else if (e.key === 'ArrowUp')   { e.preventDefault(); setHi(h => Math.max(h - 1, 0)) }
-      else if (e.key === 'Home')      { e.preventDefault(); setHi(0) }
-      else if (e.key === 'End')       { e.preventDefault(); setHi(options.length - 1) }
-      else if (e.key === 'Enter')     { e.preventDefault(); const o = options[hi]; if (o) { onChange(o.value); setOpen(false) } }
+      else if (e.key === 'Home' && !searchable)      { e.preventDefault(); setHi(0) }
+      else if (e.key === 'End' && !searchable)       { e.preventDefault(); setHi(visibleOptions.length - 1) }
+      else if (e.key === 'Enter')     { e.preventDefault(); const o = visibleOptions[hi]; if (o) { onChange(o.value); setOpen(false) } }
     }
     document.addEventListener('mousedown', onDown)
     window.addEventListener('scroll', onScroll, true)
@@ -88,7 +96,12 @@ export function Select({
       window.removeEventListener('resize', onScroll)
       document.removeEventListener('keydown', onKey)
     }
-  }, [open, hi, options, onChange])
+  }, [open, hi, visibleOptions, onChange, searchable])
+
+  // Reset da busca ao abrir/fechar + autofoco no campo de busca
+  useEffect(() => {
+    if (open) { setQuery(''); if (searchable) setTimeout(() => searchRef.current?.focus(), 0) }
+  }, [open, searchable])
 
   const toggle = (e: React.MouseEvent) => {
     stopIf(e)
@@ -137,7 +150,24 @@ export function Select({
           }}
           role="listbox"
         >
-          {options.map((o, i) => {
+          {searchable && (
+            <div className="px-1.5 pb-1.5 pt-0.5 sticky top-0 bg-white">
+              <div className="relative">
+                <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  ref={searchRef}
+                  value={query}
+                  onChange={e => { setQuery(e.target.value); setHi(0) }}
+                  placeholder={searchPlaceholder}
+                  className="w-full pl-7 pr-2 py-1.5 text-xs border border-gray-200 rounded-lg outline-none focus:ring-1 focus:ring-brand-400 bg-gray-50 focus:bg-white"
+                />
+              </div>
+            </div>
+          )}
+          {visibleOptions.length === 0 && (
+            <div className="px-3 py-2 text-xs text-gray-400 text-center">Nenhum resultado</div>
+          )}
+          {visibleOptions.map((o, i) => {
             const isSel = o.value === value
             const OIcon = o.icon
             return (

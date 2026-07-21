@@ -12,6 +12,7 @@ import { TaskGutBadge } from './TaskGutBadge'
 import { Select, PRIORITY_OPTIONS } from '../ui/Select'
 import { DueDatePicker } from '../ui/DueDatePicker'
 import { AssigneePicker } from '../ui/AssigneePicker'
+import { TagsCell } from '../ui/TagsCell'
 import { ProjectIcon } from '../ui/EntityBadges'
 import { taskProgress } from '../../lib/taskProgress'
 
@@ -112,14 +113,7 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
     if (c.kind === 'custom' && c.col) return <CustomFieldCell task={task} column={c.col}/>
     switch (c.system) {
       case 'tags':
-        return task.tags.length ? (
-          <div className="flex gap-1 flex-wrap">
-            {task.tags.slice(0,2).map(t=>(
-              <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 truncate max-w-[60px]">{t}</span>
-            ))}
-            {task.tags.length>2 && <span className="text-[10px] text-gray-400">+{task.tags.length-2}</span>}
-          </div>
-        ) : <span className="text-gray-300 text-xs">—</span>
+        return <TagsCell value={task.tags} onChange={tags=>updateTask(task.id,{tags})}/>
       case 'assignee':
         return <AssigneePicker value={task.assignee} onChange={v=>updateTask(task.id,{assignee:v})} variant="row"/>
       case 'dueDate':
@@ -281,7 +275,7 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
               onKeyDown={e=>{ if(e.key==='Enter') (e.target as HTMLInputElement).blur(); if(e.key==='Escape') setRenaming(false) }}
               className="w-full text-[13.5px] font-medium text-gray-800 border border-brand-400 rounded-md px-1.5 py-0.5 outline-none bg-white"/>
           ) : (
-            <span onClick={e=>{e.stopPropagation();setRenameDraft(task.title);setRenaming(true)}}
+            <span onDoubleClick={e=>{e.stopPropagation();setRenameDraft(task.title);setRenaming(true)}}
               className={`inline-block max-w-full text-[13.5px] font-medium truncate cursor-text ${isDone?'line-through text-gray-400':'text-gray-800'}`}>{task.title}</span>
           )}
           {task.description&&!isDone&&<span className="block text-[11px] text-gray-400 truncate">{task.description}</span>}
@@ -346,8 +340,10 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
         </div>
       </div>
 
-      {expanded&&(
-        <>
+      {expanded&&(hasChildren||addingSubtask)&&(
+        <div className="relative">
+          {/* Linha-guia de hierarquia — mesma ideia da sidebar (pastas/projetos), aqui por profundidade */}
+          <div className="absolute top-0 bottom-0 border-l border-gray-200 pointer-events-none" style={{ left:`${12+(depth+1)*20+7}px` }}/>
           {subtasks.map(s=>(
             <TaskRow key={s.id} task={s} project={project} showProject={showProject}
               depth={depth+1} columns={columns} orderedColumns={orderedColumns} onSelect={onSelect} selected={selected}
@@ -358,7 +354,7 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
               <QuickAddRow projectId={task.projectId} status={task.status==='done'?'todo':task.status} parentId={task.id} onDone={()=>setAddingSubtask(false)}/>
             </div>
           )}
-        </>
+        </div>
       )}
     </>
   )

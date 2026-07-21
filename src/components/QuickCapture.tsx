@@ -86,6 +86,7 @@ export function QuickCapture({ open, onClose }: QuickCaptureProps) {
 
           {/* Project */}
           <Select value={projectId} onChange={setProjectId} ariaLabel="Projeto" className="flex-1"
+            searchable searchPlaceholder="Buscar projeto..."
             options={[{ value:'', label:'Caixa de entrada' }, ...projects.map(p => ({ value:p.id, label:p.name, color:p.color }))]}/>
 
           <button

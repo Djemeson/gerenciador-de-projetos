@@ -17,7 +17,7 @@ export const ICON_CATEGORIES: IconCategory[] = [
   { label: 'Viagem & Aventura', icons: ['anchor','backpack','bike','binoculars','boat','briefcase','bus','car','compass','flag','fuel','globe','life-buoy','luggage','map','map-pin','navigation','package','parking-circle','plane','radar','rocket','route','ship','tent','tickets','tractor','train','train-track','tree','truck','watch'] },
   { label: 'Mídia & Entretenimento', icons: ['album','book','book-open','camera','clapperboard','clapper','dice','dice-1','dice-5','disc','drama','drum','film','gamepad','gamepad-2','ghost','gitlab','image','image-plus','music','music-2','newspaper','party-popper','pen','piano','play','play-circle','smile','sparkles','star','swords','ticket','video','volume','wand','wand-2'] },
   { label: 'Saúde & Segurança', icons: ['activity','beaker','bomb','check-circle-2','ear','eye','fingerprint','flame','flask','flask-conical','first-aid','heart','heart-handshake','home-heart','lamp','pill','shield','shield-alert','siren','skull','smile','square-activity','syringe','thermometer','umbrella','x-circle'] },
-  { label: 'Compras & Moda', icons: ['backpack','badge','bag','box','briefcase','cart','clothing','dress','gift','handbag','heart','luggage','package','palette','shirt','shoe','shopping-bag','shopping-cart','shopping-bag','star','tag'] },
+  { label: 'Compras & Moda', icons: ['backpack','badge','bag','box','briefcase','cart','clothing','dress','gift','handbag','heart','luggage','package','palette','shirt','shoe','shopping-bag','shopping-cart','star','tag'] },
   { label: 'Construção & Indústria', icons: ['axe','blender','blueprint','bold','building','building-2','cog','construction','cpu','database','drill','factory','gauge','gear','hammer','hard-hat','key','layers','link','monitor','plug','server','settings','shovel','square','tool','tools','truck','tv','wrench'] },
 ]
 
@@ -67,4 +67,18 @@ export function loadSavedColors(): string[] {
 }
 export function saveSavedColors(colors: string[]) {
   try { localStorage.setItem(SAVED_COLORS_KEY, JSON.stringify(colors)) } catch { /* noop */ }
+}
+
+// ── Ícones recentemente usados (últimos escolhidos, mais recente primeiro) ──
+const RECENT_ICONS_KEY = 'tf_recent_icons'
+const MAX_RECENT_ICONS = 12
+
+export function loadRecentIcons(): string[] {
+  try { return JSON.parse(localStorage.getItem(RECENT_ICONS_KEY) ?? '[]') } catch { return [] }
+}
+export function addRecentIcon(name: string) {
+  try {
+    const next = [name, ...loadRecentIcons().filter(n => n !== name)].slice(0, MAX_RECENT_ICONS)
+    localStorage.setItem(RECENT_ICONS_KEY, JSON.stringify(next))
+  } catch { /* noop */ }
 }

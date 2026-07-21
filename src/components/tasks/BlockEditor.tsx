@@ -4,6 +4,7 @@ import {
   Bold, Italic, Underline, Strikethrough, Highlighter, Image as ImageIcon, Eye, Type, ArrowUpFromLine,
   ExternalLink, ZoomIn, ZoomOut, Maximize2, Plus, ChevronDown, Pencil,
   Heading1, Heading2, Heading3, List, ListOrdered, CheckSquare, Quote, Minus,
+  Columns2, Columns3,
 } from 'lucide-react'
 import type { ContentBlock } from '../../types'
 import { nanoid } from '../../lib/nanoid'
@@ -70,7 +71,11 @@ export function BlockEditor({ blocks, onChange, placeholder = 'Adicione notas, c
   const [toolbar, setToolbar] = useState<{ x: number; y: number } | null>(null)
   const [adjustedLeft, setAdjustedLeft] = useState<number>(0)
   const [plusTop, setPlusTop] = useState<number | null>(0)
+  const [plusLeft, setPlusLeft] = useState<number>(0)
   const [menuOpen, setMenuOpen] = useState(false)
+  // Imagem selecionada para redimensionar (overlay com alça no canto)
+  const [imgSel, setImgSel] = useState<{ left: number; top: number; width: number; height: number } | null>(null)
+  const imgElRef = useRef<HTMLImageElement | null>(null)
 
   const mediaRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
@@ -141,6 +146,8 @@ export function BlockEditor({ blocks, onChange, placeholder = 'Adicione notas, c
     if (document.activeElement !== el && el.innerHTML !== (leadHtml || '')) {
       el.innerHTML = leadHtml || ''
       el.setAttribute('data-empty', el.textContent?.trim() || el.querySelector('img,audio,hr,.file-chip') ? 'false' : 'true')
+      // O innerHTML foi recriado — a imagem selecionada virou nó órfão; limpa o overlay.
+      setImgSel(null); imgElRef.current = null
     }
   }, [leadHtml])
 
@@ -191,6 +198,90 @@ export function BlockEditor({ blocks, onChange, placeholder = 'Adicione notas, c
   }
   const onEditorInput = () => { if (!autoformat()) flush() }
 
+  // ── "/" no início de uma linha vazia abre o menu "Inserir…" (estilo Notion) ──
+  const onSlashKey = (e: React.KeyboardEvent): boolean => {
+    if (e.key !== '/') return false
+    const sel = window.getSelection()
+    if (!sel || sel.rangeCount === 0 || !sel.isCollapsed) return false
+    const range = sel.getRangeAt(0)
+    const node = range.startContainer
+    // Só aciona se a linha estiver vazia até o cursor — evita interferir com "e/ou", URLs etc.
+    const textBefore = node.nodeType === 3 ? (node.textContent ?? '').slice(0, range.startOffset) : ''
+    if (textBefore.trim() !== '') return false
+    e.preventDefault()
+    setMenuOpen(true)
+    return true
+  }
+
+  // ── Enter dentro de um item de verificação: cria e abre o próximo item vazio
+  // (fluxo contínuo, seção 12 das diretrizes) em vez de deixar o contentEditable
+  // aplicar seu comportamento padrão de quebra de linha/indentação.
+  const onEditorKeyDown = (e: React.KeyboardEvent) => {
+    if (onSlashKey(e)) return
+    if (e.key !== 'Enter' || e.shiftKey) return
+    const el = editorRef.current
+    const sel = window.getSelection()
+    if (!el || !sel || sel.rangeCount === 0 || !sel.isCollapsed) return
+    const range = sel.getRangeAt(0)
+    const startNode = range.startContainer
+    const container = startNode.nodeType === 1 ? startNode as HTMLElement : startNode.parentElement
+
+    // Enter dentro de uma coluna é só quebra de linha — sem isso, o contentEditable faz
+    // "split" da <div> da coluna, e como as colunas são irmãs num container flex, o pedaço
+    // depois do cursor vira uma NOVA coluna em vez de uma linha dentro da mesma coluna.
+    const colEl = container?.closest('.editor-col') as HTMLElement | null
+    if (colEl && el.contains(colEl)) {
+      e.preventDefault()
+      document.execCommand('insertLineBreak')
+      flush()
+      return
+    }
+
+    const todoItem = container?.closest('.todo-item') as HTMLElement | null
+    if (!todoItem || !el.contains(todoItem)) return
+    e.preventDefault()
+
+    const textSpan = todoItem.querySelector('.todo-text') as HTMLElement | null
+    if (!textSpan) return
+
+    // Item atual vazio → Enter sai do modo checklist em vez de criar mais um vazio.
+    if ((textSpan.textContent ?? '').replace(/​/g, '').trim() === '') {
+      const p = document.createElement('div')
+      p.innerHTML = '<br>'
+      todoItem.replaceWith(p)
+      const r = document.createRange(); r.selectNodeContents(p); r.collapse(true)
+      sel.removeAllRanges(); sel.addRange(r)
+      flush()
+      return
+    }
+
+    // Divide o texto no ponto do cursor — o que vem depois vai para o novo item.
+    const afterRange = document.createRange()
+    afterRange.setStart(range.startContainer, range.startOffset)
+    afterRange.setEndAfter(textSpan.lastChild ?? textSpan)
+    const afterFragment = afterRange.extractContents()
+    if (!textSpan.textContent) textSpan.innerHTML = '​'
+
+    const newItem = document.createElement('div')
+    newItem.className = 'todo-item'
+    newItem.setAttribute('data-checked', 'false')
+    const box = document.createElement('span')
+    box.className = 'todo-box'
+    box.setAttribute('contenteditable', 'false')
+    const newTextSpan = document.createElement('span')
+    newTextSpan.className = 'todo-text'
+    if (afterFragment.textContent?.trim()) newTextSpan.appendChild(afterFragment)
+    else newTextSpan.innerHTML = '​'
+    newItem.appendChild(box)
+    newItem.appendChild(newTextSpan)
+    todoItem.after(newItem)
+
+    const r = document.createRange()
+    r.selectNodeContents(newTextSpan); r.collapse(true)
+    sel.removeAllRanges(); sel.addRange(r)
+    flush()
+  }
+
   // ── Seleção: barra flutuante (bold/itálico) + posição do "+" + range salvo ──
   useEffect(() => {
     const handler = () => {
@@ -207,14 +298,25 @@ export function BlockEditor({ blocks, onChange, placeholder = 'Adicione notas, c
         setToolbar({ x: r.left - w.left + r.width / 2, y: r.top - w.top })
       } else setToolbar(null)
 
-      // posição do "+" na linha atual
+      // posição do "+" na linha atual — dentro de uma coluna, cada coluna tem seu próprio
+      // "+" (referenciado pela própria coluna, não pelo grupo .editor-columns inteiro,
+      // que é o bloco de nível superior real e ficaria sempre alinhado à 1ª coluna).
       let node: Node | null = range.startContainer
-      let block: HTMLElement | null = node.nodeType === 1 ? node as HTMLElement : node.parentElement
-      while (block && block.parentElement !== el && block !== el) block = block.parentElement
-      if (block && block !== el) {
-        const b = block.getBoundingClientRect(), w = wrap.getBoundingClientRect()
+      let startEl: HTMLElement | null = node.nodeType === 1 ? node as HTMLElement : node.parentElement
+      const col = startEl?.closest('.editor-col') as HTMLElement | null
+      if (col && el.contains(col)) {
+        const b = col.getBoundingClientRect(), w = wrap.getBoundingClientRect()
         setPlusTop(b.top - w.top)
-      } else setPlusTop(0)
+        setPlusLeft(Math.max(0, b.left - w.left - 20))
+      } else {
+        let block: HTMLElement | null = startEl
+        while (block && block.parentElement !== el && block !== el) block = block.parentElement
+        if (block && block !== el) {
+          const b = block.getBoundingClientRect(), w = wrap.getBoundingClientRect()
+          setPlusTop(b.top - w.top)
+          setPlusLeft(0)
+        } else { setPlusTop(0); setPlusLeft(0) }
+      }
     }
     document.addEventListener('selectionchange', handler)
     return () => document.removeEventListener('selectionchange', handler)
@@ -280,7 +382,51 @@ export function BlockEditor({ blocks, onChange, placeholder = 'Adicione notas, c
     }
     const chip = t.closest('.file-chip') as HTMLAnchorElement | null
     if (chip) { e.preventDefault(); openData(chip.getAttribute('href') || '', chip.getAttribute('data-mime') || undefined); return }
-    if (t.tagName === 'IMG') { setLightbox({ src: (t as HTMLImageElement).src, name: t.getAttribute('alt') || '' }); return }
+    // Clique simples numa imagem → seleciona para redimensionar (alça no canto); duplo-clique abre o lightbox.
+    if (t.tagName === 'IMG') { e.preventDefault(); selectImage(t as HTMLImageElement); return }
+    setImgSel(null); imgElRef.current = null
+  }
+  const onEditorDblClick = (e: React.MouseEvent) => {
+    const t = e.target as HTMLElement
+    if (t.tagName === 'IMG') { e.preventDefault(); setImgSel(null); imgElRef.current = null; setLightbox({ src: (t as HTMLImageElement).src, name: t.getAttribute('alt') || '' }) }
+  }
+
+  // ── Redimensionar imagem (alça no canto inferior direito) ──
+  const computeImgRect = (img: HTMLImageElement) => {
+    const wrap = wrapRef.current
+    if (!wrap) return null
+    const r = img.getBoundingClientRect(), w = wrap.getBoundingClientRect()
+    return { left: r.left - w.left, top: r.top - w.top, width: r.width, height: r.height }
+  }
+  const selectImage = (img: HTMLImageElement) => {
+    imgElRef.current = img
+    const rect = computeImgRect(img)
+    if (rect) setImgSel(rect)
+  }
+  const startImgResize = (e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation()
+    const img = imgElRef.current
+    if (!img) return
+    const startX = e.clientX
+    const startW = img.getBoundingClientRect().width
+    const ratio = img.naturalWidth && img.naturalHeight ? img.naturalHeight / img.naturalWidth : 0
+    const maxW = (wrapRef.current?.clientWidth ?? 600)
+    const onMove = (ev: MouseEvent) => {
+      const w = Math.max(60, Math.min(maxW, startW + (ev.clientX - startX)))
+      img.style.width = `${Math.round(w)}px`
+      img.style.height = ratio ? `${Math.round(w * ratio)}px` : 'auto'
+      const rect = computeImgRect(img)
+      if (rect) setImgSel(rect)
+    }
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+      flush()               // persiste o novo tamanho no HTML do corpo
+      const cur = imgElRef.current
+      if (cur) { const rect = computeImgRect(cur); if (rect) setImgSel(rect) }
+    }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
   }
 
   // ── Áudio ──
@@ -301,6 +447,88 @@ export function BlockEditor({ blocks, onChange, placeholder = 'Adicione notas, c
     } catch { alert('Permissão de microfone negada.') }
   }
   const stopRecording = () => { mediaRef.current?.stop(); setRecording(false) }
+
+  // ── Colunas estilo Notion ──────────────────────────────────────────────────
+  // Insere um container flex com N colunas editáveis NO PONTO DO CURSOR (não é um layout
+  // fixo do documento inteiro — pode haver vários blocos de colunas em lugares diferentes
+  // do texto). Larguras em % + alças de redimensionamento entre colunas adjacentes.
+  const colHtml = (i: number, total: number, focusId?: string) =>
+    `<div class="editor-col" style="flex:0 0 ${100 / total}%"${i === 0 && focusId ? ` id="${focusId}"` : ''}><br></div>`
+  const handleHtml = () => `<div class="col-resize-handle" contenteditable="false"></div>`
+
+  const insertColumns = (n: number) => {
+    const focusId = 'col' + nanoid()
+    const cols = Array.from({ length: n }, (_, i) => colHtml(i, n, focusId)).join(handleHtml())
+    insertInline(`<div class="editor-columns">${cols}<span class="editor-columns-add" contenteditable="false" title="Adicionar coluna">+</span></div><p><br></p>`)
+    const first = document.getElementById(focusId)
+    if (first) {
+      first.removeAttribute('id')
+      const sel = window.getSelection(); const r = document.createRange()
+      r.selectNodeContents(first); r.collapse(true)
+      sel?.removeAllRanges(); sel?.addRange(r)
+    }
+    flush()
+  }
+
+  // Adiciona mais uma coluna a um grupo já existente (botão "+" que aparece no hover do
+  // grupo) — redistribui a largura entre todas as colunas do grupo, incluindo a nova.
+  const addColumnTo = (group: HTMLElement) => {
+    const existing = Array.from(group.querySelectorAll(':scope > .editor-col')) as HTMLElement[]
+    const total = existing.length + 1
+    existing.forEach(c => { c.style.flex = `0 0 ${100 / total}%` })
+    const handle = document.createElement('div')
+    handle.className = 'col-resize-handle'
+    handle.setAttribute('contenteditable', 'false')
+    const col = document.createElement('div')
+    col.className = 'editor-col'
+    col.style.flex = `0 0 ${100 / total}%`
+    col.innerHTML = '<br>'
+    const addBtn = group.querySelector(':scope > .editor-columns-add')
+    group.insertBefore(handle, addBtn)
+    group.insertBefore(col, addBtn)
+    flush()
+  }
+
+  // Arrastar a alça entre duas colunas redimensiona as duas vizinhas (% do container),
+  // as demais colunas do grupo mantêm a largura.
+  const startColResize = (handle: HTMLElement, startClientX: number) => {
+    const prevCol = handle.previousElementSibling as HTMLElement | null
+    const nextCol = handle.nextElementSibling as HTMLElement | null
+    const group = handle.parentElement as HTMLElement | null
+    if (!prevCol || !nextCol || !group) return
+    const containerWidth = group.getBoundingClientRect().width
+    const startPrevPct = (prevCol.getBoundingClientRect().width / containerWidth) * 100
+    const startNextPct = (nextCol.getBoundingClientRect().width / containerWidth) * 100
+    const minPct = 12
+    const onMove = (ev: MouseEvent) => {
+      const deltaPct = ((ev.clientX - startClientX) / containerWidth) * 100
+      let newPrev = Math.max(minPct, Math.min(startPrevPct + startNextPct - minPct, startPrevPct + deltaPct))
+      const newNext = startPrevPct + startNextPct - newPrev
+      prevCol.style.flex = `0 0 ${newPrev}%`
+      nextCol.style.flex = `0 0 ${newNext}%`
+    }
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+      flush()
+    }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+  }
+
+  // Mousedown delegado no editor: intercepta cliques na alça de redimensionamento e no
+  // botão "+ coluna" antes que o contentEditable trate como posicionamento de cursor.
+  const onEditorMouseDown = (e: React.MouseEvent) => {
+    const t = e.target as HTMLElement
+    const handle = t.closest('.col-resize-handle') as HTMLElement | null
+    if (handle) { e.preventDefault(); startColResize(handle, e.clientX); return }
+    const addBtn = t.closest('.editor-columns-add') as HTMLElement | null
+    if (addBtn) {
+      e.preventDefault()
+      const group = addBtn.closest('.editor-columns') as HTMLElement | null
+      if (group) addColumnTo(group)
+    }
+  }
 
   // ── Menu "+" (estilo TickTick) ──
   const menuItems: { icon: React.ReactNode; label: string; run: () => void }[] = [
@@ -324,6 +552,8 @@ export function BlockEditor({ blocks, onChange, placeholder = 'Adicione notas, c
     },
     { icon: <Quote size={15} />, label: 'Citação', run: () => exec('formatBlock', 'BLOCKQUOTE') },
     { icon: <Minus size={15} />, label: 'Linha horizontal', run: () => exec('insertHorizontalRule') },
+    { icon: <Columns2 size={15} />, label: '2 colunas', run: () => insertColumns(2) },
+    { icon: <Columns3 size={15} />, label: '3 colunas', run: () => insertColumns(3) },
     { icon: <ImageIcon size={15} />, label: 'Imagem', run: () => imgInputRef.current?.click() },
     { icon: <Paperclip size={15} />, label: 'Anexo', run: () => fileInputRef.current?.click() },
   ]
@@ -405,9 +635,9 @@ export function BlockEditor({ blocks, onChange, placeholder = 'Adicione notas, c
           </div>
         )}
 
-        {/* Botão "+" na linha atual */}
+        {/* Botão "+" na linha atual (cada coluna, dentro de um grupo de colunas, tem o seu) */}
         {plusTop != null && (
-          <div className="absolute left-0 z-20" style={{ top: plusTop - 1 }} data-plusmenu onMouseDown={e => e.preventDefault()}>
+          <div className="absolute z-20" style={{ top: plusTop - 1, left: plusLeft }} data-plusmenu onMouseDown={e => e.preventDefault()}>
             <button
               onClick={() => setMenuOpen(o => !o)}
               className="w-5 h-5 rounded flex items-center justify-center text-gray-300 hover:text-brand-600 hover:bg-gray-100 transition-colors"
@@ -439,12 +669,27 @@ export function BlockEditor({ blocks, onChange, placeholder = 'Adicione notas, c
           data-placeholder={placeholder}
           data-empty={leadHtml ? 'false' : 'true'}
           onInput={onEditorInput}
+          onKeyDown={onEditorKeyDown}
+          onMouseDown={onEditorMouseDown}
           onPaste={onPaste}
           onClick={onEditorClick}
+          onDoubleClick={onEditorDblClick}
           onFocus={onFocus}
           onBlur={onBlur}
           className="rich-text w-full text-sm text-gray-700 leading-relaxed min-h-[3rem] py-1"
         />
+
+        {/* Overlay de seleção/redimensionamento de imagem */}
+        {imgSel && (
+          <div className="absolute pointer-events-none z-20 rounded-sm ring-2 ring-brand-400/70"
+            style={{ left: imgSel.left, top: imgSel.top, width: imgSel.width, height: imgSel.height }}>
+            <div
+              onMouseDown={startImgResize}
+              className="pointer-events-auto absolute -right-1.5 -bottom-1.5 w-3.5 h-3.5 rounded-full bg-white border-2 border-brand-500 shadow cursor-nwse-resize"
+              title="Arraste para redimensionar"
+            />
+          </div>
+        )}
 
         {/* Inputs ocultos do menu "+" */}
         <input ref={imgInputRef} type="file" accept="image/*" multiple className="hidden"

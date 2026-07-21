@@ -1,8 +1,10 @@
 import { initializeApp } from 'firebase/app'
 import {
-  getFirestore,
+  initializeFirestore,
   collection,
   doc,
+  getDoc,
+  setDoc,
   getDocs,
   addDoc,
   updateDoc,
@@ -14,7 +16,12 @@ import {
   Timestamp,
   type DocumentData,
 } from 'firebase/firestore'
-import type { Project, Task } from '../types'
+import {
+  getAuth,
+  signInAnonymously,
+  onAuthStateChanged,
+  type User,
+} from 'firebase/auth'
 
 const firebaseConfig = {
   apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
@@ -27,12 +34,34 @@ const firebaseConfig = {
 
 export const USE_FIREBASE = !!import.meta.env.VITE_FIREBASE_API_KEY
 
-let db: ReturnType<typeof getFirestore> | null = null
+let db: ReturnType<typeof initializeFirestore> | null = null
+let auth: ReturnType<typeof getAuth> | null = null
 
 if (USE_FIREBASE) {
   const app = initializeApp(firebaseConfig)
-  db = getFirestore(app)
+  // ignoreUndefinedProperties: vários campos opcionais das tarefas (Task/TaskComment)
+  // ficam `undefined` em vez de `null` — o Firestore rejeita `undefined` por padrão.
+  db = initializeFirestore(app, { ignoreUndefinedProperties: true })
+  auth = getAuth(app)
 }
 
-export { db, collection, doc, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, serverTimestamp, Timestamp }
-export type { DocumentData }
+// Login anônimo e silencioso — só serve para satisfazer as regras de segurança do
+// Firestore (request.auth != null). Não há tela nem conta visível: quem "identifica"
+// o dono dos dados é o código de sincronização (ver cloudAttachments.ts/useAppStore.ts),
+// não esse uid anônimo, que é só o "crachá" técnico exigido pelo Firestore.
+export function ensureSignedIn() {
+  if (!auth) return Promise.resolve(null)
+  return signInAnonymously(auth)
+}
+
+export function watchAuthState(cb: (user: User | null) => void) {
+  if (!auth) { cb(null); return () => {} }
+  return onAuthStateChanged(auth, cb)
+}
+
+export {
+  db, auth,
+  collection, doc, getDoc, setDoc, getDocs, addDoc, updateDoc, deleteDoc,
+  onSnapshot, query, orderBy, serverTimestamp, Timestamp,
+}
+export type { DocumentData, User }

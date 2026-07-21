@@ -4,7 +4,7 @@ import {
   BarChart2, FileText, Inbox, ChevronRight, ChevronDown, ChevronLeft,
   MoreHorizontal, Trash2, Copy, CornerUpRight, Archive, Check, List,
   PanelLeftClose, PanelLeftOpen, ChevronsUpDown, Sun, Moon, Ban, Square, Folder as FolderIcon,
-  LayoutGrid, GitFork,
+  LayoutGrid, GitFork, Target,
 } from 'lucide-react'
 import { useAppStore } from '../../stores/useAppStore'
 import { useSettingsStore } from '../../stores/useSettingsStore'
@@ -171,7 +171,7 @@ export function Sidebar() {
     setCreateMenu(null)
   }
   const createProject = (spaceId?: string, folderId?: string, color?: string) => {
-    const p = addProject('Novo Projeto', color ?? '#6366F1', '', spaceId, folderId, 'list')
+    const p = addProject('Novo Projeto', color ?? '#6366F1', '', spaceId, folderId, 'circle')
     startRename({ kind:'project', id: p.id }, p.name)
   }
   const WS_COLORS = ['#EF4444','#F59E0B','#10B981','#378ADD','#8B5CF6','#EC4899']
@@ -373,7 +373,7 @@ export function Sidebar() {
               <button
                 onClick={e => {
                   e.stopPropagation()
-                  const newProj = addProject('Novo Projeto', p.color, '', p.spaceId, p.folderId, 'list')
+                  const newProj = addProject('Novo Projeto', p.color, '', p.spaceId, p.folderId, 'circle')
                   // Encontrar o próximo projeto na mesma pasta/espaço
                   const siblingProjects = activeProjects.filter(proj => proj.spaceId === p.spaceId && proj.folderId === p.folderId)
                   const currentIdx = siblingProjects.findIndex(proj => proj.id === p.id)
@@ -580,6 +580,7 @@ export function Sidebar() {
         {navMode==='nav' && (
         <div className="space-y-0.5 mt-3 mb-3">
           {navItem('calendar',    'Calendário',       Calendar,   '#FFF1E6', '#EA7317')}
+          {navItem('goals',       'Metas',            Target,     '#E6F7F0', '#12A67B')}
           {navItem('projects',    'Projetos',         BarChart2,  '#F5EEFF', '#8B5CF6')}
           {navItem('reports',     'Relatórios',       FileText,   '#E9FBFC', '#0E9AA6')}
           {navItem('automations', 'Automações',       Zap,        '#FFEAF3', '#DB2777')}

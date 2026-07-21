@@ -1,14 +1,18 @@
 import React, { useState, useMemo } from 'react'
 import {
   Search, Eye, List, LayoutGrid, Table2, Calendar, PenTool, Activity, LayoutDashboard, Trash2, Check, Plus, X, Circle,
-  ChevronDown,
+  ChevronDown, StickyNote,
 } from 'lucide-react'
 import { useAppStore } from '../../stores/useAppStore'
 import { TaskList } from './TaskList'
+import { CustomFieldCell } from './CustomFieldCell'
+import { SortControl } from './SortControl'
+import { loadMultiSort, saveMultiSort, sortTasksMulti, type MultiSort } from '../../lib/taskColumns'
 import { TaskDetail } from './TaskDetail'
 import { WhiteboardView } from './WhiteboardView'
 import { FilterPanel } from '../FilterPanel'
 import { AIPanel } from '../AIPanel'
+import { NotesPanel } from '../NotesPanel'
 import { applyCustomViewFilter } from '../../lib/customViews'
 import { VIEW_ICON } from '../../lib/viewIcons'
 import { Select, PRIORITY_OPTIONS, STATUS_OPTIONS } from '../ui/Select'
@@ -62,7 +66,7 @@ export function TaskPanel({
   groupOptions = ['status','priority','dueDate','assignee'],
   defaultGroup = 'status', views, defaultView = 'list', gut,
 }: TaskPanelProps) {
-  const { selectedTaskId, getCustomViews, deleteCustomView, openNewViewModal } = useAppStore()
+  const { selectedTaskId, getCustomViews, deleteCustomView, openNewViewModal, toggleNotesPanel } = useAppStore()
   const [searchQuery, setSearchQuery] = useState('')
   const tabs = (views ? ALL_VIEWS.filter(v => views.includes(v.key)) : ALL_VIEWS)
 
@@ -72,6 +76,9 @@ export function TaskPanel({
   const [subtasksCollapsed, setSubtasksCollapsed] = useState(false)
   const [expandVersion,     setExpandVersion]     = useState(0)
   const toggleAllSubtasks = () => { setSubtasksCollapsed(v => !v); setExpandVersion(v => v+1) }
+  // Classificação multi-nível (estilo Notion) — aplicada em todas as visualizações, salva por escopo.
+  const [multiSort, setMultiSort] = useState<MultiSort>(() => loadMultiSort(scopeKey))
+  const updateMultiSort = (next: MultiSort) => { setMultiSort(next); saveMultiSort(scopeKey, next) }
 
   const selectView  = (v: ViewType) => { setView(v); vSet(scopeKey+'_view', v); setActiveCustomId(null) }
   const selectGroup = (g: GroupBy)  => { setGroup(g); vSet(scopeKey+'_group', g) }
@@ -84,8 +91,24 @@ export function TaskPanel({
   const total = root.length
   
   const filteredTasks = useMemo(() => {
-    return tasks.filter(t => t.title.toLowerCase().includes(searchQuery.toLowerCase()) || t.description.toLowerCase().includes(searchQuery.toLowerCase()))
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return tasks
+    const matches = tasks.filter(t => t.title.toLowerCase().includes(q) || t.description.toLowerCase().includes(q))
+    // Inclui os ancestrais de cada correspondência — senão uma subtarefa que bate na busca,
+    // mas cujo pai não bate, nunca apareceria (a lista renderiza subtarefas só a partir do pai).
+    const byId = new Map(tasks.map(t => [t.id, t]))
+    const keep = new Set<string>()
+    matches.forEach(m => {
+      keep.add(m.id)
+      let cur = m.parentId ? byId.get(m.parentId) : undefined
+      while (cur && !keep.has(cur.id)) { keep.add(cur.id); cur = cur.parentId ? byId.get(cur.parentId) : undefined }
+    })
+    return tasks.filter(t => keep.has(t.id))
   }, [tasks, searchQuery])
+
+  // Aplica a classificação multi-nível ao conjunto já filtrado — todas as views recebem
+  // as tarefas nessa ordem (a lista preserva a ordem dentro de cada grupo).
+  const sortedTasks = useMemo(() => sortTasksMulti(filteredTasks, multiSort), [filteredTasks, multiSort])
 
   // Contagem do cabeçalho exclui concluídas — mesma convenção dos badges da sidebar
   // (espaço/pasta/projeto), que também só contam tarefas ativas.
@@ -100,7 +123,7 @@ export function TaskPanel({
         {/* Header */}
         <div className="bg-white border-b border-gray-200 flex-shrink-0">
           {/* Breadcrumb + title + toolbar */}
-          <div className="px-4 md:px-6 pt-2.5 md:pt-5 pb-0 flex items-center justify-between gap-2.5">
+          <div className="px-4 md:px-6 pt-2.5 md:pt-3.5 pb-0 flex items-center justify-between gap-2.5">
             <div className="flex items-center gap-1.5 text-[13px] min-w-0">
               <span className="hidden sm:inline">{breadcrumb}</span>
               {icon}
@@ -108,28 +131,33 @@ export function TaskPanel({
               <span className="text-xs text-gray-400 font-medium flex-shrink-0">({activeCount})</span>
               <span className="md:hidden tabnum text-[10px] font-bold text-gray-500 bg-gray-100 px-1 py-0.5 rounded flex-shrink-0">{pct}%</span>
             </div>
-            <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
+            <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
                 <div className="relative">
                   <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input type="text" placeholder="Buscar..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-7 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-400 transition-all w-40" />
                 </div>
+                <SortControl value={multiSort} onChange={updateMultiSort}/>
+                <button onClick={toggleNotesPanel} title="Bloco de notas"
+                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:text-amber-600 hover:border-amber-200 hover:bg-amber-50/50 transition-colors flex-shrink-0">
+                  <StickyNote size={15}/>
+                </button>
                 {headerRight && <div className="flex items-center gap-1.5 flex-shrink-0 scale-95 origin-right">{headerRight}</div>}
             </div>
           </div>
 
           {/* Progress */}
-          <div className="hidden md:flex items-center gap-3 px-4 md:px-6 mt-3 md:mt-4">
-            <div className="flex-1 h-[7px] bg-gray-100 rounded-full overflow-hidden">
+          <div className="hidden md:flex items-center gap-3 px-4 md:px-6 mt-2 md:mt-2.5">
+            <div className="flex-1 h-[5px] bg-gray-100 rounded-full overflow-hidden">
               <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: accent }}/>
             </div>
             <span className="tabnum text-xs font-bold text-gray-600 flex-shrink-0">{done}/{total} · {pct}%</span>
           </div>
 
           {/* View tabs */}
-          <div className="flex items-center overflow-x-auto scrollbar-none px-4 md:px-5 mt-1.5 md:mt-3 border-b border-transparent">
+          <div className="flex items-center overflow-x-auto scrollbar-none px-4 md:px-5 mt-1 md:mt-1.5 border-b border-transparent">
             {tabs.map(({ key, label, Icon }) => (
               <button key={key} onClick={() => selectView(key)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 md:py-2.5 text-[12px] md:text-[12.5px] font-semibold whitespace-nowrap transition-all flex-shrink-0 border-b-2 -mb-px
+                className={`flex items-center gap-1.5 px-3 py-1.5 md:py-2 text-[12px] md:text-[12.5px] font-semibold whitespace-nowrap transition-all flex-shrink-0 border-b-2 -mb-px
                   ${!activeCustomId && view===key ? 'text-brand-600' : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-200'}`}
                 style={!activeCustomId && view===key ? { borderColor: accent, color: accent } : undefined}>
                 <Icon size={12}/>{label}
@@ -163,7 +191,7 @@ export function TaskPanel({
 
           {/* Group control (list only) */}
           {view==='list' && !activeCustomId && (
-            <div className="flex items-center gap-1.5 md:gap-2.5 px-4 md:px-6 py-1 md:py-3 flex-wrap">
+            <div className="flex items-center gap-1.5 md:gap-2.5 px-4 md:px-6 py-1 md:py-1.5 flex-wrap">
               <span className="hidden md:inline text-[11px] font-semibold text-gray-400">Agrupar por</span>
               <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-[2px] md:p-[3px]">
                 {groupOptions.map(g => (
@@ -186,26 +214,27 @@ export function TaskPanel({
 
         {/* Content */}
         <div className="flex flex-1 overflow-hidden">
-          {!activeCustomId && view==='overview'  && <OverviewView  tasks={filteredTasks} accent={accent} pct={pct} gut={gut}/>}
-          {!activeCustomId && view==='list'      && <TaskList tasks={filteredTasks} projectId={defaultProjectId} scopeKey={scopeKey} columns={columns} showProject={showProject} sortBy={group} subtasksCollapsed={subtasksCollapsed} expandVersion={expandVersion}/>}
-          {!activeCustomId && view==='board'     && <BoardView     tasks={filteredTasks}/>}
-          {!activeCustomId && view==='table'     && <TableView     tasks={filteredTasks} columns={columns} showProject={showProject}/>}
-          {!activeCustomId && view==='calendar'  && <CalendarInline tasks={filteredTasks}/>}
+          {!activeCustomId && view==='overview'  && <OverviewView  tasks={sortedTasks} accent={accent} pct={pct} gut={gut}/>}
+          {!activeCustomId && view==='list'      && <TaskList tasks={sortedTasks} projectId={defaultProjectId} scopeKey={scopeKey} columns={columns} showProject={showProject} sortBy={group} subtasksCollapsed={subtasksCollapsed} expandVersion={expandVersion}/>}
+          {!activeCustomId && view==='board'     && <BoardView     tasks={sortedTasks}/>}
+          {!activeCustomId && view==='table'     && <TableView     tasks={sortedTasks} columns={columns} showProject={showProject} scopeKey={scopeKey}/>}
+          {!activeCustomId && view==='calendar'  && <CalendarInline tasks={sortedTasks}/>}
           {!activeCustomId && view==='whiteboard'&& <WhiteboardView scopeKey={scopeKey}/>}
-          {!activeCustomId && view==='activity'  && <ActivityView  tasks={filteredTasks}/>}
-          {!activeCustomId && view==='dashboard' && <DashboardView tasks={filteredTasks} accent={accent}/>}
+          {!activeCustomId && view==='activity'  && <ActivityView  tasks={sortedTasks}/>}
+          {!activeCustomId && view==='dashboard' && <DashboardView tasks={sortedTasks} accent={accent}/>}
 
           {/* Custom view */}
           {activeCustomId && currentCustomView && (() => {
-            const filtered = applyCustomViewFilter(filteredTasks, currentCustomView)
+            const filtered = applyCustomViewFilter(sortedTasks, currentCustomView)
             if (currentCustomView.baseType==='board')    return <BoardView tasks={filtered}/>
-            if (currentCustomView.baseType==='table')    return <TableView tasks={filtered} columns={columns} showProject={showProject}/>
+            if (currentCustomView.baseType==='table')    return <TableView tasks={filtered} columns={columns} showProject={showProject} scopeKey={scopeKey+':'+currentCustomView.id}/>
             if (currentCustomView.baseType==='calendar') return <CalendarInline tasks={filtered}/>
             return <TaskList tasks={filtered} projectId={defaultProjectId} scopeKey={scopeKey+':'+currentCustomView.id} columns={columns} showProject={showProject} sortBy={group} subtasksCollapsed={subtasksCollapsed} expandVersion={expandVersion}/>
           })()}
 
           <FilterPanelMaybe/>
           <AIPanelMaybe/>
+          <NotesPanelMaybe/>
 
           {selectedTaskId && <TaskDetail/>}
         </div>
@@ -223,102 +252,199 @@ function AIPanelMaybe() {
   const open = useAppStore(s => s.aiPanelOpen)
   return open ? <AIPanel/> : null
 }
+function NotesPanelMaybe() {
+  const open = useAppStore(s => s.notesPanelOpen)
+  return open ? <NotesPanel/> : null
+}
 
-// ── Overview ────────────────────────────────────────────────────────────────
+// ── Overview (reestruturada — clean, informativa) ────────────────────────────
+const OV_CARD = 'bg-white border border-gray-200/70 rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03)]'
+const STATUS_META = [
+  { key:'todo',        label:'A fazer',      color:'#888780' },
+  { key:'in_progress', label:'Em progresso', color:'#378ADD' },
+  { key:'done',        label:'Concluído',    color:'#1D9E75' },
+] as const
+
+function ProgressRing({ pct, accent, size = 132 }: { pct: number; accent: string; size?: number }) {
+  const stroke = 11
+  const r = (size - stroke) / 2
+  const c = 2 * Math.PI * r
+  return (
+    <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#EEF0F3" strokeWidth={stroke} />
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={accent} strokeWidth={stroke}
+          strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c - (c * pct) / 100}
+          style={{ transition: 'stroke-dashoffset .6s ease' }} />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-3xl font-extrabold tracking-tight text-gray-900 tabnum">{pct}%</span>
+        <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">concluído</span>
+      </div>
+    </div>
+  )
+}
+
 function OverviewView({ tasks, accent, pct, gut }: { tasks: Task[]; accent: string; pct: number; gut?: { score:number;g:number;u:number;t:number } }) {
   const { setSelectedTask } = useAppStore()
   const root     = tasks.filter(t => !t.parentId)
-  const todo     = root.filter(t => t.status==='todo').length
-  const inProg   = root.filter(t => t.status==='in_progress').length
-  const done     = root.filter(t => t.status==='done').length
-  const overdue  = root.filter(t => t.dueDate && t.status!=='done' && new Date(t.dueDate)<new Date())
+  const total    = root.length
+  const now      = new Date()
+  const statusCounts = { todo:0, in_progress:0, done:0 } as Record<string, number>
+  root.forEach(t => { statusCounts[t.status] = (statusCounts[t.status] ?? 0) + 1 })
+  const overdue  = root.filter(t => t.dueDate && t.status!=='done' && new Date(t.dueDate) < now)
+  const noDate   = root.filter(t => !t.dueDate && t.status!=='done').length
   const upcoming = [...root].filter(t => t.dueDate && t.status!=='done')
     .sort((a,b) => new Date(a.dueDate as string).getTime()-new Date(b.dueDate as string).getTime()).slice(0,5)
   const recent   = [...tasks].sort((a,b) => new Date(b.updatedAt).getTime()-new Date(a.updatedAt).getTime()).slice(0,6)
+  const prioCounts = (['urgent','high','medium','low'] as Priority[]).map(p => ({
+    p, label: PRIORITY_LABEL[p], color: PRIORITY_OPTIONS.find(o=>o.value===p)?.color ?? '#888',
+    count: root.filter(t => t.priority===p && t.status!=='done').length,
+  }))
+  const maxPrio = Math.max(1, ...prioCounts.map(x => x.count))
+  const fmtDate = (d: string) => new Date(d).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})
+  const dueLabel = (d: string) => {
+    const diff = Math.round((new Date(d).setHours(0,0,0,0) - now.setHours(0,0,0,0)) / 86400000)
+    if (diff === 0) return 'Hoje'; if (diff === 1) return 'Amanhã'
+    if (diff < 0) return `${Math.abs(diff)}d atrás`
+    return fmtDate(d)
+  }
+
+  if (total === 0) {
+    return (
+      <div className="flex-1 overflow-y-auto bg-gray-50/40 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-14 h-14 rounded-2xl bg-white border border-gray-200 flex items-center justify-center mx-auto mb-3 shadow-sm">
+            <Eye size={22} className="text-gray-300"/>
+          </div>
+          <p className="text-sm font-semibold text-gray-500">Nenhuma tarefa ainda</p>
+          <p className="text-xs text-gray-400 mt-1">Crie tarefas para ver o panorama do projeto aqui.</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6 bg-gray-50/30">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-        {[
-          { label:'Total', value: root.length, color: accent },
-          { label:'A fazer', value: todo, color: '#888780' },
-          { label:'Em progresso', value: inProg, color: '#378ADD' },
-          { label:'Concluído', value: done, color: '#1D9E75' },
-        ].map(s => (
-          <div key={s.label} className="bg-white border border-gray-100/95 rounded-2xl p-4 md:p-5 shadow-[0_2px_8px_-3px_rgba(0,0,0,0.04)] transition-all duration-200 hover:shadow-[0_6px_20px_-4px_rgba(0,0,0,0.06)] hover:-translate-y-0.5">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1">{s.label}</p>
-            <p className="text-2xl md:text-3xl font-extrabold tracking-tight" style={{color:s.color}}>{s.value}</p>
-          </div>
-        ))}
-      </div>
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-gray-50/40">
+      <div className="max-w-5xl mx-auto space-y-4">
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-        <div className="bg-white border border-gray-100/95 rounded-2xl p-4 md:p-5 shadow-[0_2px_8px_-3px_rgba(0,0,0,0.04)] transition-all duration-200 hover:shadow-[0_6px_20px_-4px_rgba(0,0,0,0.06)]">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 md:mb-4">Progresso geral</p>
-          <div className="flex items-center gap-4">
-            <div className="flex-1 h-3 bg-gray-100/80 rounded-full overflow-hidden p-[2px]">
-              <div className="h-full rounded-full transition-all duration-500" style={{width:`${pct}%`,background:accent}}/>
-            </div>
-            <span className="text-sm font-bold text-gray-800">{pct}%</span>
-          </div>
-          <p className="text-[11px] font-medium text-gray-400 mt-2">{done} de {root.length} tarefas concluídas</p>
-        </div>
-        {gut && (
-          <div className="bg-white border border-gray-100/95 rounded-2xl p-4 md:p-5 shadow-[0_2px_8px_-3px_rgba(0,0,0,0.04)] transition-all duration-200 hover:shadow-[0_6px_20px_-4px_rgba(0,0,0,0.06)]">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 md:mb-3">GUT Score</p>
-            <div className="flex items-center gap-2">
-              <span className="text-2xl md:text-3xl font-extrabold tracking-tight" style={{color:accent}}>{gut.score}</span>
-            </div>
-            <p className="text-[11px] font-medium text-gray-400 mt-1">G:{gut.g} · U:{gut.u} · T:{gut.t}</p>
-          </div>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-        <div className="bg-white border border-gray-100/95 rounded-2xl p-4 md:p-5 shadow-[0_2px_8px_-3px_rgba(0,0,0,0.04)] transition-all duration-200 hover:shadow-[0_6px_20px_-4px_rgba(0,0,0,0.06)]">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 md:mb-4">Próximos prazos</p>
-          {upcoming.length===0 ? (
-            <p className="text-xs text-gray-400 italic">Nenhuma tarefa com prazo</p>
-          ) : (
-            <div className="space-y-2">
-              {upcoming.map(t=>(
-                <button key={t.id} onClick={()=>setSelectedTask(t.id)}
-                  className="w-full flex items-center gap-2 text-left hover:bg-gray-50/80 p-2 rounded-xl transition-all duration-150 border border-transparent hover:border-gray-100">
-                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{background:accent}}/>
-                  <span className="flex-1 text-xs font-medium text-gray-700 truncate">{t.title}</span>
-                  <span className="text-[10px] text-gray-400 font-medium flex-shrink-0 bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100">{new Date(t.dueDate as string).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}</span>
-                </button>
+        {/* Linha principal: anel de progresso + distribuição por status + destaques */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Progresso */}
+          <div className={`${OV_CARD} flex items-center gap-5`}>
+            <ProgressRing pct={pct} accent={accent}/>
+            <div className="min-w-0 space-y-2.5">
+              {STATUS_META.map(s => (
+                <div key={s.key} className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: s.color }}/>
+                  <span className="text-xs text-gray-500 flex-1">{s.label}</span>
+                  <span className="text-sm font-bold text-gray-800 tabnum">{statusCounts[s.key] ?? 0}</span>
+                </div>
               ))}
+              <div className="pt-1.5 mt-1.5 border-t border-gray-100 flex items-center gap-2">
+                <span className="text-xs text-gray-400 flex-1">Total</span>
+                <span className="text-sm font-extrabold text-gray-900 tabnum">{total}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Distribuição por status (barra segmentada) + destaques */}
+          <div className={`${OV_CARD} lg:col-span-2 flex flex-col`}>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Distribuição</p>
+            <div className="flex h-3 rounded-full overflow-hidden bg-gray-100">
+              {STATUS_META.map(s => {
+                const w = total ? ((statusCounts[s.key] ?? 0) / total) * 100 : 0
+                return w > 0 ? <div key={s.key} style={{ width:`${w}%`, background: s.color }} title={`${s.label}: ${statusCounts[s.key]}`}/> : null
+              })}
+            </div>
+            <div className="grid grid-cols-3 gap-3 mt-auto pt-5">
+              {[
+                { label:'Atrasadas', value: overdue.length, color: overdue.length ? '#E24B4A' : '#9CA3AF' },
+                { label:'Sem prazo', value: noDate, color: '#9CA3AF' },
+                gut ? { label:'GUT', value: gut.score, color: accent } : { label:'Ativas', value: (statusCounts.todo ?? 0)+(statusCounts.in_progress ?? 0), color: accent },
+              ].map(m => (
+                <div key={m.label} className="rounded-xl bg-gray-50/70 border border-gray-100 px-3 py-2.5">
+                  <p className="text-2xl font-extrabold tracking-tight tabnum" style={{ color: m.color }}>{m.value}</p>
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mt-0.5">{m.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Prioridade + Próximos prazos */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className={OV_CARD}>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Prioridade (ativas)</p>
+            <div className="space-y-2.5">
+              {prioCounts.map(x => (
+                <div key={x.p} className="flex items-center gap-3">
+                  <span className="text-xs font-medium text-gray-500 w-16 flex-shrink-0">{x.label}</span>
+                  <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full transition-all duration-500" style={{ width:`${(x.count/maxPrio)*100}%`, background: x.color }}/>
+                  </div>
+                  <span className="text-xs font-bold text-gray-700 tabnum w-5 text-right">{x.count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className={OV_CARD}>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Próximos prazos</p>
+            {upcoming.length===0 ? (
+              <p className="text-xs text-gray-400 italic py-4 text-center">Nenhuma tarefa com prazo</p>
+            ) : (
+              <div className="space-y-0.5">
+                {upcoming.map(t=>{
+                  const late = new Date(t.dueDate as string) < now
+                  return (
+                    <button key={t.id} onClick={()=>setSelectedTask(t.id)}
+                      className="w-full flex items-center gap-2.5 text-left hover:bg-gray-50 px-2 py-1.5 rounded-lg transition-colors">
+                      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: late ? '#E24B4A' : accent }}/>
+                      <span className="flex-1 text-[13px] font-medium text-gray-700 truncate">{t.title}</span>
+                      <span className={`text-[10px] font-semibold flex-shrink-0 px-2 py-0.5 rounded-md border tabnum ${late ? 'text-red-500 bg-red-50 border-red-100' : 'text-gray-400 bg-gray-50 border-gray-100'}`}>
+                        {dueLabel(t.dueDate as string)}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Atrasadas (se houver) + Atividade recente */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {overdue.length>0 && (
+            <div className={OV_CARD}>
+              <p className="text-[10px] font-bold text-red-400 uppercase tracking-wider mb-3">Atrasadas ({overdue.length})</p>
+              <div className="space-y-0.5">
+                {overdue.slice(0,6).map(t=>(
+                  <button key={t.id} onClick={()=>setSelectedTask(t.id)}
+                    className="w-full flex items-center gap-2.5 text-left hover:bg-red-50/50 px-2 py-1.5 rounded-lg transition-colors">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0"/>
+                    <span className="flex-1 text-[13px] font-medium text-gray-700 truncate">{t.title}</span>
+                    <span className="text-[10px] text-red-500 font-semibold flex-shrink-0 bg-red-50 px-2 py-0.5 rounded-md border border-red-100 tabnum">{fmtDate(t.dueDate as string)}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
-        </div>
-        <div className="bg-white border border-gray-100/95 rounded-2xl p-4 md:p-5 shadow-[0_2px_8px_-3px_rgba(0,0,0,0.04)] transition-all duration-200 hover:shadow-[0_6px_20px_-4px_rgba(0,0,0,0.06)]">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 md:mb-4">
-            {overdue.length>0 ? `Atrasadas (${overdue.length})` : 'Atividade recente'}
-          </p>
-          {overdue.length>0 ? (
-            <div className="space-y-2">
-              {overdue.slice(0,5).map(t=>(
-                <button key={t.id} onClick={()=>setSelectedTask(t.id)}
-                  className="w-full flex items-center gap-2 text-left hover:bg-red-50/50 p-2 rounded-xl transition-all duration-150 border border-transparent hover:border-red-100">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0"/>
-                  <span className="flex-1 text-xs font-medium text-gray-700 truncate">{t.title}</span>
-                  <span className="text-[10px] text-red-500 font-semibold flex-shrink-0 bg-red-50 px-2 py-0.5 rounded-md border border-red-100">{new Date(t.dueDate as string).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}</span>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-2">
+          <div className={`${OV_CARD} ${overdue.length>0 ? '' : 'md:col-span-2'}`}>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Atividade recente</p>
+            <div className="space-y-0.5">
               {recent.map(t=>(
                 <button key={t.id} onClick={()=>setSelectedTask(t.id)}
-                  className="w-full flex items-center gap-2 text-left hover:bg-gray-50/80 p-2 rounded-xl transition-all duration-150 border border-transparent hover:border-gray-100">
-                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${t.status==='done'?'bg-green-400':t.status==='in_progress'?'bg-blue-400':'bg-gray-300'}`}/>
-                  <span className="flex-1 text-xs font-medium text-gray-700 truncate">{t.title}</span>
+                  className="w-full flex items-center gap-2.5 text-left hover:bg-gray-50 px-2 py-1.5 rounded-lg transition-colors">
+                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: t.status==='done'?'#1D9E75':t.status==='in_progress'?'#378ADD':'#C7C7C7' }}/>
+                  <span className={`flex-1 text-[13px] font-medium truncate ${t.status==='done'?'text-gray-400 line-through':'text-gray-700'}`}>{t.title}</span>
+                  <span className="text-[10px] text-gray-300 flex-shrink-0 tabnum">{fmtDate(t.updatedAt)}</span>
                 </button>
               ))}
             </div>
-          )}
+          </div>
         </div>
+
       </div>
     </div>
   )
@@ -420,23 +546,63 @@ function BoardView({ tasks }: { tasks: Task[] }) {
   )
 }
 
-// ── Table ───────────────────────────────────────────────────────────────────
-function TableView({ tasks, columns, showProject }: { tasks: Task[]; columns: ColumnDef[]; showProject?: boolean }) {
+// ── Table (colunas redimensionáveis) ─────────────────────────────────────────
+function TableView({ tasks, columns, showProject, scopeKey }: { tasks: Task[]; columns: ColumnDef[]; showProject?: boolean; scopeKey?: string }) {
   const { setSelectedTask, updateTask, projects } = useAppStore()
   const root = tasks.filter(t=>!t.parentId)
+
+  // Colunas da tabela (chave estável + largura padrão) — a coluna Nome é flexível.
+  const cols = React.useMemo(() => [
+    { key:'idx',      label:'#',           def:44,  flex:false },
+    { key:'name',     label:'Nome',        def:280, flex:true  },
+    ...(showProject ? [{ key:'project', label:'Projeto', def:150, flex:false }] : []),
+    { key:'status',   label:'Status',      def:130, flex:false },
+    { key:'priority', label:'Prioridade',  def:120, flex:false },
+    { key:'assignee', label:'Responsável', def:110, flex:false },
+    { key:'dueDate',  label:'Prazo',       def:120, flex:false },
+    ...columns.map(c => ({ key:'cf:'+c.id, label:c.name, def:c.width ?? 120, flex:false })),
+  ], [columns, showProject])
+
+  const storeKey = `tf_table_widths_${scopeKey ?? 'global'}`
+  const [widths, setWidths] = useState<Record<string, number>>(() => {
+    try { return JSON.parse(localStorage.getItem(storeKey) || '{}') } catch { return {} }
+  })
+  const w = (key: string, def: number) => widths[key] ?? def
+  const startResize = (key: string, e: React.MouseEvent, def: number) => {
+    e.preventDefault(); e.stopPropagation()
+    const startX = e.clientX
+    const startW = w(key, def)
+    const onMove = (ev: MouseEvent) => {
+      const nw = Math.max(56, startW + (ev.clientX - startX))
+      setWidths(prev => ({ ...prev, [key]: nw }))
+    }
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+      setWidths(prev => { try { localStorage.setItem(storeKey, JSON.stringify(prev)) } catch {} ; return prev })
+    }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+  }
+
+  const cellPad = 'px-3 py-2'
   return (
     <div className="flex-1 overflow-auto p-4">
-      <table className="w-full border-collapse text-xs">
+      <table className="border-collapse text-xs" style={{ tableLayout:'fixed', width: 'max-content', minWidth:'100%' }}>
+        <colgroup>
+          {cols.map(c => <col key={c.key} style={{ width: w(c.key, c.def) }}/>)}
+        </colgroup>
         <thead>
           <tr className="bg-gray-50 border-b border-gray-200">
-            <th className="text-left px-3 py-2 text-gray-500 font-medium w-8">#</th>
-            <th className="text-left px-3 py-2 text-gray-500 font-medium">Nome</th>
-            {showProject && <th className="text-left px-3 py-2 text-gray-500 font-medium w-32">Projeto</th>}
-            <th className="text-left px-3 py-2 text-gray-500 font-medium w-28">Status</th>
-            <th className="text-left px-3 py-2 text-gray-500 font-medium w-24">Prioridade</th>
-            <th className="text-left px-3 py-2 text-gray-500 font-medium w-24">Responsável</th>
-            <th className="text-left px-3 py-2 text-gray-500 font-medium w-24">Prazo</th>
-            {columns.map(c=><th key={c.id} className="text-left px-3 py-2 text-gray-500 font-medium" style={{width:c.width??100}}>{c.name}</th>)}
+            {cols.map(c => (
+              <th key={c.key} className={`text-left ${cellPad} text-gray-500 font-semibold uppercase tracking-wide text-[10px] relative select-none`}>
+                <span className="truncate block pr-1">{c.label}</span>
+                {/* Alça de redimensionamento */}
+                <span onMouseDown={e => startResize(c.key, e, c.def)}
+                  className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-brand-300/60 transition-colors"
+                  title="Arraste para redimensionar"/>
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
@@ -445,32 +611,34 @@ function TableView({ tasks, columns, showProject }: { tasks: Task[]; columns: Co
             return (
               <tr key={t.id} onClick={()=>setSelectedTask(t.id)}
                 className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors">
-                <td className="px-3 py-2 text-gray-400">{i+1}</td>
-                <td className="px-3 py-2 font-medium text-gray-800">{t.title}</td>
+                <td className={`${cellPad} text-gray-400 tabnum`}>{i+1}</td>
+                <td className={`${cellPad} font-medium text-gray-800 truncate`}>{t.title}</td>
                 {showProject && (
-                  <td className="px-3 py-2">
-                    {pr && <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full" style={{background:pr.color+'18',color:pr.color}}>
-                      <span className="w-1.5 h-1.5 rounded-full" style={{background:pr.color}}/>{pr.name}</span>}
+                  <td className={cellPad}>
+                    {pr && <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full max-w-full truncate" style={{background:pr.color+'18',color:pr.color}}>
+                      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{background:pr.color}}/><span className="truncate">{pr.name}</span></span>}
                   </td>
                 )}
-                <td className="px-3 py-2">
+                <td className={cellPad}>
                   <Select variant="inline" stop colorText value={t.status}
                     options={STATUS_OPTIONS} ariaLabel="Status"
                     onChange={v=>updateTask(t.id,{status:v as any})}/>
                 </td>
-                <td className="px-3 py-2" onClick={e=>e.stopPropagation()}>
+                <td className={cellPad} onClick={e=>e.stopPropagation()}>
                   <Select variant="inline" stop colorText pill value={t.priority}
                     options={PRIORITY_OPTIONS} ariaLabel="Prioridade"
                     onChange={v=>updateTask(t.id,{priority:v as Priority})}/>
                 </td>
-                <td className="px-3 py-2" onClick={e=>e.stopPropagation()}>
+                <td className={cellPad} onClick={e=>e.stopPropagation()}>
                   <AssigneePicker value={t.assignee} onChange={v=>updateTask(t.id,{assignee:v})} variant="row"/>
                 </td>
-                <td className="px-3 py-2" onClick={e=>e.stopPropagation()}>
+                <td className={cellPad} onClick={e=>e.stopPropagation()}>
                   <DueDatePicker value={t.dueDate} onChange={v=>updateTask(t.id,{dueDate:v})} overdue={!!t.dueDate && t.status!=='done' && new Date(t.dueDate)<new Date()} variant="row"/>
                 </td>
                 {columns.map(c=>(
-                  <td key={c.id} className="px-3 py-2 text-gray-500">{String(t.customFields?.[c.id]??'')}</td>
+                  <td key={c.id} className={`${cellPad} text-gray-500`} onClick={e=>e.stopPropagation()}>
+                    <CustomFieldCell task={t} column={c}/>
+                  </td>
                 ))}
               </tr>
             )

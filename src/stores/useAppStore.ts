@@ -2,11 +2,13 @@ import { create } from 'zustand'
 import { nanoid } from '../lib/nanoid'
 import { localProjects, localTasks } from '../lib/localStore'
 import { SEED_PROJECTS, SEED_TASKS } from '../lib/seed'
+import { db, doc, setDoc, getDoc, onSnapshot } from '../lib/firebase'
+import { stripAndUploadAttachments, hydrateAttachments } from '../lib/cloudAttachments'
 import type {
   Project, Task, Space, Folder, ColumnDef, Automation, ViewType,
   View, TaskStatus, Priority, Checklist, ChecklistItem, ContentBlock,
   TaskType, TaskOpenMode, CustomProjectView, DateFieldKey, DateFilterValue,
-  Workspace, TaskComment,
+  Workspace, TaskComment, Goal, GoalTarget,
 } from '../types'
 import {
   calcGUT, migrateTask, migrateProject, migrateSpace, migrateFolder, migrateAutomation,
@@ -21,6 +23,7 @@ const FOLDERS_KEY     = 'tf_folders'
 const WORKSPACES_KEY  = 'tf_workspaces'
 const ACTIVE_WS_KEY   = 'tf_active_workspace'
 const AUTOMATIONS_KEY = 'tf_automations'
+const GOALS_KEY       = 'tf_goals'
 const INBOX_COLS_KEY  = 'tf_inbox_columns'
 const CUSTOM_VIEWS_KEY= 'tf_custom_views'   // Record<scopeKey, CustomProjectView[]> — todas as visualizações personalizadas, de qualquer escopo (projeto, espaço, pasta, minhas/todas tarefas)
 export const scopeKeyForProject = (id: string) => `project:${id}`
@@ -56,6 +59,7 @@ interface AppState {
   workspaces:  Workspace[]
   activeWorkspaceId: string
   automations: Automation[]
+  goals:       Goal[]
   inboxColumns: ColumnDef[]
   undoStack:   Snapshot[]
   customViewsByScope: Record<string, CustomProjectView[]>   // visualizações personalizadas por escopo (projeto/espaço/pasta/minhas/todas)
@@ -68,6 +72,7 @@ interface AppState {
   selectedTaskId:  string | null
   filterPanelOpen: boolean
   aiPanelOpen:     boolean
+  notesPanelOpen:  boolean
   quickCaptureOpen: boolean
   mobileSidebarOpen: boolean
   filters:         FilterState
@@ -91,6 +96,7 @@ interface AppState {
   setSelectedTask: (id: string | null) => void
   toggleFilterPanel: () => void
   toggleAIPanel:   () => void
+  toggleNotesPanel: () => void
   toggleQuickCapture: () => void
   openQuickCapture:   () => void
   closeQuickCapture:  () => void
@@ -186,24 +192,36 @@ interface AppState {
   deleteAutomation: (id: string) => void
   runAutomations:   (trigger: string, taskId: string, prev?: Partial<Task>) => void
 
+  // Metas / Objetivos
+  addGoal:      (g: Omit<Goal,'id'|'workspaceId'|'createdAt'|'updatedAt'>) => Goal
+  updateGoal:   (id: string, patch: Partial<Goal>) => void
+  deleteGoal:   (id: string) => void
+
   getAllTags:   () => string[]
   getAllAssignees: () => string[]
   getSubtasks: (parentId: string) => Task[]
   filteredTasks: (tasks: Task[]) => Task[]
   init: () => void
 
-  // Sincronização entre Dispositivos
+  // Sincronização entre Dispositivos (Firestore, agrupada por código — sem tela de login;
+  // o login anônimo do Firebase só existe para satisfazer as regras de segurança)
   syncCode: string | null
-  syncStatus: 'idle' | 'syncing' | 'error' | 'success'
+  cloudSyncStatus: 'idle' | 'syncing' | 'synced' | 'error'
   lastSyncedAt: string | null
-  isSyncActive: boolean
 
-  setSyncCode: (code: string | null) => void
-  activateSync: (code: string, forceUpload?: boolean) => Promise<boolean>
-  disableSync: () => void
-  pushStateToServer: () => Promise<void>
-  pullStateFromServer: (codeToUse?: string) => Promise<boolean>
-  generateSyncCode: () => Promise<string>
+  startCloudSync: () => void
+  stopCloudSync: () => void
+  pushToCloud: () => Promise<void>
+  linkToCode: (code: string, mode: 'pull' | 'push') => Promise<boolean>
+  generateNewCode: () => void
+}
+
+const SYNC_CODE_KEY = 'tf_sync_code'
+function randomSyncCode() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  let code = 'TF-'
+  for (let i = 0; i < 6; i++) code += chars.charAt(Math.floor(Math.random() * chars.length))
+  return code
 }
 
 let syncDebounceTimeout: any = null;
@@ -212,8 +230,8 @@ function triggerSyncPush() {
   syncDebounceTimeout = setTimeout(() => {
     try {
       const store = useAppStore.getState();
-      if (store && store.isSyncActive && store.syncCode) {
-        store.pushStateToServer();
+      if (store && store.syncCode) {
+        store.pushToCloud();
       }
     } catch (e) {
       console.error("Error triggerSyncPush:", e);
@@ -221,7 +239,48 @@ function triggerSyncPush() {
   }, 1500);
 }
 
-function pProjects(p: Project[], t: Task[]) { 
+let unsubscribeCloud: (() => void) | null = null
+
+// Aplica um documento vindo do Firestore (de um onSnapshot ou de um getDoc avulso) ao
+// estado local — usado tanto pela assinatura em tempo real quanto por "vincular dispositivo".
+async function applyRemoteSnapshot(set: (partial: any) => void, get: () => AppState, code: string, data: any) {
+  set({ cloudSyncStatus: 'syncing' });
+  try {
+    const projects = (data.projects ?? []).map(migrateProject);
+    const migratedTasks = await hydrateAttachments(code, (data.tasks ?? []).map(migrateTask));
+
+    localProjects.set(projects as any);
+    localTasks.set(migratedTasks as any);
+    if (data.spaces) localStorage.setItem(SPACES_KEY, JSON.stringify(data.spaces));
+    if (data.folders) localStorage.setItem(FOLDERS_KEY, JSON.stringify(data.folders));
+    if (data.workspaces) localStorage.setItem(WORKSPACES_KEY, JSON.stringify(data.workspaces));
+    if (data.activeWorkspaceId) localStorage.setItem(ACTIVE_WS_KEY, data.activeWorkspaceId);
+    if (data.automations) localStorage.setItem(AUTOMATIONS_KEY, JSON.stringify(data.automations));
+    if (data.goals) localStorage.setItem(GOALS_KEY, JSON.stringify(data.goals));
+    if (data.inboxColumns) localStorage.setItem(INBOX_COLS_KEY, JSON.stringify(data.inboxColumns));
+    if (data.customViewsByScope) localStorage.setItem(CUSTOM_VIEWS_KEY, JSON.stringify(data.customViewsByScope));
+
+    set({
+      projects: projects.length ? projects : get().projects,
+      tasks: migratedTasks,
+      spaces: data.spaces ?? get().spaces,
+      folders: data.folders ?? get().folders,
+      workspaces: data.workspaces ?? get().workspaces,
+      activeWorkspaceId: data.activeWorkspaceId ?? get().activeWorkspaceId,
+      automations: (data.automations ?? []).map(migrateAutomation),
+      goals: data.goals ?? get().goals,
+      inboxColumns: data.inboxColumns ?? get().inboxColumns,
+      customViewsByScope: data.customViewsByScope ?? get().customViewsByScope,
+      cloudSyncStatus: 'synced',
+      lastSyncedAt: new Date().toLocaleTimeString('pt-BR'),
+    });
+  } catch (e) {
+    console.error('Erro ao aplicar dados da nuvem:', e);
+    set({ cloudSyncStatus: 'error' });
+  }
+}
+
+function pProjects(p: Project[], t: Task[]) {
   localProjects.set(p as any); 
   localTasks.set(t as any);
   triggerSyncPush();
@@ -230,19 +289,18 @@ function pProjects(p: Project[], t: Task[]) {
 export const useAppStore = create<AppState>((set, get) => ({
   projects: [], tasks: [], spaces: [], folders: [],
   workspaces: [], activeWorkspaceId: DEFAULT_WORKSPACE_ID,
-  automations: [], inboxColumns: [], undoStack: [],
+  automations: [], goals: [], inboxColumns: [], undoStack: [],
   customViewsByScope: {},
   aiGeneratingKeys: [],
   activeView:'my_tasks', activeProjectId:null, activeSpaceId:null, activeFolderId:null, selectedTaskId:null,
-  filterPanelOpen:false, aiPanelOpen:false, quickCaptureOpen:false, mobileSidebarOpen:false, filters:EMPTY_FILTER,
+  filterPanelOpen:false, aiPanelOpen:false, notesPanelOpen:false, quickCaptureOpen:false, mobileSidebarOpen:false, filters:EMPTY_FILTER,
   newProjectModal:false, newProjectCtx:{}, aiProjectModal:false, aiProjectCtx:{}, enrichProjectModal:null, gutModal:{open:false,projectId:null},
   columnsModal:null, columnsModalScope:null, columnsVersion:0, newViewModal:null,
 
   // Sincronização
   syncCode: null,
-  syncStatus: 'idle',
+  cloudSyncStatus: 'idle',
   lastSyncedAt: null,
-  isSyncActive: false,
 
   pushUndo: () => {
     const { projects, tasks, spaces, folders, undoStack } = get()
@@ -262,6 +320,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSelectedTask: (id) => set({ selectedTaskId:id }),
   toggleFilterPanel: () => set(s => ({ filterPanelOpen:!s.filterPanelOpen })),
   toggleAIPanel:     () => set(s => ({ aiPanelOpen:!s.aiPanelOpen })),
+  toggleNotesPanel:  () => set(s => ({ notesPanelOpen:!s.notesPanelOpen })),
   toggleQuickCapture: () => set(s => ({ quickCaptureOpen:!s.quickCaptureOpen })),
   openQuickCapture:   () => set({ quickCaptureOpen:true }),
   closeQuickCapture:  () => set({ quickCaptureOpen:false }),
@@ -640,12 +699,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     const comment: TaskComment = {
       id:nanoid(), author:'Djemeson', text:patch.text?.trim() ?? '',
       attachment:patch.attachment, audio:patch.audio, createdAt:now.toISOString(),
+      parentId: patch.parentId ?? null,
     }
     const tasks = get().tasks.map(t => t.id===taskId ? {...t,comments:[...t.comments,comment],updatedAt:now.toISOString()} : t)
     pProjects(get().projects,tasks); set({tasks})
   },
   removeComment: (taskId, commentId) => {
-    const tasks = get().tasks.map(t => t.id===taskId ? {...t,comments:t.comments.filter(c=>c.id!==commentId),updatedAt:new Date().toISOString()} : t)
+    // Remove o comentário e também suas respostas (thread), evitando respostas órfãs.
+    const tasks = get().tasks.map(t => t.id===taskId
+      ? {...t, comments:t.comments.filter(c=>c.id!==commentId && c.parentId!==commentId), updatedAt:new Date().toISOString()}
+      : t)
     pProjects(get().projects,tasks); set({tasks})
   },
 
@@ -675,6 +738,22 @@ export const useAppStore = create<AppState>((set, get) => ({
       })
   },
 
+  // ── Metas / Objetivos ─────────────────────────────────────────────────
+  addGoal: (g) => {
+    const goal: Goal = { ...g, id:nanoid(), workspaceId:get().activeWorkspaceId, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString() }
+    const goals = [...get().goals, goal]
+    saveJSON(GOALS_KEY, goals); set({ goals })
+    return goal
+  },
+  updateGoal: (id, patch) => {
+    const goals = get().goals.map(g => g.id===id ? {...g,...patch,updatedAt:new Date().toISOString()} : g)
+    saveJSON(GOALS_KEY, goals); set({ goals })
+  },
+  deleteGoal: (id) => {
+    const goals = get().goals.filter(g => g.id!==id)
+    saveJSON(GOALS_KEY, goals); set({ goals })
+  },
+
   getAllTags:   () => [...new Set(get().tasks.filter(t => t.workspaceId===get().activeWorkspaceId).flatMap(t => t.tags))].sort(),
   getAllAssignees: () => [...new Set(get().tasks.filter(t => t.workspaceId===get().activeWorkspaceId && t.assignee).map(t => t.assignee))].sort(),
   getSubtasks: (parentId) => get().tasks.filter(t => t.parentId===parentId),
@@ -690,215 +769,97 @@ export const useAppStore = create<AppState>((set, get) => ({
     })
   },
 
-  setSyncCode: (code) => {
-    if (code) {
-      localStorage.setItem('tf_sync_code', code);
-    } else {
-      localStorage.removeItem('tf_sync_code');
-    }
-    set({ syncCode: code });
-  },
-
-  generateSyncCode: async () => {
-    set({ syncStatus: 'syncing' });
+  pushToCloud: async () => {
+    const code = get().syncCode;
+    if (!code || !db) return;
+    set({ cloudSyncStatus: 'syncing' });
     try {
+      const tasks = await stripAndUploadAttachments(code, get().tasks);
       const stateToSync = {
         projects: get().projects,
-        tasks: get().tasks,
+        tasks,
         spaces: get().spaces,
         folders: get().folders,
         workspaces: get().workspaces,
         activeWorkspaceId: get().activeWorkspaceId,
         automations: get().automations,
+        goals: get().goals,
         inboxColumns: get().inboxColumns,
         customViewsByScope: get().customViewsByScope,
+        updatedAt: Date.now(),
       };
-
-      const res = await fetch('/api/sync/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ state: stateToSync })
-      });
-      const data = await res.json();
-      if (data.success && data.syncCode) {
-        localStorage.setItem('tf_sync_code', data.syncCode);
-        localStorage.setItem('tf_is_sync_active', 'true');
-        localStorage.setItem('tf_last_synced_at', new Date().toISOString());
-        set({
-          syncCode: data.syncCode,
-          isSyncActive: true,
-          syncStatus: 'success',
-          lastSyncedAt: new Date().toLocaleTimeString('pt-BR')
-        });
-        return data.syncCode;
-      }
+      await setDoc(doc(db, 'syncGroups', code), stateToSync);
+      set({ cloudSyncStatus: 'synced', lastSyncedAt: new Date().toLocaleTimeString('pt-BR') });
     } catch (e) {
-      console.error(e);
+      console.error('Erro ao sincronizar com a nuvem:', e);
+      set({ cloudSyncStatus: 'error' });
     }
-    set({ syncStatus: 'error' });
-    throw new Error("Erro ao gerar o código de sincronização no servidor.");
   },
 
-  activateSync: async (code, forceUpload) => {
-    const formattedCode = code.trim().toUpperCase();
-    set({ syncStatus: 'syncing' });
-    try {
-      if (forceUpload) {
-        const stateToSync = {
-          projects: get().projects,
-          tasks: get().tasks,
-          spaces: get().spaces,
-          folders: get().folders,
-          workspaces: get().workspaces,
-          activeWorkspaceId: get().activeWorkspaceId,
-          automations: get().automations,
-          inboxColumns: get().inboxColumns,
-          customViewsByScope: get().customViewsByScope,
-        };
-
-        const res = await fetch('/api/sync/push', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ syncCode: formattedCode, state: stateToSync })
-        });
-        const data = await res.json();
-        if (data.success) {
-          localStorage.setItem('tf_sync_code', formattedCode);
-          localStorage.setItem('tf_is_sync_active', 'true');
-          localStorage.setItem('tf_last_synced_at', new Date().toISOString());
-          set({
-            syncCode: formattedCode,
-            isSyncActive: true,
-            syncStatus: 'success',
-            lastSyncedAt: new Date().toLocaleTimeString('pt-BR')
-          });
-          return true;
-        }
-      } else {
-        const success = await get().pullStateFromServer(formattedCode);
-        if (success) {
-          localStorage.setItem('tf_sync_code', formattedCode);
-          localStorage.setItem('tf_is_sync_active', 'true');
-          set({
-            syncCode: formattedCode,
-            isSyncActive: true
-          });
-          return true;
-        }
-      }
-    } catch (e) {
-      console.error(e);
+  startCloudSync: () => {
+    if (!db) return;
+    let code = get().syncCode ?? localStorage.getItem(SYNC_CODE_KEY);
+    if (!code) {
+      code = randomSyncCode();
+      localStorage.setItem(SYNC_CODE_KEY, code);
     }
-    set({ syncStatus: 'error' });
-    return false;
-  },
+    if (unsubscribeCloud) unsubscribeCloud();
+    set({ syncCode: code });
 
-  disableSync: () => {
-    localStorage.removeItem('tf_sync_code');
-    localStorage.removeItem('tf_is_sync_active');
-    localStorage.removeItem('tf_last_synced_at');
-    set({
-      syncCode: null,
-      isSyncActive: false,
-      syncStatus: 'idle',
-      lastSyncedAt: null
+    unsubscribeCloud = onSnapshot(doc(db, 'syncGroups', code), async (snap) => {
+      // Ignora o "eco" da própria escrita local (evita loop push→pull→push)
+      if (snap.metadata.hasPendingWrites) return;
+
+      if (!snap.exists()) {
+        // Primeiro dispositivo neste código: semeia a nuvem com o estado local atual
+        get().pushToCloud();
+        return;
+      }
+
+      await applyRemoteSnapshot(set, get, code!, snap.data());
+    }, (err) => {
+      console.error('Erro na assinatura em tempo real:', err);
+      set({ cloudSyncStatus: 'error' });
     });
   },
 
-  pushStateToServer: async () => {
-    const code = get().syncCode;
-    if (!code || !get().isSyncActive) return;
+  stopCloudSync: () => {
+    if (unsubscribeCloud) { unsubscribeCloud(); unsubscribeCloud = null; }
+    set({ cloudSyncStatus: 'idle' });
+  },
 
-    set({ syncStatus: 'syncing' });
+  linkToCode: async (rawCode, mode) => {
+    if (!db) return false;
+    const code = rawCode.trim().toUpperCase();
+    set({ cloudSyncStatus: 'syncing' });
     try {
-      const stateToSync = {
-        projects: get().projects,
-        tasks: get().tasks,
-        spaces: get().spaces,
-        folders: get().folders,
-        workspaces: get().workspaces,
-        activeWorkspaceId: get().activeWorkspaceId,
-        automations: get().automations,
-        inboxColumns: get().inboxColumns,
-        customViewsByScope: get().customViewsByScope,
-      };
+      if (unsubscribeCloud) { unsubscribeCloud(); unsubscribeCloud = null; }
+      localStorage.setItem(SYNC_CODE_KEY, code);
+      set({ syncCode: code });
 
-      const res = await fetch('/api/sync/push', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ syncCode: code, state: stateToSync })
-      });
-      const data = await res.json();
-      if (data.success) {
-        set({
-          syncStatus: 'success',
-          lastSyncedAt: new Date().toLocaleTimeString('pt-BR')
-        });
-        localStorage.setItem('tf_last_synced_at', new Date().toISOString());
+      if (mode === 'push') {
+        await get().pushToCloud();
       } else {
-        set({ syncStatus: 'error' });
+        const snap = await getDoc(doc(db, 'syncGroups', code));
+        if (!snap.exists()) { set({ cloudSyncStatus: 'error' }); return false; }
+        await applyRemoteSnapshot(set, get, code, snap.data());
       }
+
+      get().startCloudSync();
+      return true;
     } catch (e) {
-      console.error("Error pushing state to server:", e);
-      set({ syncStatus: 'error' });
+      console.error('Erro ao vincular código de sincronização:', e);
+      set({ cloudSyncStatus: 'error' });
+      return false;
     }
   },
 
-  pullStateFromServer: async (codeToUse) => {
-    const code = codeToUse || get().syncCode;
-    if (!code) return false;
-
-    set({ syncStatus: 'syncing' });
-    try {
-      const res = await fetch('/api/sync/pull', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ syncCode: code })
-      });
-      if (res.status === 404) {
-        set({ syncStatus: 'error' });
-        return false;
-      }
-      const data = await res.json();
-      if (data.success && data.state) {
-        const { projects, tasks, spaces, folders, workspaces, activeWorkspaceId, automations, inboxColumns, customViewsByScope } = data.state;
-
-        // Save locally to storage
-        if (projects) {
-          localProjects.set(projects);
-          localTasks.set(tasks || []);
-        }
-        if (spaces) localStorage.setItem(SPACES_KEY, JSON.stringify(spaces));
-        if (folders) localStorage.setItem(FOLDERS_KEY, JSON.stringify(folders));
-        if (workspaces) localStorage.setItem(WORKSPACES_KEY, JSON.stringify(workspaces));
-        if (activeWorkspaceId) localStorage.setItem(ACTIVE_WS_KEY, activeWorkspaceId);
-        if (automations) localStorage.setItem(AUTOMATIONS_KEY, JSON.stringify(automations));
-        if (inboxColumns) localStorage.setItem(INBOX_COLS_KEY, JSON.stringify(inboxColumns));
-        if (customViewsByScope) localStorage.setItem(CUSTOM_VIEWS_KEY, JSON.stringify(customViewsByScope));
-
-        // Update Zustand state (bypassing triggers)
-        set({
-          projects: projects || get().projects,
-          tasks: tasks || get().tasks,
-          spaces: spaces || get().spaces,
-          folders: folders || get().folders,
-          workspaces: workspaces || get().workspaces,
-          activeWorkspaceId: activeWorkspaceId || get().activeWorkspaceId,
-          automations: automations || get().automations,
-          inboxColumns: inboxColumns || get().inboxColumns,
-          customViewsByScope: customViewsByScope || get().customViewsByScope,
-          syncStatus: 'success',
-          lastSyncedAt: new Date().toLocaleTimeString('pt-BR')
-        });
-
-        localStorage.setItem('tf_last_synced_at', new Date().toISOString());
-        return true;
-      }
-    } catch (e) {
-      console.error("Error pulling state from server:", e);
-    }
-    set({ syncStatus: 'error' });
-    return false;
+  generateNewCode: () => {
+    if (unsubscribeCloud) { unsubscribeCloud(); unsubscribeCloud = null; }
+    const code = randomSyncCode();
+    localStorage.setItem(SYNC_CODE_KEY, code);
+    set({ syncCode: code });
+    get().startCloudSync();
   },
 
   init: () => {
@@ -908,6 +869,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const spaces      = loadJSON<Record<string,unknown>[]>(SPACES_KEY, []).map(migrateSpace)
     const folders     = loadJSON<Record<string,unknown>[]>(FOLDERS_KEY, []).map(migrateFolder)
     const automations = loadJSON<Record<string,unknown>[]>(AUTOMATIONS_KEY, []).map(migrateAutomation)
+    const goals       = loadJSON<Goal[]>(GOALS_KEY, [])
     const inboxColumns= loadJSON<ColumnDef[]>(INBOX_COLS_KEY, [])
 
     let workspaces = loadJSON<Workspace[]>(WORKSPACES_KEY, [])
@@ -930,38 +892,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     })
     if (migrated) saveJSON(CUSTOM_VIEWS_KEY, customViewsByScope)
 
-    const syncCode = localStorage.getItem('tf_sync_code') || null;
-    const isSyncActive = localStorage.getItem('tf_is_sync_active') === 'true';
-    const lastSyncedAtRaw = localStorage.getItem('tf_last_synced_at');
-    const lastSyncedAt = lastSyncedAtRaw ? new Date(lastSyncedAtRaw).toLocaleTimeString('pt-BR') : null;
-
     if (projects.length===0) {
       const seeded = SEED_PROJECTS.map(p => ({ ...p, folderId:null, taskOpenMode:'center' as const, customViews:[] }))
       const seededTasks = SEED_TASKS.map(t => ({ ...t, taskType:'task' as const }))
       pProjects(seeded as any, seededTasks as any)
-      set({ 
-        projects: seeded as any, tasks: seededTasks as any, spaces, folders, workspaces, activeWorkspaceId, automations, inboxColumns, customViewsByScope,
-        syncCode, isSyncActive, lastSyncedAt, syncStatus: 'idle'
+      set({
+        projects: seeded as any, tasks: seededTasks as any, spaces, folders, workspaces, activeWorkspaceId, automations, goals, inboxColumns, customViewsByScope,
       })
     } else {
-      set({ 
-        projects, tasks, spaces, folders, workspaces, activeWorkspaceId, automations, inboxColumns, customViewsByScope,
-        syncCode, isSyncActive, lastSyncedAt, syncStatus: 'idle'
+      set({
+        projects, tasks, spaces, folders, workspaces, activeWorkspaceId, automations, goals, inboxColumns, customViewsByScope,
       })
     }
-
-    // Pull inicial se sincronização estiver ativa
-    if (isSyncActive && syncCode) {
-      setTimeout(() => {
-        get().pullStateFromServer();
-      }, 500);
-    }
-
-    // Polling em background a cada 30 segundos se sincronização estiver ativa
-    setInterval(() => {
-      if (document.visibilityState === 'visible' && get().isSyncActive && get().syncCode) {
-        get().pullStateFromServer();
-      }
-    }, 30000);
   },
 }))
