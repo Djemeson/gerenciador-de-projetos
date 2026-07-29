@@ -155,6 +155,14 @@ Regras:
   "molde", não do conteúdo).
 - Ações (`+` e `...`) aparecem **no hover**. O item ativo fica destacado com pílula
   clara (`bg-[#EEF0FF] text-[#3730A3]`), igual ao nav primário.
+- **O espaço reservado à direita cresce só no hover** (29/07/2026): o `padding-right` da
+  linha em repouso reserva apenas o que está realmente visível — nada (`pr-3`) quando não
+  há contagem, `pr-10` quando há (espaço: `pr-9`/`pr-[68px]`, por causa do chevron sempre
+  visível) — e sobe para `pr-16` (espaço: `pr-24`) no `group-hover`, quando `+` e `...`
+  aparecem. Antes o padding era fixo no tamanho do estado de hover, então o nome truncava
+  cedo com 50px de vazio à direita ("Novo Proj…" numa linha quase vazia). A transição é
+  `transition-[padding,background-color,color]` para o nome não saltar. **Ao mexer nessas
+  linhas, manter essa regra**: reservar o espaço do hover em repouso é o que causa o bug.
 - Hierarquia dentro do espaço tem linha-guia vertical à esquerda. Pasta vazia mostra "Vazia".
 - **Redimensionável e retrátil**: a sidebar tem largura ajustável arrastando a borda
   direita (alça `col-resize`, 184–420px, salva em `tf_sidebar_width`, padrão 240) e

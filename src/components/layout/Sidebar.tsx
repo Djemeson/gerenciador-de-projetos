@@ -343,7 +343,7 @@ export function Sidebar() {
         className={`relative flex items-center group/proj rounded-lg mx-2 ${inFolder ? (dark ? 'folder-line-item-dark' : 'folder-line-item-light') : ''} ${isLastCls} ${dragProjId===p.id ? 'opacity-40' : ''} ${dropHint===p.id && dragProjId!==p.id ? 'ring-1 ring-brand-400 ring-inset' : ''}`}>
         <button
           onClick={() => setView('project_detail', p.id)}
-          className={`flex items-center gap-2.5 flex-1 min-w-0 py-[7px] pr-16 rounded-lg transition-colors text-left text-[13px] ${inFolder ? 'pl-[64px]' : 'pl-10'}
+          className={`flex items-center gap-2.5 flex-1 min-w-0 py-[7px] rounded-lg transition-[padding,background-color,color] duration-200 text-left text-[13px] ${inFolder ? 'pl-[64px]' : 'pl-10'} ${count > 0 ? 'pr-10' : 'pr-3'} group-hover/proj:pr-16
             ${isActive ? `bg-[#EEF0FF] font-semibold ${dark ? 'text-[#3730A3]' : 'text-[#4338CA]'}` : `${rowTextCls} ${rowHoverCls}`}`}
         >
           <span className="iconpick-trigger transition-[filter] hover:brightness-125" onClick={e => { e.stopPropagation(); const anchor=e.currentTarget; setIconPicker(t => (t?.kind==='project'&&t.id===p.id) ? null : {kind:'project',id:p.id,anchor}) }}>
@@ -660,7 +660,7 @@ export function Sidebar() {
                 className={`relative flex items-center group/space rounded-xl mx-2 border transition-colors ${dropHint==='sp:'+s.id ? 'ring-1 ring-brand-400 ring-inset' : ''} ${dragSpaceId===s.id ? 'opacity-40' : ''} ${isActiveSpace ? 'shadow-sm' : ''}`}>
                 <button
                   onClick={() => openSpace(s.id)}
-                  className="flex items-center gap-2 flex-1 min-w-0 py-2 pl-2 pr-24 text-[14px] font-bold transition-colors text-left"
+                  className={`flex items-center gap-2 flex-1 min-w-0 py-2 pl-2 text-[14px] font-bold transition-[padding,background-color,color] duration-200 text-left ${spaceTaskCount(s.id) > 0 ? 'pr-[68px]' : 'pr-9'} group-hover/space:pr-24`}
                 >
                   <span className="iconpick-trigger transition-transform group-hover/space:scale-105" onClick={e => { e.stopPropagation(); const anchor=e.currentTarget; setIconPicker(t => (t?.kind==='space'&&t.id===s.id) ? null : {kind:'space',id:s.id,anchor}) }}>
                     <SpaceBadge space={s} size={24}/>
@@ -749,7 +749,7 @@ export function Sidebar() {
                             if (isActiveFolder) updateFolder(f.id, { collapsed: !f.collapsed })
                             else openFolder(f.id)
                           }}
-                          className="flex items-center gap-2.5 flex-1 min-w-0 py-[7px] pl-10 pr-16 text-[13.5px] font-semibold transition-colors text-left"
+                          className={`flex items-center gap-2.5 flex-1 min-w-0 py-[7px] pl-10 text-[13.5px] font-semibold transition-[padding,background-color,color] duration-200 text-left ${fCount > 0 ? 'pr-10' : 'pr-3'} group-hover/folder:pr-16`}
                         >
                           <span className="colorpick-trigger" onClick={e => { e.stopPropagation(); const anchor=e.currentTarget; setIconPicker(t => (t?.kind==='folder'&&t.id===f.id) ? null : {kind:'folder',id:f.id,anchor}) }}>
                             <FolderBadgeIcon folder={f} open={!f.collapsed} size={16}/>
