@@ -396,7 +396,14 @@ Em `src/types/index.ts`:
 - `Space { id, name, color, icon?, collapsed, ... }`
 - `Folder { id, name, spaceId, icon?, collapsed, ... }`
 - `Project { id, name, color, description, icon?, spaceId|null, folderId|null, gut, ... }`
-- `Task { id, projectId, parentId|null, title, status, priority, taskType, ... }`
+- `Task { id, projectId, parentId|null, title, status, priority, taskType, completedAt?, ... }`
+  - **`completedAt`** é gravado **uma única vez**, na transição para "Concluído"
+    (`updateTask`), e zerado ao reabrir. Antes o app usava `updatedAt` como proxy, o que
+    fazia uma tarefa concluída em março voltar para o relatório de hoje ao ser editada.
+    `migrateTask` preenche dados antigos com o `updatedAt` da tarefa já concluída, e o
+    `init()` **grava** essa migração (`needsCompletionBackfill`) — migrar só em memória
+    recriaria o valor a cada abertura, mantendo o bug. Todo número histórico do relatório
+    depende desse campo.
 
 Regras:
 
@@ -690,7 +697,42 @@ Regras:
 - **Alvo de drop** sempre destacado com `ring-brand-400` durante o arraste.
 - A **largura do painel da tarefa** é salva por usuário (`tf_taskpanel_width`).
 
-## 13.3. Relatórios (recorte de datas)
+## 13.3. Relatórios (painel analítico)
+
+> Reconstruído em 29/07/2026. Estrutura: **cabeçalho** (filtros) → **resumo executivo** →
+> **KPIs** → **abas** (Fluxo · Progresso · Distribuição · Riscos). Resumo e KPIs ficam
+> sempre visíveis; o detalhe vive nas abas, senão a tela vira uma parede de doze blocos.
+> Mesmo padrão de abas do `TaskPanel`, com a escolha lembrada (`tf_reports_tab`).
+
+- **Cálculos ficam em `lib/reportMetrics.ts`**, não na view: intervalos (`effectiveRange`,
+  `previousRange`), KPIs (`computeKpis` — inclui lead time, idade do backlog e paradas),
+  variação (`delta`), série do gráfico (`buildSeries`) e agrupamentos (`bySpace`, `byTag`,
+  `byAssignee`, `topByGut`, `averageProgress`). Métrica nova entra ali, com teste mental de
+  "isso é calculável com os dados que existem?".
+- **Comparação com o período anterior** (`previousRange`) só aparece onde é medível:
+  concluídas e criadas. **"Em atraso" e "urgentes" não têm variação** — seriam a foto de
+  hoje contra uma foto de ontem que o app não guarda (não há histórico de status). Não
+  inventar esse número depois.
+- **Gráfico de fluxo** (`components/reports/ActivityChart.tsx`): duas séries — criadas ×
+  concluídas — com grade e escala "bonita" (1/2/5/10). É o que responde "entra mais do que
+  sai?". Granularidade acompanha o recorte (dia ≤14, semana ≤92, senão mês; teto de 24
+  barras).
+- **Todo indicador leva a uma lista**: `components/reports/TaskListModal.tsx` é o único
+  drill-down do painel (KPIs, prioridade, etiquetas, pessoas, paradas), com exportação
+  própria e clique que abre a tarefa no projeto. Não criar um segundo modal de lista.
+- **Peças visuais** em `components/reports/ReportPrimitives.tsx` (`Section`, `KpiCard`,
+  `DeltaBadge`, `MiniBar`, `EmptyState`) — reusar, não recriar molduras por seção.
+- **Cores de prioridade vêm de `PRIORITY_OPTIONS`** (`Select.tsx`), nunca redigitadas: o
+  painel antigo tinha a paleta duplicada e não acompanhava mudanças do design system.
+- **Exportação**: `lib/exportCsv.ts` (`downloadCsv`) é a fonte única — separador `;` e BOM
+  UTF-8 porque o destino é o Excel em português. Usado no botão CSV do cabeçalho e dentro
+  do modal de lista.
+- **Impressão**: bloco `@media print` no `index.css` com `print-color-adjust: exact`
+  (sem ele as barras e selos saem brancos), sidebar oculta, scroll liberado e
+  `print:break-inside-avoid` nos cartões. **As abas inativas usam `hidden print:block`** —
+  na tela aparece uma, no papel sai o relatório completo.
+
+### 13.3.1. Recorte e filtros
 
 - O card **"Concluídas esta semana" é clicável** → abre um modal com a lista das tarefas
   concluídas naquela semana, com **seletor de data** (Anterior/Próxima + campo de data)
@@ -699,6 +741,9 @@ Regras:
   único seletor de data de período do app — não criar input de data novo aqui), com os três
   campos (`completedAt`/`dueDate`/`createdAt`), presets relativos e **entre datas**. A
   escolha é lembrada em `tf_reports_datefield`/`tf_reports_period`.
+- **Filtros de escopo** ao lado do recorte: espaço, projeto, responsável e etiqueta, via
+  `Select` (proibido `<select>` nativo, seção 8), cada um lembrado em `tf_reports_*`. O
+  escopo é aplicado **antes** do recorte de datas; "Limpar" zera tudo de uma vez.
 - **Duas naturezas de métrica, e o recorte não vale para as duas** — regra que não pode ser
   "simplificada" depois:
   - **Retrospectivas** (concluídas no período, gráfico, lista do modal) usam o recorte.

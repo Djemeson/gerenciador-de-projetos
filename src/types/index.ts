@@ -253,6 +253,13 @@ export interface Task {
   comments: TaskComment[]
   createdAt: string
   updatedAt: string
+  /**
+   * Momento em que a tarefa foi para "Concluído", gravado uma única vez na transição
+   * (`updateTask`) e zerado ao reabrir. Antes disso o app usava `updatedAt` como proxy —
+   * o que fazia uma tarefa concluída em março "voltar" para o relatório de hoje só por
+   * ter sido editada. Todo número histórico depende deste campo.
+   */
+  completedAt?: string | null
 }
 
 // ── Project ───────────────────────────────────────────────────────────────
@@ -317,6 +324,11 @@ export function migrateTask(raw: Record<string, unknown>): Task {
     comments: (raw.comments as TaskComment[]) ?? [],
     createdAt: String(raw.createdAt ?? new Date().toISOString()),
     updatedAt: String(raw.updatedAt ?? new Date().toISOString()),
+    // Dados anteriores ao campo: a melhor aproximação disponível é o `updatedAt` da
+    // tarefa já concluída — o mesmo proxy usado antes, mas congelado de uma vez em vez
+    // de mudar a cada edição.
+    completedAt: (raw.completedAt as string | null | undefined)
+      ?? ((raw.status as TaskStatus) === 'done' ? String(raw.updatedAt ?? new Date().toISOString()) : null),
   }
 }
 

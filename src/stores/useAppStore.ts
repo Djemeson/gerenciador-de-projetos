@@ -617,7 +617,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   updateTask: (id, patch) => {
     const prev = get().tasks.find(t => t.id===id)
-    const tasks = get().tasks.map(t => t.id===id ? {...t,...patch,updatedAt:new Date().toISOString()} : t)
+    const now = new Date().toISOString()
+    // `completedAt` é gravado aqui, na transição de status, e só aqui: é o que permite ao
+    // relatório dizer "concluídas em julho" sem que uma edição posterior mova a tarefa de
+    // período (ver types/index.ts). Reabrir a tarefa limpa o campo.
+    const completionPatch: Partial<Task> =
+      patch.status && patch.status !== prev?.status
+        ? { completedAt: patch.status === 'done' ? (patch.completedAt ?? now) : null }
+        : {}
+    const tasks = get().tasks.map(t => t.id===id ? {...t,...patch,...completionPatch,updatedAt:now} : t)
     pProjects(get().projects, tasks); set({ tasks })
     if (patch.status && prev?.status !== patch.status) {
       get().runAutomations('status_changed', id, prev)
@@ -850,7 +858,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   init: () => {
     const rawProjects = localProjects.getAll() as unknown as Record<string, unknown>[]
     const projects    = rawProjects.map(migrateProject)
-    const tasks       = (localTasks.getAll() as unknown as Record<string,unknown>[]).map(migrateTask)
+    const rawTasks    = localTasks.getAll() as unknown as Record<string,unknown>[]
+    const tasks       = rawTasks.map(migrateTask)
+
+    // `completedAt` derivado precisa ser **gravado** na primeira carga: migrar só em
+    // memória faria o valor ser recalculado do `updatedAt` a cada abertura do app, que é
+    // exatamente o problema que o campo veio resolver (tarefa antiga "pulando" de período
+    // ao ser editada). Grava uma vez e congela.
+    const needsCompletionBackfill = rawTasks.some(t => t.status === 'done' && t.completedAt === undefined)
+    if (needsCompletionBackfill) localTasks.set(tasks as any)
     const spaces      = loadJSON<Record<string,unknown>[]>(SPACES_KEY, []).map(migrateSpace)
     const folders     = loadJSON<Record<string,unknown>[]>(FOLDERS_KEY, []).map(migrateFolder)
     const automations = loadJSON<Record<string,unknown>[]>(AUTOMATIONS_KEY, []).map(migrateAutomation)

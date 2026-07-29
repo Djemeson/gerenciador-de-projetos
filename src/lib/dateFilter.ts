@@ -120,7 +120,9 @@ export function periodDisplayLabel(value: DateFilterValue): string {
 export function taskDateValue(task: Task, field: DateFieldKey): string | null {
   if (field === 'dueDate')     return task.dueDate ?? null
   if (field === 'createdAt')   return task.createdAt ?? null
-  if (field === 'completedAt') return task.status === 'done' ? task.updatedAt : null
+  // `completedAt` é gravado na transição para "Concluído" (useAppStore). O fallback para
+  // `updatedAt` cobre tarefas que ainda não passaram pela migração de `migrateTask`.
+  if (field === 'completedAt') return task.completedAt ?? (task.status === 'done' ? task.updatedAt : null)
   return null
 }
 

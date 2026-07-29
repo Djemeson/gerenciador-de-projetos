@@ -324,6 +324,35 @@
   .login-rise { opacity: 1; animation: none; }
 }
 
+/* ── Impressão (botão "Imprimir" dos Relatórios / salvar em PDF) ───────────
+   Sem isto o navegador descarta os fundos coloridos: barras de progresso, selos de
+   GUT e do gráfico saíam brancos, e o relatório impresso não dizia nada. */
+@media print {
+  /* Imprime as cores como na tela (barras, selos, gráfico) */
+  * {
+    -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+  }
+
+  /* Só o conteúdo: fora navegação, painéis flutuantes e notificações */
+  aside, .no-print { display: none !important; }
+
+  html, body, #root { height: auto !important; overflow: visible !important; background: #fff !important; }
+  main { padding: 0 !important; }
+
+  /* O app é uma casca com scroll interno; no papel tudo precisa fluir */
+  .overflow-y-auto, .overflow-hidden, .overflow-x-auto {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  /* Cartões e seções não podem ser cortados no meio pela quebra de página */
+  .print\:break-inside-avoid { break-inside: avoid; page-break-inside: avoid; }
+
+  @page { margin: 12mm; }
+}
+
 /* Chevron suave ao colapsar */
 .tf-chevron { transition: transform 0.15s ease; }
 .tf-chevron-open { transform: rotate(0deg); }
