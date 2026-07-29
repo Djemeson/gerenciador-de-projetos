@@ -14,7 +14,10 @@ Se uma decisão precisar mudar, **atualize `DIRETRIZES.md` na mesma entrega**.
 
 ## Lembretes rápidos
 
-- **Não** dar push para o GitHub — o push é manual, feito pelo Djemeson.
+- **Publicar é sempre nos dois** (regra desde 29/07/2026, substitui o "push manual"):
+  o que vai para o GitHub vai para a Vercel e vice-versa. Na prática é um movimento só —
+  a Vercel faz deploy de produção a cada push na `main` —, então **nunca deixar um commit
+  parado no local** depois de uma entrega aprovada, e conferir o deploy depois do push.
 - Interface sempre em **português (Brasil)**.
 - A verificação local de build pode falhar por atraso de sincronização do OneDrive;
   quando ocorrer, confirmar integridade relendo os arquivos e validar no build do

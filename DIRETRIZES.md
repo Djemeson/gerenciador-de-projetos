@@ -541,7 +541,12 @@ Regras:
 
 ## 10. Fluxo de trabalho
 
-- **Não** subir nada para o GitHub automaticamente — o push é **manual**, feito pelo Djemeson.
+- **Publicar é nos dois lugares** (29/07/2026 — substitui a regra anterior de push manual):
+  entrega aprovada vira commit + `git push origin main`, e a Vercel faz o deploy de produção
+  sozinha a partir daí (integração Git, projeto `gerenciador-de-projetos`, domínio
+  `gerenciador-de-projetos-silk.vercel.app`). Não existe mais "subir só no GitHub" nem
+  "subir só na Vercel": deixar commit parado no local significa produção desatualizada.
+  Depois do push, **conferir o deploy** — build verde e a página no ar.
 - Mudança nova deve respeitar este documento. Se contrariar algo aqui, **alinhar antes**
   e, se a decisão mudar, **atualizar este arquivo** na mesma entrega.
 - Idioma da interface: **português (Brasil)**.
@@ -859,8 +864,8 @@ O repositório está preparado para ser aberto em **claude.ai/code** (navegador 
 Claude no celular), onde a sessão roda numa VM da Anthropic com o repo clonado do GitHub.
 
 - **A VM clona do GitHub, não do PC**: o que não estiver **commitado e enviado** não existe
-  na sessão. Isso não muda a regra do push manual (seção 10) — só significa que o Djemeson
-  precisa dar o push antes de continuar o trabalho pelo celular.
+  na sessão. Com a regra de publicar sempre nos dois (seção 10) isso costuma se resolver
+  sozinho, mas vale conferir antes de continuar o trabalho pelo celular.
 - **Instalação de dependências**: hook `SessionStart` em `.claude/settings.json` (versionado)
   chama `scripts/install_pkgs.sh`. O script **sai imediatamente fora da nuvem**
   (`CLAUDE_CODE_REMOTE != true`) e pula a instalação se `node_modules/vite` já existir —
