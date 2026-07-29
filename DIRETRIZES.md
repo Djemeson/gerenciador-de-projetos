@@ -690,11 +690,30 @@ Regras:
 - **Alvo de drop** sempre destacado com `ring-brand-400` durante o arraste.
 - A **largura do painel da tarefa** é salva por usuário (`tf_taskpanel_width`).
 
-## 13.3. Relatório semanal
+## 13.3. Relatórios (recorte de datas)
 
 - O card **"Concluídas esta semana" é clicável** → abre um modal com a lista das tarefas
   concluídas naquela semana, com **seletor de data** (Anterior/Próxima + campo de data)
   para navegar para outras semanas (inclusive a anterior).
+- **Recorte de datas no cabeçalho** (29/07/2026): usa o `DatePeriodPicker` (seção 4.3, o
+  único seletor de data de período do app — não criar input de data novo aqui), com os três
+  campos (`completedAt`/`dueDate`/`createdAt`), presets relativos e **entre datas**. A
+  escolha é lembrada em `tf_reports_datefield`/`tf_reports_period`.
+- **Duas naturezas de métrica, e o recorte não vale para as duas** — regra que não pode ser
+  "simplificada" depois:
+  - **Retrospectivas** (concluídas no período, gráfico, lista do modal) usam o recorte.
+  - **Estado atual** (em atraso, urgentes ativas, taxa de conclusão, saúde dos projetos,
+    distribuição por prioridade, carga da equipe) usam `currentTasks`, que **ignora o
+    recorte quando o campo é `completedAt`**: tarefa não concluída não tem data de
+    conclusão, então cairia fora do recorte e o painel inteiro zeraria — um relatório de
+    "o que fizemos em julho" não pode afirmar que hoje não há nada atrasado. Com
+    `dueDate`/`createdAt` o recorte vale para tudo, porque toda tarefa tem esses campos.
+- **O gráfico troca de granularidade** conforme o tamanho do recorte (≤14 dias → por dia,
+  ≤92 → por semana, acima → por mês, no máximo 24 barras) e as barras contam as tarefas do
+  recorte posicionadas pelo **campo de data escolhido** — por isso o título muda entre
+  "Concluídas", "Vencimentos" e "Criadas". Sem recorte, mantém os últimos 7 dias.
+- Períodos abertos ("antes de", "depois de") não têm um dos lados: o eixo cai para a
+  menor/maior data das tarefas do recorte.
 
 ## 14. Painel da tarefa (TaskDetail) — layout estilo Todoist
 
