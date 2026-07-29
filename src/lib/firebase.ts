@@ -100,8 +100,15 @@ export async function signInWithGoogle() {
   } catch (e: any) {
     const code = e?.code
     if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment') {
-      await signInWithRedirect(auth, provider)
-      return null
+      // O redirect tem que traduzir o próprio erro: estamos dentro do catch do popup, então
+      // um throw aqui não passaria pelo friendlyAuthError de baixo e chegaria cru na tela
+      // (foi o que aconteceu com auth/unauthorized-domain na primeira subida em produção).
+      try {
+        await signInWithRedirect(auth, provider)
+        return null
+      } catch (redirectError) {
+        throw friendlyAuthError(redirectError)
+      }
     }
     throw friendlyAuthError(e)
   }
