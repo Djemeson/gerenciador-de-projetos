@@ -93,24 +93,24 @@ export function AutomationsView() {
       {/* ── Cabeçalho ── */}
       <div className="px-6 py-3.5 border-b border-gray-200 bg-white space-y-3 flex-shrink-0">
         <div className="flex items-center gap-3">
-          <Zap size={17} className="text-gray-400" />
+          <Zap size={16} className="text-gray-400" />
           <h1 className="text-[20px] font-extrabold tracking-tight text-gray-900 flex-1">Automações</h1>
           <span className="text-[11px] text-gray-400 tabnum hidden sm:inline">
             {ativas} {ativas === 1 ? 'ativa' : 'ativas'} de {automations.length}
           </span>
           <button onClick={novaDoZero}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-lg transition-colors">
-            <Plus size={13} /> Nova
+            <Plus size={14} /> Nova
           </button>
         </div>
 
         <div className="flex items-center gap-1 border-b border-gray-200 -mb-3.5">
           {TABS.map(({ id, label, icon: Icon }) => (
             <button key={id} onClick={() => setTab(id)}
-              className={`flex items-center gap-1.5 px-3 py-2 text-[12.5px] font-semibold border-b-2 transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-2 text-[12px] font-semibold border-b-2 transition-colors ${
                 tab === id ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500 hover:text-gray-800'
               }`}>
-              <Icon size={13} /> {label}
+              <Icon size={14} /> {label}
               {id === 'historico' && automationRuns.length > 0 && (
                 <span className="text-[10px] text-gray-400 tabnum">{automationRuns.length}</span>
               )}
@@ -132,7 +132,7 @@ export function AutomationsView() {
                       className="flex items-start gap-2.5 px-3.5 py-3 bg-white border border-gray-200/70 rounded-xl hover:border-brand-300 hover:bg-brand-50/30 transition-colors text-left group">
                       <Sparkles size={14} className="text-brand-400 flex-shrink-0 mt-0.5" />
                       <div className="min-w-0 flex-1">
-                        <p className="text-[12.5px] font-bold text-gray-800">{r.name}</p>
+                        <p className="text-[12px] font-bold text-gray-800">{r.name}</p>
                         <p className="text-[11px] text-gray-500 leading-relaxed mt-0.5">{r.purpose}</p>
                       </div>
                       <span className="text-[10px] font-bold text-brand-600 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5">Usar</span>
@@ -146,9 +146,9 @@ export function AutomationsView() {
             {automations.length > 0 && (
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="relative flex-1 min-w-[180px]">
-                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar automação..."
-                    className="w-full pl-8 pr-3 py-1.5 text-[12.5px] border border-gray-200 rounded-lg outline-none focus:ring-1 focus:ring-brand-400" />
+                    className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-gray-200 rounded-lg outline-none focus:ring-1 focus:ring-brand-400" />
                 </div>
                 <Filter size={12} className="text-gray-400" />
                 <Select value={projeto} onChange={setProjeto} ariaLabel="Projeto" searchable
@@ -163,7 +163,7 @@ export function AutomationsView() {
                   <Zap size={18} className="text-brand-500" />
                 </div>
                 <p className="text-[13px] font-bold text-gray-800">Nenhuma automação ainda</p>
-                <p className="text-[11.5px] text-gray-500 mt-1 max-w-[380px] mx-auto leading-relaxed">
+                <p className="text-[11px] text-gray-500 mt-1 max-w-[380px] mx-auto leading-relaxed">
                   Automação faz o trabalho repetitivo sozinha: mudar status, avisar sobre prazo,
                   etiquetar o que acabou de chegar. Escolha uma receita acima para começar.
                 </p>
@@ -200,7 +200,7 @@ export function AutomationsView() {
             </div>
             {runsRecentes.length === 0 ? (
               <div className="px-4 py-10 text-center">
-                <p className="text-[12.5px] text-gray-500 font-medium">Nenhuma execução registrada.</p>
+                <p className="text-[12px] text-gray-500 font-medium">Nenhuma execução registrada.</p>
                 <p className="text-[11px] text-gray-400 mt-1">
                   Assim que uma automação rodar, ela aparece aqui com o que mudou em cada tarefa.
                 </p>
@@ -212,14 +212,14 @@ export function AutomationsView() {
                   const Icon = meta.icon
                   return (
                     <div key={r.id} className="flex items-start gap-3 px-4 py-2.5">
-                      <Icon size={13} className="flex-shrink-0 mt-0.5" style={{ color: meta.color }} />
+                      <Icon size={14} className="flex-shrink-0 mt-0.5" style={{ color: meta.color }} />
                       <div className="flex-1 min-w-0">
                         <p className="text-[12px] text-gray-800 truncate">
                           <span className="font-semibold">{r.automationName}</span>
                           <span className="text-gray-400"> em </span>
                           {r.taskTitle}
                         </p>
-                        <p className="text-[10.5px] text-gray-500 mt-0.5">{r.detail}</p>
+                        <p className="text-[11px] text-gray-500 mt-0.5">{r.detail}</p>
                       </div>
                       <span className="text-[10px] text-gray-400 flex-shrink-0 tabnum">{fmtWhen(r.at)}</span>
                     </div>
@@ -249,17 +249,17 @@ function AutomationCard({ automation: a, projects, stats, risky, onToggle, onEdi
     <div className={`group bg-white border rounded-xl px-4 py-3 transition-all ${a.enabled ? 'border-gray-200/70' : 'border-gray-100 bg-gray-50/40'}`}>
       <div className="flex items-start gap-3">
         <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${a.enabled ? 'bg-brand-50 text-brand-500' : 'bg-gray-100 text-gray-400'}`}>
-          <Zap size={13} />
+          <Zap size={14} />
         </div>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <p className={`text-[13px] font-bold truncate ${a.enabled ? 'text-gray-800' : 'text-gray-500'}`}>{a.name}</p>
-            {!a.enabled && <span className="text-[9.5px] font-bold uppercase tracking-wider text-gray-400 flex-shrink-0">pausada</span>}
+            {!a.enabled && <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 flex-shrink-0">pausada</span>}
           </div>
 
           {/* A regra em português — antes o card mostrava "Status alterado → Mudar status para done" */}
-          <p className="text-[11.5px] text-gray-500 leading-relaxed mt-0.5">
+          <p className="text-[11px] text-gray-500 leading-relaxed mt-0.5">
             Quando <span className="text-gray-700">{describeTrigger(a.trigger)}</span>,{' '}
             <span className="text-gray-700">{describeAction(a.action, projects as any)}</span>.
           </p>
@@ -277,9 +277,9 @@ function AutomationCard({ automation: a, projects, stats, risky, onToggle, onEdi
               </>
             )}
             {risky && (
-              <span className="text-[9.5px] font-bold text-[#D89A18] bg-[#D89A181F] px-1.5 py-0.5 rounded-full flex items-center gap-1"
+              <span className="text-[10px] font-bold text-[#D89A18] bg-[#D89A181F] px-1.5 py-0.5 rounded-full flex items-center gap-1"
                 title="Esta regra altera o mesmo campo que a dispara — o app interrompe a cadeia após 5 níveis">
-                <AlertTriangle size={9} /> pode disparar em cadeia
+                <AlertTriangle size={12} /> pode disparar em cadeia
               </span>
             )}
           </div>
@@ -288,15 +288,15 @@ function AutomationCard({ automation: a, projects, stats, risky, onToggle, onEdi
         <div className="flex items-center gap-0.5 flex-shrink-0">
           <button onClick={onEdit} title="Editar"
             className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-gray-600 hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-all">
-            <Pencil size={12.5} />
+            <Pencil size={12} />
           </button>
           <button onClick={onDuplicate} title="Duplicar"
             className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-gray-600 hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-all">
-            <Copy size={12.5} />
+            <Copy size={12} />
           </button>
           <button onClick={onDelete} title="Excluir"
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-[#E24B4A] hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all">
-            <Trash2 size={12.5} />
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-[#E24B4A] hover:bg-danger-50 opacity-0 group-hover:opacity-100 transition-all">
+            <Trash2 size={12} />
           </button>
           <button onClick={onToggle} title={a.enabled ? 'Pausar' : 'Ativar'}
             className={`ml-0.5 transition-colors ${a.enabled ? 'text-brand-600 hover:text-brand-700' : 'text-gray-300 hover:text-gray-400'}`}>

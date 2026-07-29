@@ -1,6 +1,8 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronDown, Check, Search } from 'lucide-react'
+import { PRIORITY_COLOR, PRIORITY_TEXT_COLOR, PRIORITY_LABEL, STATUS_LABEL } from '../../types'
+import type { Priority, TaskStatus } from '../../types'
 
 // ── Dropdown premium reutilizável ────────────────────────────────────────────
 // Substitui os <select> nativos por um menu estilizado, consistente com o design
@@ -12,6 +14,7 @@ export interface SelectOption {
   value: string
   label: string
   color?: string              // ponto colorido + cor do texto (prioridade/status)
+  textColor?: string          // tom escuro para texto sobre a tinta da cor (badges `pill`)
   icon?: React.ElementType    // ícone lucide opcional
 }
 
@@ -112,7 +115,7 @@ export function Select({
 
   const sizeCls = size === 'md' ? 'px-3 py-2 text-sm' : 'px-2.5 py-1.5 text-xs'
   const base = pill
-    ? 'inline-flex items-center justify-center gap-1.5 min-w-[84px] rounded-full px-2.5 py-1 text-[11.5px] font-bold cursor-pointer transition-colors max-w-full'
+    ? 'inline-flex items-center justify-center gap-1.5 min-w-[84px] rounded-full px-2.5 py-1 text-[11px] font-bold cursor-pointer transition-colors max-w-full'
     : variant === 'inline'
     ? 'inline-flex items-center gap-1 bg-transparent hover:bg-gray-100 rounded-md px-1.5 py-1 text-xs cursor-pointer transition-colors max-w-full'
     : `inline-flex items-center gap-1.5 w-full justify-between bg-white border border-gray-200 rounded-lg ${sizeCls} text-gray-700 hover:border-gray-300 cursor-pointer transition-colors`
@@ -126,7 +129,7 @@ export function Select({
         ref={btnRef} type="button" onClick={toggle} onMouseDown={stopIf}
         disabled={disabled} aria-label={ariaLabel} aria-haspopup="listbox" aria-expanded={open}
         className={`${base} ${disabled ? 'opacity-40 pointer-events-none' : ''} ${buttonClassName}`}
-        style={pill && triggerColor ? { color: triggerColor, background: triggerColor + '18' } : triggerColor ? { color: triggerColor } : undefined}
+        style={pill && triggerColor ? { color: selected?.textColor ?? triggerColor, background: triggerColor + '18' } : triggerColor ? { color: triggerColor } : undefined}
       >
         <span className="inline-flex items-center gap-2 min-w-0">
           {selected?.color && !SelIcon && <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: selected.color }} />}
@@ -178,9 +181,9 @@ export function Select({
                 className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left transition-colors ${i === hi ? 'bg-gray-50' : ''} ${isSel ? 'font-medium' : ''}`}
               >
                 {o.color && !OIcon && <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: o.color }} />}
-                {OIcon && <OIcon size={13} className="flex-shrink-0" style={{ color: o.color || '#6b7280', fill: o.color ? o.color + '20' : 'none' }} />}
+                {OIcon && <OIcon size={14} className="flex-shrink-0" style={{ color: o.color || '#6b7280', fill: o.color ? o.color + '20' : 'none' }} />}
                 <span className="flex-1 truncate text-gray-700">{o.label}</span>
-                {isSel && <Check size={13} className="text-brand-600 flex-shrink-0" />}
+                {isSel && <Check size={14} className="text-brand-600 flex-shrink-0" />}
               </button>
             )
           })}
@@ -192,15 +195,16 @@ export function Select({
 }
 
 // ── Conjuntos de opções comuns (cores consistentes com os tokens de status) ──
-export const PRIORITY_OPTIONS: SelectOption[] = [
-  { value: 'urgent', label: 'Urgente', color: '#E24B4A' },
-  { value: 'high',   label: 'Alta',    color: '#D85A30' },
-  { value: 'medium', label: 'Média',   color: '#378ADD' },
-  { value: 'low',    label: 'Baixa',   color: '#9B9EA8' },
-]
+// Deriva de PRIORITY_COLOR/PRIORITY_LABEL (types/index.ts) — a cor de prioridade tem uma
+// fonte só no app; não redigitar hex aqui.
+export const PRIORITY_OPTIONS: SelectOption[] = (['urgent','high','medium','low'] as Priority[])
+  .map(p => ({ value: p, label: PRIORITY_LABEL[p], color: PRIORITY_COLOR[p], textColor: PRIORITY_TEXT_COLOR[p] }))
 
-export const STATUS_OPTIONS: SelectOption[] = [
-  { value: 'todo',        label: 'A fazer',      color: '#888780' },
-  { value: 'in_progress', label: 'Em progresso', color: '#378ADD' },
-  { value: 'done',        label: 'Concluído',    color: '#1D9E75' },
-]
+// Mesmas cores de status usadas no ícone da tarefa (seção 5 das diretrizes).
+export const STATUS_COLOR: Record<TaskStatus, string> = {
+  todo:        '#888780',
+  in_progress: '#378ADD',
+  done:        '#1D9E75',
+}
+export const STATUS_OPTIONS: SelectOption[] = (['todo','in_progress','done'] as TaskStatus[])
+  .map(s => ({ value: s, label: STATUS_LABEL[s], color: STATUS_COLOR[s] }))

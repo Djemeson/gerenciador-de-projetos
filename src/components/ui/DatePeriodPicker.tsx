@@ -52,16 +52,16 @@ export function MiniCalendar({ selected, onSelect }: { selected: Date | null; on
     <div className="w-[220px] flex-shrink-0">
       <div className="flex items-center justify-between mb-2">
         <button onClick={()=>{ if(month===0){setMonth(11);setYear(y=>y-1)}else setMonth(m=>m-1) }}
-          className="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-gray-600"><ChevronLeft size={13}/></button>
+          className="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-gray-600"><ChevronLeft size={14}/></button>
         <span className="text-[11px] font-medium text-gray-700">{MONTHS[month]} {year}</span>
         <button onClick={()=>{ if(month===11){setMonth(0);setYear(y=>y+1)}else setMonth(m=>m+1) }}
-          className="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-gray-600"><ChevronRight size={13}/></button>
+          className="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-gray-600"><ChevronRight size={14}/></button>
       </div>
       <div className="flex justify-end mb-1">
         <button onClick={goToday} className="text-[10px] text-brand-600 hover:text-brand-700 font-medium">Hoje</button>
       </div>
       <div className="grid grid-cols-7 gap-0.5">
-        {WEEKDAYS.map(d=><div key={d} className="text-center text-[9px] text-gray-400 py-0.5">{d}</div>)}
+        {WEEKDAYS.map(d=><div key={d} className="text-center text-[10px] text-gray-400 py-0.5">{d}</div>)}
         {cells.map((day,i)=>{
           if (!day) return <div key={i}/>
           const d = new Date(year, month, day)
@@ -121,12 +121,12 @@ function RangeDatePicker({ start, end, onChange }: { start?: string; end?: strin
       <div className="flex gap-2 mb-2">
         <button onClick={()=>setEditing('start')}
           className={`flex-1 text-[11px] px-2 py-1.5 rounded-lg border transition-colors text-left ${editing==='start'?'border-brand-400 bg-brand-50 text-brand-700':'border-gray-200 text-gray-600'}`}>
-          <span className="block text-[9px] text-gray-400">De</span>
+          <span className="block text-[10px] text-gray-400">De</span>
           {start ? fmtShort(parseISO(start)) : 'Selecionar'}
         </button>
         <button onClick={()=>setEditing('end')}
           className={`flex-1 text-[11px] px-2 py-1.5 rounded-lg border transition-colors text-left ${editing==='end'?'border-brand-400 bg-brand-50 text-brand-700':'border-gray-200 text-gray-600'}`}>
-          <span className="block text-[9px] text-gray-400">Até</span>
+          <span className="block text-[10px] text-gray-400">Até</span>
           {end ? fmtShort(parseISO(end)) : 'Selecionar'}
         </button>
       </div>
@@ -191,14 +191,14 @@ export function DatePeriodPicker({ field, fieldOptions, onFieldChange, value, on
 
       <button onClick={()=>setOpen(v=>!v)}
         className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-700 hover:border-gray-300 transition-colors min-w-[120px]">
-        <CalendarIcon size={11} className="text-gray-400 flex-shrink-0"/>
+        <CalendarIcon size={12} className="text-gray-400 flex-shrink-0"/>
         <span className="flex-1 text-left truncate">{value ? periodDisplayLabel(value) : 'Selecionar período'}</span>
-        <ChevronDown size={11} className="text-gray-400 flex-shrink-0"/>
+        <ChevronDown size={12} className="text-gray-400 flex-shrink-0"/>
       </button>
 
       {onRemove && (
-        <button onClick={onRemove} className="text-gray-300 hover:text-red-400 transition-colors flex-shrink-0" title="Remover filtro">
-          <Trash2 size={13}/>
+        <button onClick={onRemove} className="text-gray-300 hover:text-danger-500 transition-colors flex-shrink-0" title="Remover filtro">
+          <Trash2 size={14}/>
         </button>
       )}
 
@@ -216,7 +216,7 @@ export function DatePeriodPicker({ field, fieldOptions, onFieldChange, value, on
               <div className="max-h-[280px] overflow-y-auto py-1">
                 {filteredGroups.map(g => (
                   <div key={g.label}>
-                    <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider px-3 pt-2 pb-1">{g.label}</p>
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-3 pt-2 pb-1">{g.label}</p>
                     {g.periods.map(p => (
                       <button key={p} onClick={()=>pickPeriod(p)}
                         className={`w-full text-left px-3 py-1.5 text-[12px] hover:bg-gray-50 transition-colors ${value?.period===p?'text-brand-600 font-medium bg-brand-50/50':'text-gray-700'}`}>
@@ -231,9 +231,9 @@ export function DatePeriodPicker({ field, fieldOptions, onFieldChange, value, on
           ) : (
             <div>
               <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100">
-                <button onClick={()=>setSub('list')} className="text-gray-400 hover:text-gray-600"><ChevronLeft size={13}/></button>
+                <button onClick={()=>setSub('list')} className="text-gray-400 hover:text-gray-600"><ChevronLeft size={14}/></button>
                 <span className="text-[11px] font-medium text-gray-700 flex-1">{PERIOD_LABEL[sub]}</span>
-                <button onClick={()=>{setOpen(false);setSub('list')}} className="text-gray-300 hover:text-gray-500"><X size={13}/></button>
+                <button onClick={()=>{setOpen(false);setSub('list')}} className="text-gray-300 hover:text-gray-500"><X size={14}/></button>
               </div>
               {PERIODS_NEEDING_RANGE.has(sub) ? (
                 <RangeDatePicker start={value?.start} end={value?.end}

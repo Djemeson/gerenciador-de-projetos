@@ -245,10 +245,10 @@ export function AIPanel() {
   }
 
   const toolIcon = (kind: ChatToolCall['kind']) => {
-    if (kind === 'success') return <Check size={10} className="text-emerald-600"/>
-    if (kind === 'error') return <X size={10} className="text-red-500"/>
-    if (kind === 'warning') return <AlertTriangle size={10} className="text-amber-500"/>
-    return <Search size={10} className="text-gray-400"/>
+    if (kind === 'success') return <Check size={12} className="text-success-600"/>
+    if (kind === 'error') return <X size={12} className="text-danger-500"/>
+    if (kind === 'warning') return <AlertTriangle size={12} className="text-warning-500"/>
+    return <Search size={12} className="text-gray-400"/>
   }
 
   return (
@@ -256,9 +256,9 @@ export function AIPanel() {
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100">
         {view === 'history' ? (
-          <button onClick={() => setView('chat')} className="text-gray-400 hover:text-gray-600 transition-colors"><ChevronLeft size={15}/></button>
+          <button onClick={() => setView('chat')} className="text-gray-400 hover:text-gray-600 transition-colors"><ChevronLeft size={16}/></button>
         ) : (
-          <Sparkles size={15} className="text-brand-600"/>
+          <Sparkles size={16} className="text-brand-600"/>
         )}
         <div className="flex-1 min-w-0">
           <span className="text-sm font-semibold text-gray-800 block">{view === 'history' ? 'Histórico de conversas' : 'Pergunte à IA'}</span>
@@ -267,7 +267,7 @@ export function AIPanel() {
         {view === 'chat' && (
           <>
             <button onClick={startNewConversation} title="Nova conversa" className="text-gray-400 hover:text-brand-600 transition-colors">
-              <MessageSquarePlus size={15}/>
+              <MessageSquarePlus size={16}/>
             </button>
             <button onClick={() => { setConversations(loadConversations()); setView('history') }} title="Histórico" className="text-gray-400 hover:text-brand-600 transition-colors">
               <History size={14}/>
@@ -283,7 +283,7 @@ export function AIPanel() {
         /* ── Histórico ─────────────────────────────────────────────────── */
         <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
           <button onClick={startNewConversation} className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border border-dashed border-gray-200 hover:border-brand-300 hover:bg-brand-50/30 text-xs font-semibold text-gray-500 hover:text-brand-600 transition-all mb-2">
-            <MessageSquarePlus size={13}/> Nova conversa
+            <MessageSquarePlus size={14}/> Nova conversa
           </button>
           {conversations.length === 0 && (
             <p className="text-center text-xs text-gray-400 py-8">Nenhuma conversa salva ainda.</p>
@@ -293,14 +293,14 @@ export function AIPanel() {
               onClick={() => openConversation(c)}
               className={`group flex items-center gap-2.5 px-3 py-2.5 rounded-xl border cursor-pointer transition-all ${c.id === conv.id ? 'border-brand-300 bg-brand-50/40' : 'border-gray-100 hover:bg-gray-50'}`}>
               <div className="w-7 h-7 rounded-lg bg-brand-50 text-brand-500 flex items-center justify-center flex-shrink-0">
-                <Bot size={13}/>
+                <Bot size={14}/>
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-medium text-gray-800 truncate">{c.title}</p>
                 <p className="text-[10px] text-gray-400">{formatRelativeDate(c.updatedAt)} · {c.messages.length} mensagens</p>
               </div>
               <button onClick={e => { e.stopPropagation(); removeConversation(c.id) }}
-                className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-all flex-shrink-0">
+                className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-danger-500 transition-all flex-shrink-0">
                 <Trash2 size={12}/>
               </button>
             </div>
@@ -314,7 +314,7 @@ export function AIPanel() {
             {scopeWorkspace && activeWorkspace ? (
               <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 border border-brand-100">
                 {activeWorkspace.name}
-                <button onClick={() => setScopeWorkspace(false)} title="Remover (usar todos os workspaces)" className="text-brand-400 hover:text-brand-700"><X size={10}/></button>
+                <button onClick={() => setScopeWorkspace(false)} title="Remover (usar todos os workspaces)" className="text-brand-400 hover:text-brand-700"><X size={12}/></button>
               </span>
             ) : (
               <button onClick={() => setScopeWorkspace(true)}
@@ -326,7 +326,7 @@ export function AIPanel() {
               <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full text-white border max-w-[140px]"
                 style={{ background: scopeProject.color, borderColor: scopeProject.color }}>
                 <span className="truncate">{scopeProject.name}</span>
-                <button onClick={() => setScopeProjectId(null)} title="Remover foco no projeto" className="text-white/70 hover:text-white flex-shrink-0"><X size={10}/></button>
+                <button onClick={() => setScopeProjectId(null)} title="Remover foco no projeto" className="text-white/70 hover:text-white flex-shrink-0"><X size={12}/></button>
               </span>
             )}
             {!scopeProject && activeProject && (
@@ -346,9 +346,9 @@ export function AIPanel() {
                   Olá! Posso consultar e organizar suas tarefas — peça e eu executo.
                 </div>
                 {mode === 'none' && (
-                  <button onClick={openSettings} className="w-full flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg p-3 text-left hover:bg-amber-100/60 transition-colors">
-                    <SettingsIcon size={13} className="text-amber-600 mt-0.5 flex-shrink-0"/>
-                    <span className="text-xs text-amber-700">Configure uma chave de IA em Configurações para conversar livremente. Por enquanto, reconheço só alguns comandos diretos.</span>
+                  <button onClick={openSettings} className="w-full flex items-start gap-2 bg-warning-50 border border-warning-100 rounded-lg p-3 text-left hover:bg-warning-100/60 transition-colors">
+                    <SettingsIcon size={14} className="text-warning-600 mt-0.5 flex-shrink-0"/>
+                    <span className="text-xs text-warning-700">Configure uma chave de IA em Configurações para conversar livremente. Por enquanto, reconheço só alguns comandos diretos.</span>
                   </button>
                 )}
                 <div className="space-y-1.5">
@@ -364,12 +364,12 @@ export function AIPanel() {
 
             {conv.messages.map((m, i) => (
               <div key={i} className={`flex gap-2 ${m.role === 'user' ? 'justify-end' : ''}`}>
-                {m.role === 'assistant' && <div className="w-6 h-6 rounded-full bg-brand-100 flex items-center justify-center flex-shrink-0"><Sparkles size={11} className="text-brand-600"/></div>}
+                {m.role === 'assistant' && <div className="w-6 h-6 rounded-full bg-brand-100 flex items-center justify-center flex-shrink-0"><Sparkles size={12} className="text-brand-600"/></div>}
                 <div className={`max-w-[85%] space-y-1.5 ${m.role === 'user' ? '' : 'flex-1 min-w-0'}`}>
                   {!!m.toolCalls?.length && (
                     <div className="flex flex-col gap-1">
                       {m.toolCalls.map((tc, j) => (
-                        <div key={j} className="flex items-center gap-1.5 text-[10.5px] text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-2 py-1 w-fit">
+                        <div key={j} className="flex items-center gap-1.5 text-[11px] text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-2 py-1 w-fit">
                           {toolIcon(tc.kind)} {tc.summary}
                         </div>
                       ))}
@@ -382,17 +382,17 @@ export function AIPanel() {
                     </div>
                   )}
                   {m.pendingConfirm && !m.pendingConfirm.resolved && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-2.5 space-y-2">
-                      <p className="text-[11px] text-red-700 flex items-center gap-1.5"><AlertTriangle size={12}/> Excluir "{m.pendingConfirm.title}"? Isso não pode ser desfeito.</p>
+                    <div className="bg-danger-50 border border-danger-100 rounded-lg p-2.5 space-y-2">
+                      <p className="text-[11px] text-danger-700 flex items-center gap-1.5"><AlertTriangle size={12}/> Excluir "{m.pendingConfirm.title}"? Isso não pode ser desfeito.</p>
                       <div className="flex gap-1.5">
                         <button onClick={() => resolveConfirm(i, false)} className="flex-1 text-[11px] font-semibold py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-white transition-colors">Cancelar</button>
-                        <button onClick={() => resolveConfirm(i, true)} className="flex-1 text-[11px] font-semibold py-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors">Excluir</button>
+                        <button onClick={() => resolveConfirm(i, true)} className="flex-1 text-[11px] font-semibold py-1.5 rounded-lg bg-danger-600 text-white hover:bg-danger-700 transition-colors">Excluir</button>
                       </div>
                     </div>
                   )}
                   {m.pendingConfirm?.resolved && (
-                    <p className="text-[10.5px] text-gray-400 flex items-center gap-1">
-                      {m.pendingConfirm.resolved === 'confirmed' ? <><Trash2 size={10}/> Excluída</> : <><Info size={10}/> Cancelado</>}
+                    <p className="text-[11px] text-gray-400 flex items-center gap-1">
+                      {m.pendingConfirm.resolved === 'confirmed' ? <><Trash2 size={12}/> Excluída</> : <><Info size={12}/> Cancelado</>}
                     </p>
                   )}
                 </div>
@@ -402,7 +402,7 @@ export function AIPanel() {
             {loading && (
               <div className="flex gap-2">
                 <div className="w-6 h-6 rounded-full bg-brand-100 flex items-center justify-center">
-                  <Loader2 size={11} className="text-brand-600 animate-spin"/>
+                  <Loader2 size={12} className="text-brand-600 animate-spin"/>
                 </div>
                 <div className="bg-gray-100 rounded-xl px-3 py-2 text-xs text-gray-500">Pensando...</div>
               </div>
@@ -420,7 +420,7 @@ export function AIPanel() {
             />
             <button onClick={sendMessage} disabled={!input.trim() || loading}
               className="w-8 h-8 bg-brand-600 text-white rounded-lg flex items-center justify-center hover:bg-brand-700 disabled:opacity-40 transition-colors flex-shrink-0">
-              <Send size={13}/>
+              <Send size={14}/>
             </button>
           </div>
         </>

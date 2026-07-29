@@ -156,7 +156,7 @@ export function Sidebar() {
             : `font-medium ${dark ? 'text-[#9195A0] hover:text-white hover:bg-white/5' : 'text-[#52555D] hover:text-[#17181C] hover:bg-black/[.04]'}`}`}
       >
         <span className="w-[22px] h-[22px] rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: bg, color: iconColor }}>
-          <Icon size={12.5}/>
+          <Icon size={12}/>
         </span>
         <span className="flex-1">{label}</span>
         {badge != null && badge > 0 && (
@@ -270,7 +270,7 @@ export function Sidebar() {
           </button>
         )}
         <div className={`h-px my-1 ${menuSepCls}`}/>
-        <button onClick={doDelete} className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-red-500 hover:bg-red-500/10 transition-colors">
+        <button onClick={doDelete} className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-danger-500 hover:bg-danger-500/10 transition-colors">
           <Trash2 size={12}/> Excluir
         </button>
       </div>
@@ -288,16 +288,16 @@ export function Sidebar() {
             className={`w-full flex items-center gap-2.5 p-2 rounded-lg text-left transition-colors ${menuItemCls}`}>
             <FolderIcon size={16} className="text-brand-400 flex-shrink-0"/>
             <span>
-              <div className={`text-[12.5px] font-semibold ${nameCls}`}>Pasta</div>
-              <div className={`text-[10.5px] ${mutedCls}`}>Agrupe projetos relacionados</div>
+              <div className={`text-[12px] font-semibold ${nameCls}`}>Pasta</div>
+              <div className={`text-[11px] ${mutedCls}`}>Agrupe projetos relacionados</div>
             </span>
           </button>
           <button onClick={() => { createProject(createMenu.spaceId); setCreateMenu(null) }}
             className={`w-full flex items-center gap-2.5 p-2 rounded-lg text-left transition-colors ${menuItemCls}`}>
             <List size={16} className="text-brand-400 flex-shrink-0"/>
             <span>
-              <div className={`text-[12.5px] font-semibold ${nameCls}`}>Projeto</div>
-              <div className={`text-[10.5px] ${mutedCls}`}>Lista de tarefas</div>
+              <div className={`text-[12px] font-semibold ${nameCls}`}>Projeto</div>
+              <div className={`text-[11px] ${mutedCls}`}>Lista de tarefas</div>
             </span>
           </button>
         </div>
@@ -487,14 +487,14 @@ export function Sidebar() {
             <div className={`text-[11px] ${mutedCls}`}>Workspace</div>
           </div>
           {notifCount > 0 && (
-            <span className="text-[10px] w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center font-semibold flex-shrink-0">
+            <span className="text-[10px] w-4 h-4 bg-danger-500 text-white rounded-full flex items-center justify-center font-semibold flex-shrink-0">
               {notifCount}
             </span>
           )}
-          <ChevronsUpDown size={13} className={`flex-shrink-0 ${mutedCls}`}/>
+          <ChevronsUpDown size={14} className={`flex-shrink-0 ${mutedCls}`}/>
           <button onClick={e => { e.stopPropagation(); setCollapsed(true) }} title="Recolher barra lateral"
             className={`hidden md:flex w-6 h-6 items-center justify-center rounded-md transition-colors flex-shrink-0 ${actionBtnCls}`}>
-            <PanelLeftClose size={15}/>
+            <PanelLeftClose size={16}/>
           </button>
         </div>
 
@@ -521,16 +521,16 @@ export function Sidebar() {
                   <span className="w-[26px] h-[26px] rounded-lg flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0"
                     style={{ background: w.color ?? '#4F46E5' }}>
                     {w.icon && getIconComponent(w.icon)
-                      ? (() => { const Icon = getIconComponent(w.icon)!; return <Icon size={13}/> })()
+                      ? (() => { const Icon = getIconComponent(w.icon)!; return <Icon size={14}/> })()
                       : w.id===DEFAULT_WORKSPACE_ID
-                      ? <Zap size={13}/>
+                      ? <Zap size={14}/>
                       : <span>{w.name.charAt(0).toUpperCase()}</span>}
                   </span>
                   <span className="flex-1 min-w-0">
-                    <div className={`text-[12.5px] font-semibold truncate ${nameCls}`}>{w.name}</div>
-                    <div className={`text-[10.5px] ${mutedCls}`}>Workspace</div>
+                    <div className={`text-[12px] font-semibold truncate ${nameCls}`}>{w.name}</div>
+                    <div className={`text-[11px] ${mutedCls}`}>Workspace</div>
                   </span>
-                  {w.id===activeWorkspaceId && <Check size={13} className="text-brand-400 flex-shrink-0"/>}
+                  {w.id===activeWorkspaceId && <Check size={14} className="text-brand-400 flex-shrink-0"/>}
                 </button>
               ))}
             </div>
@@ -547,8 +547,8 @@ export function Sidebar() {
                 className={`w-full flex items-center gap-2.5 p-2 rounded-lg text-left transition-colors ${menuItemCls}`}>
                 <Plus size={16} className="text-brand-400 flex-shrink-0"/>
                 <span>
-                  <div className={`text-[12.5px] font-semibold ${nameCls}`}>Criar workspace</div>
-                  <div className={`text-[10.5px] ${mutedCls}`}>Novo espaço de trabalho separado</div>
+                  <div className={`text-[12px] font-semibold ${nameCls}`}>Criar workspace</div>
+                  <div className={`text-[11px] ${mutedCls}`}>Novo espaço de trabalho separado</div>
                 </span>
               </button>
             )}
@@ -597,7 +597,7 @@ export function Sidebar() {
         {navMode==='spaces' && (
         <div>
           <div className="flex items-center justify-between px-2 py-1 mb-0.5">
-            <span className={`text-[10.5px] font-bold uppercase tracking-wider ${mutedCls}`}>Espaços</span>
+            <span className={`text-[11px] font-bold uppercase tracking-wider ${mutedCls}`}>Espaços</span>
             <button
               onClick={() => setAddingSpace(v => v==='top' ? null : 'top')}
               className={`w-5 h-5 flex items-center justify-center rounded transition-colors ${actionBtnCls}`}
@@ -625,8 +625,8 @@ export function Sidebar() {
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${dark ? 'bg-white/5 text-[#54565f]' : 'bg-black/[.04] text-[#9B9EA8]'}`}>
                 <LayoutGrid size={18}/>
               </div>
-              <div className={`text-[12.5px] font-semibold ${dark ? 'text-[#9195A0]' : 'text-[#3B3E45]'}`}>Nenhum espaço ainda</div>
-              <div className={`text-[11.5px] leading-relaxed ${mutedCls}`}>Crie o primeiro espaço para começar<br/>a organizar este workspace</div>
+              <div className={`text-[12px] font-semibold ${dark ? 'text-[#9195A0]' : 'text-[#3B3E45]'}`}>Nenhum espaço ainda</div>
+              <div className={`text-[11px] leading-relaxed ${mutedCls}`}>Crie o primeiro espaço para começar<br/>a organizar este workspace</div>
             </div>
           )}
 
@@ -677,7 +677,7 @@ export function Sidebar() {
                     title={s.collapsed ? 'Expandir' : 'Recolher'}
                     className={`w-6 h-6 flex items-center justify-center flex-shrink-0 rounded transition-colors ${actionBtnCls}`}
                   >
-                    {s.collapsed ? <ChevronRight size={13}/> : <ChevronDown size={13}/>}
+                    {s.collapsed ? <ChevronRight size={14}/> : <ChevronDown size={14}/>}
                   </button>
 
                   <div className="relative w-14 h-6 flex items-center justify-end">
@@ -695,13 +695,13 @@ export function Sidebar() {
                         className={`w-6 h-6 flex items-center justify-center rounded transition-all ${actionBtnCls}`}
                         title="Adicionar"
                       >
-                        <Plus size={13}/>
+                        <Plus size={14}/>
                       </button>
                       <button
                         onClick={e => { e.stopPropagation(); openItemMenu('space', s.id, e.currentTarget); setIconPicker(null) }}
                         className={`w-6 h-6 flex items-center justify-center rounded transition-all ${actionBtnCls}`}
                       >
-                        <MoreHorizontal size={13}/>
+                        <MoreHorizontal size={14}/>
                       </button>
                     </div>
                   </div>
@@ -749,7 +749,7 @@ export function Sidebar() {
                             if (isActiveFolder) updateFolder(f.id, { collapsed: !f.collapsed })
                             else openFolder(f.id)
                           }}
-                          className={`flex items-center gap-2.5 flex-1 min-w-0 py-[7px] pl-10 text-[13.5px] font-semibold transition-[padding,background-color,color] duration-200 text-left ${fCount > 0 ? 'pr-10' : 'pr-3'} group-hover/folder:pr-16`}
+                          className={`flex items-center gap-2.5 flex-1 min-w-0 py-[7px] pl-10 text-[13px] font-semibold transition-[padding,background-color,color] duration-200 text-left ${fCount > 0 ? 'pr-10' : 'pr-3'} group-hover/folder:pr-16`}
                         >
                           <span className="colorpick-trigger" onClick={e => { e.stopPropagation(); const anchor=e.currentTarget; setIconPicker(t => (t?.kind==='folder'&&t.id===f.id) ? null : {kind:'folder',id:f.id,anchor}) }}>
                             <FolderBadgeIcon folder={f} open={!f.collapsed} size={16}/>
@@ -829,7 +829,7 @@ export function Sidebar() {
               onDragLeave={() => setDropHint(h => (h === 'none' ? null : h))}
               onDrop={e => { e.preventDefault(); onDropContainer(null, null) }}>
               <div className={`flex items-center gap-1.5 px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded ${mutedCls} ${dropHint==='none' ? 'ring-1 ring-brand-400 ring-inset' : ''}`}>
-                <List size={11}/> Sem espaço
+                <List size={12}/> Sem espaço
               </div>
               <div className="space-y-0.5">
                 {ungrouped.map(p => renderProject(p, false))}
@@ -853,7 +853,7 @@ export function Sidebar() {
           ) : (
             <button onClick={() => setAddingSpace('bottom')}
               className={`flex items-center gap-2 w-[calc(100%-8px)] mx-1 mt-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${mutedCls} ${rowHoverCls}`}>
-              <Plus size={13}/> Novo espaço
+              <Plus size={14}/> Novo espaço
             </button>
           )}
         </div>
@@ -876,10 +876,10 @@ export function Sidebar() {
           onClick={() => setTheme(t => t==='dark' ? 'light' : 'dark')}
           title={dark ? 'Tema claro' : 'Tema escuro'}
           className={`w-[26px] h-[26px] rounded-lg flex items-center justify-center transition-colors flex-shrink-0 ${dark ? 'bg-white/[.06] text-[#9195A0] hover:bg-white/10 hover:text-white' : 'bg-black/[.05] text-[#52555D] hover:bg-black/[.09] hover:text-[#17181C]'}`}
-        >{dark ? <Sun size={13}/> : <Moon size={13}/>}</button>
+        >{dark ? <Sun size={14}/> : <Moon size={14}/>}</button>
         <button onClick={openSettings} title="Configurações"
           className={`w-[26px] h-[26px] flex items-center justify-center transition-colors flex-shrink-0 ${mutedCls} ${dark ? 'hover:text-white' : 'hover:text-[#17181C]'}`}>
-          <Settings size={13}/>
+          <Settings size={14}/>
         </button>
       </div>
 

@@ -49,7 +49,7 @@ export function AutomationEditor({ draft, onClose }: { draft: EditorDraft | null
       <div className="bg-white rounded-2xl shadow-2xl w-[560px] max-w-full max-h-[88vh] flex flex-col overflow-hidden animate-scale-in"
            onClick={e => e.stopPropagation()}>
         <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2.5">
-          <Zap size={15} className="text-brand-500" />
+          <Zap size={16} className="text-brand-500" />
           <h2 className="text-[14px] font-extrabold tracking-tight text-gray-900 flex-1">
             {form.id ? 'Editar automação' : 'Nova automação'}
           </h2>
@@ -122,7 +122,7 @@ export function AutomationEditor({ draft, onClose }: { draft: EditorDraft | null
 
           {/* Frase da regra — o usuário confere em português o que acabou de montar */}
           <div className="flex items-start gap-2.5 p-3 rounded-xl bg-brand-50/60 border border-brand-100">
-            <Info size={13} className="text-brand-500 mt-0.5 flex-shrink-0" />
+            <Info size={14} className="text-brand-500 mt-0.5 flex-shrink-0" />
             <p className="text-[12px] text-gray-700 leading-relaxed">
               Quando <strong>{describeTrigger(form.trigger)}</strong>, {describeAction(form.action, projects)}.
             </p>
@@ -130,12 +130,12 @@ export function AutomationEditor({ draft, onClose }: { draft: EditorDraft | null
         </div>
 
         <div className="px-5 py-3.5 border-t border-gray-100 flex items-center justify-end gap-2">
-          <button onClick={onClose} className="px-3 py-2 text-[12.5px] font-semibold text-gray-500 hover:text-gray-700 transition-colors">
+          <button onClick={onClose} className="px-3 py-2 text-[12px] font-semibold text-gray-500 hover:text-gray-700 transition-colors">
             Cancelar
           </button>
           <button onClick={salvar} disabled={!form.name.trim()}
-            className="flex items-center gap-1.5 px-4 py-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[12.5px] font-bold rounded-lg transition-colors">
-            {form.id ? 'Salvar' : 'Criar automação'} <ArrowRight size={13} />
+            className="flex items-center gap-1.5 px-4 py-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[12px] font-bold rounded-lg transition-colors">
+            {form.id ? 'Salvar' : 'Criar automação'} <ArrowRight size={14} />
           </button>
         </div>
       </div>
@@ -197,7 +197,7 @@ function ActionValue({ action, onChange, projects, tags, assignees }: {
           options={[1, 2, 3, 5, 7, 14, 30].map(n => ({ value: String(n), label: `Daqui a ${n} dia${n > 1 ? 's' : ''}` }))} />
       )
     case 'ai_enrich':
-      return <p className="text-[11.5px] text-gray-400 leading-relaxed">Usa a chave de IA das Configurações; sem chave, gera um resumo local simplificado.</p>
+      return <p className="text-[11px] text-gray-400 leading-relaxed">Usa a chave de IA das Configurações; sem chave, gera um resumo local simplificado.</p>
     default:
       return (
         <input value={v} onChange={e => onChange(e.target.value)}

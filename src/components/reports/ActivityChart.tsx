@@ -32,7 +32,7 @@ export function ActivityChart({ buckets, height = 168 }: { buckets: Bucket[]; he
 
       <div className="flex gap-2">
         {/* Eixo de valores */}
-        <div className="flex flex-col justify-between text-[9.5px] text-gray-400 tabnum pb-5 flex-shrink-0" style={{ height }}>
+        <div className="flex flex-col justify-between text-[10px] text-gray-400 tabnum pb-5 flex-shrink-0" style={{ height }}>
           {ticks.map(t => <span key={t}>{t}</span>)}
         </div>
 
@@ -57,7 +57,7 @@ export function ActivityChart({ buckets, height = 168 }: { buckets: Bucket[]; he
 
           <div className="flex gap-1.5 mt-1.5">
             {buckets.map((b, i) => (
-              <span key={i} className="flex-1 min-w-[18px] text-center text-[9.5px] text-gray-400 truncate">{b.label}</span>
+              <span key={i} className="flex-1 min-w-[18px] text-center text-[10px] text-gray-400 truncate">{b.label}</span>
             ))}
           </div>
         </div>
@@ -77,7 +77,7 @@ function Bar({ value, max, color }: { value: number; max: number; color: string 
 
 function Legend({ color, label }: { color: string; label: string }) {
   return (
-    <span className="flex items-center gap-1.5 text-[10.5px] text-gray-500 font-medium">
+    <span className="flex items-center gap-1.5 text-[11px] text-gray-500 font-medium">
       <span className="w-2.5 h-2.5 rounded-[3px]" style={{ background: color }} />
       {label}
     </span>

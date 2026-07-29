@@ -65,7 +65,7 @@ export function NotesPanel() {
     <aside className="w-80 min-w-[320px] border-l border-gray-200 bg-white flex flex-col h-full flex-shrink-0">
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100">
-        <StickyNote size={15} className="text-amber-500"/>
+        <StickyNote size={16} className="text-warning-500"/>
         <span className="text-sm font-semibold text-gray-800 flex-1">Bloco de notas</span>
         <button onClick={addNote} title="Nova nota" className="text-gray-400 hover:text-brand-600 transition-colors">
           <Plus size={16}/>
@@ -80,7 +80,7 @@ export function NotesPanel() {
         {notes.map(n => (
           <div key={n.id}
             className={`group flex items-center gap-1 pl-2.5 pr-1 py-1 rounded-lg text-xs font-medium whitespace-nowrap cursor-pointer transition-colors flex-shrink-0
-              ${n.id === activeId ? 'bg-amber-50 text-amber-700 border border-amber-100' : 'text-gray-500 hover:bg-gray-50 border border-transparent'}`}
+              ${n.id === activeId ? 'bg-warning-50 text-warning-700 border border-warning-100' : 'text-gray-500 hover:bg-gray-50 border border-transparent'}`}
             onClick={() => setActiveId(n.id)}>
             {renamingId === n.id ? (
               <input autoFocus value={renameDraft}
@@ -88,7 +88,7 @@ export function NotesPanel() {
                 onBlur={commitRename}
                 onKeyDown={e => { if (e.key === 'Enter') commitRename(); if (e.key === 'Escape') setRenamingId(null) }}
                 onClick={e => e.stopPropagation()}
-                className="w-20 bg-transparent outline-none border-b border-amber-400"/>
+                className="w-20 bg-transparent outline-none border-b border-warning-500"/>
             ) : (
               <span onDoubleClick={e => { e.stopPropagation(); setRenamingId(n.id); setRenameDraft(n.title) }} className="max-w-[100px] truncate" title="Duplo-clique para renomear">
                 {n.title}
@@ -96,8 +96,8 @@ export function NotesPanel() {
             )}
             {notes.length > 1 && (
               <button onClick={e => { e.stopPropagation(); removeNote(n.id) }}
-                className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-all flex-shrink-0">
-                <X size={11}/>
+                className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-danger-500 transition-all flex-shrink-0">
+                <X size={12}/>
               </button>
             )}
           </div>
@@ -111,12 +111,12 @@ export function NotesPanel() {
             <button onClick={() => { setRenamingId(active.id); setRenameDraft(active.title) }}
               className="flex items-center gap-1.5 text-[13px] font-bold text-gray-800 hover:text-brand-600 transition-colors group">
               {active.title}
-              <Pencil size={11} className="opacity-0 group-hover:opacity-100 text-gray-400 transition-opacity"/>
+              <Pencil size={12} className="opacity-0 group-hover:opacity-100 text-gray-400 transition-opacity"/>
             </button>
             <div className="flex-1"/>
             {notes.length > 1 && (
-              <button onClick={() => removeNote(active.id)} title="Excluir nota" className="text-gray-300 hover:text-red-400 transition-colors">
-                <Trash2 size={13}/>
+              <button onClick={() => removeNote(active.id)} title="Excluir nota" className="text-gray-300 hover:text-danger-500 transition-colors">
+                <Trash2 size={14}/>
               </button>
             )}
           </div>

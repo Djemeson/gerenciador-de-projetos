@@ -56,8 +56,8 @@ export function NewViewModal() {
         <div className="flex items-start justify-between gap-3 mb-1">
           <h2 className="text-sm font-semibold text-gray-900">Nova visualização</h2>
           <button onClick={applyPreset}
-            className="flex-shrink-0 flex items-center gap-1 text-[11px] text-emerald-700 hover:text-emerald-800 font-medium px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 transition-colors">
-            <CheckCircle2 size={11}/> Concluídas no período
+            className="flex-shrink-0 flex items-center gap-1 text-[11px] text-success-700 hover:text-success-700 font-medium px-2 py-1 rounded-lg bg-success-50 hover:bg-success-100 transition-colors">
+            <CheckCircle2 size={12}/> Concluídas no período
           </button>
         </div>
         <p className="text-[11px] text-gray-400 mb-4">Crie uma visão filtrada — ex.: tarefas concluídas na semana para a reunião de resultados.</p>
@@ -110,7 +110,7 @@ export function NewViewModal() {
           <div className="flex items-center justify-between mb-1.5">
             <label className="block text-[11px] font-medium text-gray-500">Filtrar por período</label>
             {datePeriod && (
-              <button onClick={()=>setDatePeriod(undefined)} className="text-[10px] text-gray-400 hover:text-red-500 transition-colors">Limpar</button>
+              <button onClick={()=>setDatePeriod(undefined)} className="text-[10px] text-gray-400 hover:text-danger-500 transition-colors">Limpar</button>
             )}
           </div>
           <DatePeriodPicker

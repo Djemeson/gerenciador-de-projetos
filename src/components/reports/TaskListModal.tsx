@@ -76,7 +76,7 @@ export function TaskListModal({ open, title, subtitle, tasks, projects, onClose 
               <button key={t.id} onClick={() => openTask(t)}
                 className="w-full flex items-center gap-2.5 px-5 py-2.5 text-left hover:bg-gray-50 transition-colors">
                 <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: priorityColor(t.priority) }} />
-                <span className="flex-1 text-[12.5px] text-gray-800 truncate">{t.title}</span>
+                <span className="flex-1 text-[12px] text-gray-800 truncate">{t.title}</span>
                 {p && <span className="text-[10px] text-gray-400 flex-shrink-0 truncate max-w-[120px]">{p.name}</span>}
                 <span className="text-[10px] text-gray-400 flex-shrink-0 tabnum w-14 text-right">
                   {t.status === 'done' ? fmt(t.completedAt) : fmt(t.dueDate)}

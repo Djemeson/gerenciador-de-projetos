@@ -309,6 +309,34 @@ export interface Project {
 export const PROJECT_COLORS = ['#6366F1','#1D9E75','#D85A30','#BA7517','#D4537E','#378ADD','#639922','#888780']
 
 export const PRIORITY_LABEL: Record<Priority,   string> = { low:'Baixa', medium:'Média', high:'Alta', urgent:'Urgente' }
+
+/**
+ * Cor de cada prioridade — **fonte única**. `PRIORITY_OPTIONS` (Select.tsx), a lista de
+ * tarefas, o painel e os relatórios consomem daqui. Antes existiam três definições
+ * paralelas (opções do Select, círculo do TaskRow e o badge do mobile), e a mesma
+ * prioridade aparecia numa cor no computador e em outra no celular.
+ */
+export const PRIORITY_COLOR: Record<Priority, string> = {
+  urgent: '#E24B4A',
+  high:   '#D85A30',
+  medium: '#378ADD',
+  low:    '#9B9EA8',
+}
+
+/** Tinta da cor da prioridade para fundos (hex + alfa), no mesmo padrão do `gutTier`. */
+export const priorityTint = (p: Priority, alpha = '1F') => `${PRIORITY_COLOR[p]}${alpha}`
+
+/**
+ * Versão escura da cor, para **texto sobre a tinta** (pílulas e badges). A cor cheia
+ * sobre o próprio fundo tinta rendia ~3:1 — abaixo do mínimo de leitura. Estes tons
+ * passam de 4.5:1 mantendo a mesma família de cor.
+ */
+export const PRIORITY_TEXT_COLOR: Record<Priority, string> = {
+  urgent: '#A32E2D',
+  high:   '#93401F',
+  medium: '#215B98',
+  low:    '#5C5F68',
+}
 export const STATUS_LABEL:   Record<TaskStatus, string> = { todo:'A fazer', in_progress:'Em progresso', done:'Concluído' }
 
 export const GUT_LABEL_G: Record<number,string> = { 1:'Sem gravidade',2:'Pouco grave',3:'Grave',4:'Muito grave',5:'Extremamente grave' }

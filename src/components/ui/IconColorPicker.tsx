@@ -82,7 +82,7 @@ export function IconColorPicker({ mode, theme = 'dark', color, icon, onPickColor
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Pesquisar ícone..."
-          className={`w-full text-[12.5px] px-2.5 py-1.5 border rounded-lg outline-none mb-2 ${inputCls}`}
+          className={`w-full text-[12px] px-2.5 py-1.5 border rounded-lg outline-none mb-2 ${inputCls}`}
         />
       )}
 
@@ -101,7 +101,7 @@ export function IconColorPicker({ mode, theme = 'dark', color, icon, onPickColor
           type="button" title="Sem cor"
           onClick={() => pickColor(undefined)}
           className={`w-[18px] h-[18px] rounded-full flex items-center justify-center ${dark ? 'bg-[#2E2F36] text-[#8A8D98]' : 'bg-gray-200 text-gray-400'}`}
-        ><Slash size={9}/></button>
+        ><Slash size={12}/></button>
         <label
           className="w-[18px] h-[18px] rounded-full relative flex items-center justify-center cursor-pointer text-white overflow-hidden"
           style={{
@@ -110,7 +110,7 @@ export function IconColorPicker({ mode, theme = 'dark', color, icon, onPickColor
           }}
           title="Cor personalizada"
         >
-          {!isCustomActive && <Pipette size={9}/>}
+          {!isCustomActive && <Pipette size={12}/>}
           <input
             type="color" value={customColor}
             onChange={e => { setCustomColor(e.target.value); pickColor(e.target.value) }}
@@ -121,7 +121,7 @@ export function IconColorPicker({ mode, theme = 'dark', color, icon, onPickColor
           <button
             type="button" title="Salvar cor personalizada" onClick={saveCurrentColor}
             className={`w-[18px] h-[18px] rounded-full border border-dashed flex items-center justify-center ${dark ? 'border-[#4A4C55] text-[#8A8D98] hover:border-brand-500 hover:text-brand-400' : 'border-gray-300 text-gray-400 hover:border-brand-500 hover:text-brand-500'} transition-colors`}
-          ><Plus size={9}/></button>
+          ><Plus size={12}/></button>
         )}
       </div>
       )}
@@ -129,12 +129,12 @@ export function IconColorPicker({ mode, theme = 'dark', color, icon, onPickColor
       {showColorRow && savedColors.length > 0 && (
         <>
           <div className="flex items-center gap-1.5 mb-1.5">
-            <span className={`text-[10.5px] font-bold uppercase tracking-wider ${mutedCls}`}>Cores salvas</span>
+            <span className={`text-[11px] font-bold uppercase tracking-wider ${mutedCls}`}>Cores salvas</span>
             <button
               type="button"
               onClick={() => setEditingSaved(v => !v)}
-              className={`ml-auto w-[17px] h-[17px] rounded flex items-center justify-center transition-colors ${editingSaved ? 'text-red-500 bg-red-500/10' : `${mutedCls} ${hoverBtnCls}`}`}
-            >{editingSaved ? <Check size={11}/> : <Pencil size={11}/>}</button>
+              className={`ml-auto w-[17px] h-[17px] rounded flex items-center justify-center transition-colors ${editingSaved ? 'text-danger-500 bg-danger-500/10' : `${mutedCls} ${hoverBtnCls}`}`}
+            >{editingSaved ? <Check size={12}/> : <Pencil size={12}/>}</button>
           </div>
           <div className="flex flex-wrap gap-2 mb-2">
             {savedColors.map(c => (
@@ -149,7 +149,7 @@ export function IconColorPicker({ mode, theme = 'dark', color, icon, onPickColor
                   <button
                     type="button" onClick={() => removeSavedColor(c)}
                     className={`absolute -top-1.5 -right-1.5 w-[13px] h-[13px] rounded-full flex items-center justify-center ${dark ? 'bg-[#3B3E45]' : 'bg-gray-300'} text-white`}
-                  ><X size={8}/></button>
+                  ><X size={12}/></button>
                 )}
               </div>
             ))}
@@ -191,7 +191,7 @@ export function IconColorPicker({ mode, theme = 'dark', color, icon, onPickColor
             <>
               {recentIcons.length > 0 && (
                 <React.Fragment key="recent">
-                  <div className={`col-span-10 text-[10.5px] font-bold uppercase tracking-wider pt-1.5 first:pt-0 ${mutedCls}`}>Recentemente usados</div>
+                  <div className={`col-span-10 text-[11px] font-bold uppercase tracking-wider pt-1.5 first:pt-0 ${mutedCls}`}>Recentemente usados</div>
                   {recentIcons.map(name => {
                     const Icon = getIconComponent(name)
                     if (!Icon) return null
@@ -209,7 +209,7 @@ export function IconColorPicker({ mode, theme = 'dark', color, icon, onPickColor
               )}
               {ICON_CATEGORIES.map(cat => (
                 <React.Fragment key={cat.label}>
-                  <div className={`col-span-10 text-[10.5px] font-bold uppercase tracking-wider pt-1.5 first:pt-0 ${mutedCls}`}>{cat.label}</div>
+                  <div className={`col-span-10 text-[11px] font-bold uppercase tracking-wider pt-1.5 first:pt-0 ${mutedCls}`}>{cat.label}</div>
                   {cat.icons.map(name => {
                     const Icon = getIconComponent(name)
                     if (!Icon) return null

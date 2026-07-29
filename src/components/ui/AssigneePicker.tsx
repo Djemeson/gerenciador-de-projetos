@@ -31,7 +31,7 @@ export function AssigneePicker({ value, onChange, variant = 'row' }: AssigneePic
     <button ref={btnRef} onClick={e => { e.stopPropagation(); openPop() }}
       className="flex items-center justify-center min-w-0 w-full">
       {value ? (
-        <span className="w-6 h-6 rounded-full bg-gradient-to-br from-brand-200 to-brand-400 text-brand-800 text-[9.5px] font-extrabold flex items-center justify-center flex-shrink-0 shadow-[0_0_0_2px_#fff,0_0_0_4px_#EEF0FF]">{initialsOf(value)}</span>
+        <span className="w-6 h-6 rounded-full bg-gradient-to-br from-brand-200 to-brand-400 text-brand-800 text-[10px] font-extrabold flex items-center justify-center flex-shrink-0 shadow-[0_0_0_2px_#fff,0_0_0_4px_#EEF0FF]">{initialsOf(value)}</span>
       ) : <span className="text-xs text-gray-300">—</span>}
     </button>
   ) : (
@@ -40,14 +40,14 @@ export function AssigneePicker({ value, onChange, variant = 'row' }: AssigneePic
       <div className="flex items-center gap-2 min-w-0">
         {value ? (
           <>
-            <span className="w-6 h-6 rounded-full bg-indigo-50 text-indigo-700 text-[10px] font-bold flex items-center justify-center flex-shrink-0 border border-indigo-100/50">{initialsOf(value)}</span>
+            <span className="w-6 h-6 rounded-full bg-brand-50 text-brand-700 text-[10px] font-bold flex items-center justify-center flex-shrink-0 border border-brand-100/50">{initialsOf(value)}</span>
             <span className="min-w-0 truncate text-sm font-semibold text-gray-700">{value}</span>
           </>
         ) : (
           <span className="text-sm font-medium text-gray-400">Ninguém</span>
         )}
       </div>
-      <ChevronDown size={13} className="text-gray-400 flex-shrink-0" />
+      <ChevronDown size={14} className="text-gray-400 flex-shrink-0" />
     </button>
   )
 
@@ -65,7 +65,7 @@ export function AssigneePicker({ value, onChange, variant = 'row' }: AssigneePic
               {filtered.map(name => (
                 <button key={name} onClick={() => select(name)}
                   className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 transition-colors ${name===value?'bg-brand-50/60 text-brand-700 font-medium':'text-gray-700'}`}>
-                  <span className="w-5 h-5 rounded-full bg-gradient-to-br from-brand-200 to-brand-400 text-brand-800 text-[9px] font-extrabold flex items-center justify-center flex-shrink-0">{initialsOf(name)}</span>
+                  <span className="w-5 h-5 rounded-full bg-gradient-to-br from-brand-200 to-brand-400 text-brand-800 text-[10px] font-extrabold flex items-center justify-center flex-shrink-0">{initialsOf(name)}</span>
                   <span className="flex-1 min-w-0 truncate text-left">{name}</span>
                   {name===value && <Check size={12} className="flex-shrink-0" />}
                 </button>
@@ -83,7 +83,7 @@ export function AssigneePicker({ value, onChange, variant = 'row' }: AssigneePic
             </div>
             {value && (
               <button onClick={() => select('')}
-                className="w-full text-center text-[11px] font-medium text-gray-400 hover:text-red-500 hover:bg-red-50 py-2 border-t border-gray-100 transition-colors">
+                className="w-full text-center text-[11px] font-medium text-gray-400 hover:text-danger-500 hover:bg-danger-50 py-2 border-t border-gray-100 transition-colors">
                 Sem responsável
               </button>
             )}

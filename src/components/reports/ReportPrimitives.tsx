@@ -30,8 +30,8 @@ export function Section({ icon, title, hint, action, children, className = '' }:
 export function DeltaBadge({ delta, inverted = false }: { delta: Delta; inverted?: boolean }) {
   if (delta.direction === 'flat') {
     return (
-      <span className="inline-flex items-center gap-0.5 text-[10.5px] font-semibold text-gray-400">
-        <Minus size={11} /> igual
+      <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-gray-400">
+        <Minus size={12} /> igual
       </span>
     )
   }
@@ -39,8 +39,8 @@ export function DeltaBadge({ delta, inverted = false }: { delta: Delta; inverted
   const good = inverted ? delta.direction === 'down' : delta.direction === 'up'
   const Icon = delta.direction === 'up' ? ArrowUpRight : ArrowDownRight
   return (
-    <span className={`inline-flex items-center gap-0.5 text-[10.5px] font-bold ${good ? 'text-[#1D9E75]' : 'text-[#E24B4A]'}`}>
-      <Icon size={11} />
+    <span className={`inline-flex items-center gap-0.5 text-[11px] font-bold ${good ? 'text-[#1D9E75]' : 'text-[#E24B4A]'}`}>
+      <Icon size={12} />
       {delta.pct !== null ? `${Math.abs(delta.pct)}%` : `${delta.abs > 0 ? '+' : ''}${delta.abs}`}
     </span>
   )
@@ -64,7 +64,7 @@ export function KpiCard({ icon, label, value, sub, delta, invertedDelta, onClick
       </div>
       <p className="text-2xl font-extrabold tracking-tight text-gray-900 tabnum">{value}</p>
       <p className="text-[12px] text-gray-600 mt-0.5 font-medium">{label}</p>
-      {sub && <p className="text-[10.5px] text-gray-400 mt-0.5">{sub}</p>}
+      {sub && <p className="text-[11px] text-gray-400 mt-0.5">{sub}</p>}
     </div>
   )
 }
@@ -81,7 +81,7 @@ export function MiniBar({ pct, color }: { pct: number; color: string }) {
 export function EmptyState({ message, hint }: { message: string; hint?: string }) {
   return (
     <div className="px-4 py-10 text-center">
-      <p className="text-[12.5px] text-gray-500 font-medium">{message}</p>
+      <p className="text-[12px] text-gray-500 font-medium">{message}</p>
       {hint && <p className="text-[11px] text-gray-400 mt-1">{hint}</p>}
     </div>
   )

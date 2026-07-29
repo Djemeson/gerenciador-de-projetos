@@ -258,13 +258,13 @@ export function WhiteboardView({ scopeKey }: WhiteboardViewProps) {
         <div className="flex-1"/>
 
         {selectedId && (
-          <button onClick={deleteSelected} className="flex items-center gap-1 text-[11px] px-2 py-1 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors mr-1">
-            <Trash2 size={11}/> Excluir seleção
+          <button onClick={deleteSelected} className="flex items-center gap-1 text-[11px] px-2 py-1 border border-danger-100 text-danger-600 rounded-lg hover:bg-danger-50 transition-colors mr-1">
+            <Trash2 size={12}/> Excluir seleção
           </button>
         )}
         <button onClick={clearAll}
-          className={`flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg border transition-colors ${confirmClear ? 'bg-red-500 text-white border-red-500 animate-pulse' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
-          <Trash2 size={11}/> {confirmClear ? 'Confirmar?' : 'Limpar tudo'}
+          className={`flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg border transition-colors ${confirmClear ? 'bg-danger-500 text-white border-danger-500 animate-pulse' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+          <Trash2 size={12}/> {confirmClear ? 'Confirmar?' : 'Limpar tudo'}
         </button>
       </div>
 
@@ -313,7 +313,7 @@ export function WhiteboardView({ scopeKey }: WhiteboardViewProps) {
             onKeyDown={e => { if (e.key==='Enter') commitText(); if (e.key==='Escape') { setElements(p=>p.filter(x=>x.id!==editingText.id)); setEditingText(null) } }}
             placeholder="Texto..."
             style={{ position:'absolute', left: editingText.x - (svgRef.current?.getBoundingClientRect().left ?? 0), top: editingText.y - (svgRef.current?.getBoundingClientRect().top ?? 0) - 12 }}
-            className="text-[15px] font-medium px-1.5 py-0.5 border-2 border-brand-400 rounded-md outline-none bg-white shadow-sm min-w-[100px]"
+            className="text-[14px] font-medium px-1.5 py-0.5 border-2 border-brand-400 rounded-md outline-none bg-white shadow-sm min-w-[100px]"
           />
         )}
       </div>

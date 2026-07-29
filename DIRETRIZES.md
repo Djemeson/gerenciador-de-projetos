@@ -490,6 +490,50 @@ Regras:
   protótipo original também não cobria esse agrupamento).
 - Use sempre os tokens; não cravar cores novas fora dessa paleta sem necessidade.
 
+### 8.2. Sistema visual consolidado (auditoria de 29/07/2026)
+
+> A auditoria mediu a interface e encontrou o sistema **contornado**: 256 classes de cor
+> cruas do Tailwind em 30 arquivos, 107 hex escritos à mão, 14 tamanhos de ícone, 16
+> tamanhos de fonte e 22 de 33 textos pequenos abaixo do mínimo de leitura. O que segue é
+> o resultado da consolidação — **as regras abaixo valem para tela nova e tela antiga**.
+
+- **Cores semânticas de feedback** (`tailwind.config.js`): `success` (verde do status
+  Concluído), `warning` (âmbar de meta em risco), `danger` (vermelho de Urgente) e `info`
+  (azul de Em progresso), cada uma com 50/100/500/600/700. **Não usar `red-*`, `green-*`,
+  `emerald-*`, `amber-*`, `blue-*`, `indigo-*` do Tailwind** — `indigo` em especial é um
+  segundo índigo quase igual ao `brand`, o pior tipo de inconsistência.
+- **Prioridade tem fonte única**: `PRIORITY_COLOR` + `PRIORITY_TEXT_COLOR` +
+  `priorityTint()` em `types/index.ts`; `PRIORITY_OPTIONS` (`Select.tsx`) deriva dali.
+  Existiam **quatro** definições paralelas (opções do Select, círculo da linha, badge do
+  mobile e cor do ícone por agrupamento) — a mesma prioridade tinha uma cor no computador
+  e outra no celular, onde ainda aparecia em inglês ("HIGH"). Idem `STATUS_COLOR`.
+- **Texto sobre tinta usa o tom escuro** (`PRIORITY_TEXT_COLOR`): a cor cheia sobre o
+  próprio fundo em tinta rende ~3:1. Vale para qualquer badge novo com fundo colorido.
+- **Contraste mínimo 4.5:1 para texto**. `gray-300`/`gray-400` foram escurecidos porque
+  eram usados como cor de texto (a contagem dos grupos chegava a 1.42:1, invisível).
+  `gray-200/300` servem a **bordas e ícones decorativos**, não a texto.
+- **Escala de ícones** (`lib/iconScale.ts`): **12 · 14 · 16 · 18**. Nada abaixo de 12 —
+  o lucide desenha numa grade de 24px com traço 2, e a 9–10px o traço renderizado fica
+  abaixo de 1px e o ícone esfarela. Ícones são sempre **de contorno**; nada de `fill`.
+- **Escala tipográfica**: 10 · 11 · 12 · 13 · 14 · 16 · 20. **Sem meios-pixels**
+  (`text-[10.5px]`, `text-[12.5px]` e afins foram eliminados).
+- **Ritmo das três faixas da lista de tarefas** — a hierarquia estava invertida (as abas,
+  nível mais alto, não tinham separação; abaixo vinham duas faixas cinza quase idênticas,
+  slate-50 a 60% e a 85%):
+  1. **Abas** (tipos de visualização): **régua contínua** de 1px encerrando o cabeçalho —
+     é ela que dá base ao indicador da aba ativa.
+  2. **Agrupar por**: **transparente, sem borda**. É barra de ferramentas, não dado;
+     separa-se por espaço.
+  3. **Cabeçalho de colunas**: **única faixa tonal** (`bg-gray-50` + borda), e só ele
+     mantém tratamento de destaque por ser `sticky`.
+  Nunca empilhar duas superfícies tonais seguidas nessa região.
+- **Barra de progresso** é contida (160px) ao lado do número, não uma faixa de ponta a
+  ponta — cheia, parecia barra de carregamento da página.
+- **Ação destrutiva não fica na barra principal**: "Excluir projeto" vive no menu `⋯`.
+  Um separador divide ferramentas de tela (filtro, campos, IA) das ações sobre o projeto.
+- **Cabeçalho de colunas não usa ícones** em nenhum dos dois modos (o dinâmico nunca teve,
+  e a caixa de entrada tinha — a mesma coluna "Prazo" mudava de cara entre telas).
+
 ### 8.1. Densidade e escala da lista de tarefas (redesign 15/07/2026)
 
 > A partir do redesign de "Todas as tarefas" (importado de protótipo Claude Design), a

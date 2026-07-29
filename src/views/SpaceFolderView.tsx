@@ -17,7 +17,7 @@ export function SpaceDetailView() {
 
   const breadcrumb = (
     <div className="flex items-center gap-1 text-gray-400">
-      <button onClick={() => setView('projects')} className="hover:text-gray-600 transition-colors"><ChevronLeft size={15}/></button>
+      <button onClick={() => setView('projects')} className="hover:text-gray-600 transition-colors"><ChevronLeft size={16}/></button>
       <span className="hover:text-gray-600 cursor-pointer" onClick={() => setView('projects')}>Espaços</span>
       <span className="text-gray-300 mx-0.5">/</span>
     </div>
@@ -62,7 +62,7 @@ export function FolderDetailView() {
 
   const breadcrumb = (
     <div className="flex items-center gap-1 text-gray-400">
-      <button onClick={() => setView('projects')} className="hover:text-gray-600 transition-colors"><ChevronLeft size={15}/></button>
+      <button onClick={() => setView('projects')} className="hover:text-gray-600 transition-colors"><ChevronLeft size={16}/></button>
       {space && <>
         <span className="hover:text-gray-600 cursor-pointer flex items-center gap-1" onClick={() => openSpace(space.id)}>
           <SpaceBadge space={space} size={16}/> {space.name}
@@ -72,7 +72,7 @@ export function FolderDetailView() {
     </div>
   )
 
-  const icon = <FolderBadgeIcon folder={folder} open size={15}/>
+  const icon = <FolderBadgeIcon folder={folder} open size={16}/>
 
   const headerRight = (
     <button onClick={() => openNewProject(folder.spaceId, folder.id)}

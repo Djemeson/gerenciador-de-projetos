@@ -98,10 +98,10 @@ export function SettingsModal() {
                   />
                   <button type="button" onClick={() => setShowOpenAIKey(v => !v)}
                     className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                    {showOpenAIKey ? <EyeOff size={13}/> : <Eye size={13}/>}
+                    {showOpenAIKey ? <EyeOff size={14}/> : <Eye size={14}/>}
                   </button>
                 </div>
-                {openAIKey && <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-lg flex items-center gap-1 flex-shrink-0"><Check size={11}/> Ativa</span>}
+                {openAIKey && <span className="text-[10px] font-bold text-success-600 bg-success-50 border border-success-100 px-2 py-1 rounded-lg flex items-center gap-1 flex-shrink-0"><Check size={12}/> Ativa</span>}
               </div>
             </div>
 
@@ -119,10 +119,10 @@ export function SettingsModal() {
                   />
                   <button type="button" onClick={() => setShowGeminiKey(v => !v)}
                     className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                    {showGeminiKey ? <EyeOff size={13}/> : <Eye size={13}/>}
+                    {showGeminiKey ? <EyeOff size={14}/> : <Eye size={14}/>}
                   </button>
                 </div>
-                {geminiApiKey && <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-lg flex items-center gap-1 flex-shrink-0"><Check size={11}/> Ativa</span>}
+                {geminiApiKey && <span className="text-[10px] font-bold text-success-600 bg-success-50 border border-success-100 px-2 py-1 rounded-lg flex items-center gap-1 flex-shrink-0"><Check size={12}/> Ativa</span>}
               </div>
             </div>
           </div>
@@ -130,7 +130,7 @@ export function SettingsModal() {
           {!openAIKey && !geminiApiKey && (
             <div className="flex items-start gap-2 p-2.5 rounded-lg bg-gray-50 border border-gray-100 mt-3">
               <AlertCircle size={12} className="text-gray-400 mt-0.5 flex-shrink-0" />
-              <p className="text-[10.5px] text-gray-500 leading-relaxed">
+              <p className="text-[11px] text-gray-500 leading-relaxed">
                 Sem chave configurada, os recursos de IA usam um modo local simplificado (sem chamada externa) em vez de um modelo real.
               </p>
             </div>
@@ -158,7 +158,7 @@ export function SettingsModal() {
               </div>
             )}
             <div className="min-w-0 flex-1">
-              <div className="text-[12.5px] font-bold text-gray-800 truncate">{user?.displayName || 'Conta Google'}</div>
+              <div className="text-[12px] font-bold text-gray-800 truncate">{user?.displayName || 'Conta Google'}</div>
               <div className="text-[11px] text-gray-400 truncate">{user?.email || '—'}</div>
             </div>
             <button
@@ -170,40 +170,40 @@ export function SettingsModal() {
           </div>
 
           {/* Status da nuvem */}
-          <div className="bg-emerald-50/40 border border-emerald-100 rounded-xl p-4 mt-3">
+          <div className="bg-success-50/40 border border-success-100 rounded-xl p-4 mt-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="relative">
-                  <Wifi className="text-emerald-600" size={18} />
-                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-500 rounded-full animate-ping"></span>
+                  <Wifi className="text-success-600" size={18} />
+                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-success-500 rounded-full animate-ping"></span>
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-emerald-900">Sincronização ativa</h4>
-                  <p className="text-[10px] text-emerald-600">Este dispositivo está conectado à nuvem</p>
+                  <h4 className="text-xs font-bold text-success-700">Sincronização ativa</h4>
+                  <p className="text-[10px] text-success-600">Este dispositivo está conectado à nuvem</p>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 bg-emerald-100/60 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full font-bold">
+              <div className="flex items-center gap-1.5 bg-success-100/60 text-success-700 text-[10px] px-2 py-0.5 rounded-full font-bold">
                 {cloudSyncStatus === 'syncing' ? (
                   <>
-                    <RefreshCw size={10} className="animate-spin" />
+                    <RefreshCw size={12} className="animate-spin" />
                     <span>Sincronizando...</span>
                   </>
                 ) : cloudSyncStatus === 'error' ? (
-                  <span className="text-red-600">Erro ao sincronizar</span>
+                  <span className="text-danger-600">Erro ao sincronizar</span>
                 ) : (
                   <span>Conectado</span>
                 )}
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-[11px] text-gray-500 pt-3 mt-3 border-t border-emerald-100/70">
+            <div className="flex items-center justify-between text-[11px] text-gray-500 pt-3 mt-3 border-t border-success-100/70">
               <span>Última sincronização: <strong className="text-gray-700 font-semibold">{lastSyncedAt || 'agora mesmo'}</strong></span>
               <button
                 onClick={() => pushToCloud()}
                 disabled={cloudSyncStatus === 'syncing'}
                 className="flex items-center gap-1 text-brand-600 hover:text-brand-700 disabled:text-gray-400 font-semibold transition-colors cursor-pointer"
               >
-                <RefreshCw size={11} className={cloudSyncStatus === 'syncing' ? 'animate-spin' : ''} />
+                <RefreshCw size={12} className={cloudSyncStatus === 'syncing' ? 'animate-spin' : ''} />
                 <span>Sincronizar agora</span>
               </button>
             </div>

@@ -35,8 +35,8 @@ export function DueDatePicker({ value, onChange, variant = 'row', overdue = fals
 
   const trigger = variant === 'row' ? (
     <button ref={btnRef} onClick={e => { e.stopPropagation(); setOpen(v => !v) }}
-      className={`flex items-center gap-1 min-w-0 text-[11px] transition-colors ${overdue ? 'text-red-500' : label ? 'text-gray-600' : 'text-gray-300'} hover:text-brand-600`}>
-      {value && (overdue ? <AlertCircle size={10} className="flex-shrink-0" /> : <Calendar size={10} className="flex-shrink-0 text-gray-400" />)}
+      className={`flex items-center gap-1 min-w-0 text-[11px] transition-colors ${overdue ? 'text-danger-600 font-semibold' : label ? 'text-gray-600' : 'text-gray-400'} hover:text-brand-600`}>
+      {value && (overdue ? <AlertCircle size={12} className="flex-shrink-0" /> : <Calendar size={12} className="flex-shrink-0 text-gray-400" />)}
       <span className={`truncate ${!label ? 'italic' : ''}`}>{label || 'Sem prazo'}</span>
     </button>
   ) : (

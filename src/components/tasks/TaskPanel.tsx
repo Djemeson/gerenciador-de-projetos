@@ -121,7 +121,7 @@ export function TaskPanel({
       <div className="flex flex-col flex-1 overflow-hidden min-w-0">
 
         {/* Header */}
-        <div className="bg-white border-b border-gray-200 flex-shrink-0">
+        <div className="bg-white flex-shrink-0">
           {/* Breadcrumb + title + toolbar */}
           <div className="px-4 md:px-6 pt-2.5 md:pt-3.5 pb-0 flex items-center justify-between gap-2.5">
             <div className="flex items-center gap-1.5 text-[13px] min-w-0">
@@ -133,31 +133,31 @@ export function TaskPanel({
             </div>
             <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
                 <div className="relative">
-                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input type="text" placeholder="Buscar..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-7 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-400 transition-all w-40" />
                 </div>
                 <SortControl value={multiSort} onChange={updateMultiSort}/>
                 <button onClick={toggleNotesPanel} title="Bloco de notas"
-                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:text-amber-600 hover:border-amber-200 hover:bg-amber-50/50 transition-colors flex-shrink-0">
-                  <StickyNote size={15}/>
+                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:text-warning-600 hover:border-warning-100 hover:bg-warning-50/50 transition-colors flex-shrink-0">
+                  <StickyNote size={16}/>
                 </button>
                 {headerRight && <div className="flex items-center gap-1.5 flex-shrink-0 scale-95 origin-right">{headerRight}</div>}
             </div>
           </div>
 
           {/* Progress */}
-          <div className="hidden md:flex items-center gap-3 px-4 md:px-6 mt-2 md:mt-2.5">
-            <div className="flex-1 h-[5px] bg-gray-100 rounded-full overflow-hidden">
+          <div className="hidden md:flex items-center gap-2.5 px-4 md:px-6 mt-2">
+            <div className="w-40 h-[3px] bg-gray-100 rounded-full overflow-hidden flex-shrink-0">
               <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: accent }}/>
             </div>
-            <span className="tabnum text-xs font-bold text-gray-600 flex-shrink-0">{done}/{total} · {pct}%</span>
+            <span className="tabnum text-[11px] font-semibold text-gray-500 flex-shrink-0">{done}/{total} · {pct}%</span>
           </div>
 
           {/* View tabs */}
-          <div className="flex items-center overflow-x-auto scrollbar-none px-4 md:px-5 mt-1 md:mt-1.5 border-b border-transparent">
+          <div className="flex items-center overflow-x-auto scrollbar-none px-4 md:px-5 mt-1 md:mt-1.5 border-b border-gray-200">
             {tabs.map(({ key, label, Icon }) => (
               <button key={key} onClick={() => selectView(key)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 md:py-2 text-[12px] md:text-[12.5px] font-semibold whitespace-nowrap transition-all flex-shrink-0 border-b-2 -mb-px
+                className={`flex items-center gap-1.5 px-3 py-1.5 md:py-2 text-[12px] md:text-[12px] font-semibold whitespace-nowrap transition-all flex-shrink-0 border-b-2 -mb-px
                   ${!activeCustomId && view===key ? 'text-brand-600' : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-200'}`}
                 style={!activeCustomId && view===key ? { borderColor: accent, color: accent } : undefined}>
                 <Icon size={12}/>{label}
@@ -168,13 +168,13 @@ export function TaskPanel({
             {customViews.map(cv => (
               <div key={cv.id} className={`flex items-center group/cv flex-shrink-0 border-b-2 -mb-px ${activeCustomId===cv.id ? 'border-brand-500' : 'border-transparent'}`}>
                 <button onClick={() => setActiveCustomId(cv.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 md:py-2.5 text-[12px] md:text-[12.5px] font-semibold whitespace-nowrap transition-colors ${activeCustomId===cv.id ? 'text-brand-600' : 'text-gray-500 hover:text-gray-800'}`}>
+                  className={`flex items-center gap-1.5 px-3 py-1.5 md:py-2.5 text-[12px] md:text-[12px] font-semibold whitespace-nowrap transition-colors ${activeCustomId===cv.id ? 'text-brand-600' : 'text-gray-500 hover:text-gray-800'}`}>
                   {(() => { const Icon = VIEW_ICON[cv.icon]; return Icon ? <Icon size={12}/> : <span>{cv.icon}</span> })()}
                   {cv.name}
                 </button>
                 <button onClick={() => { deleteCustomView(scopeKey, cv.id); if (activeCustomId===cv.id) setActiveCustomId(null) }}
-                  className="opacity-0 group-hover/cv:opacity-100 px-1 py-1.5 md:py-2.5 text-gray-300 hover:text-red-400 transition-all text-xs">
-                  <X size={10}/>
+                  className="opacity-0 group-hover/cv:opacity-100 px-1 py-1.5 md:py-2.5 text-gray-300 hover:text-danger-500 transition-all text-xs">
+                  <X size={12}/>
                 </button>
               </div>
             ))}
@@ -184,7 +184,7 @@ export function TaskPanel({
               onClick={() => openNewViewModal(scopeKey)}
               className="group/newview flex items-center gap-1.5 px-3 py-1 my-1 text-[11px] font-semibold text-gray-500 hover:text-brand-600 bg-gray-50/50 hover:bg-brand-50/40 border border-dashed border-gray-200 hover:border-brand-300 rounded-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] cursor-pointer flex-shrink-0 shadow-xs"
             >
-              <Plus size={11} className="text-gray-400 group-hover/newview:text-brand-500 transition-colors" />
+              <Plus size={12} className="text-gray-400 group-hover/newview:text-brand-500 transition-colors" />
               <span>Nova visualização</span>
             </button>
           </div>
@@ -204,7 +204,7 @@ export function TaskPanel({
               <button onClick={toggleAllSubtasks}
                 title={subtasksCollapsed ? 'Expandir subtarefas' : 'Recolher subtarefas'}
                 className="ml-auto flex items-center gap-1 px-1.5 py-1 text-[10px] md:text-xs font-semibold text-gray-600 border border-gray-200 rounded-lg bg-white hover:border-gray-300 hover:text-gray-900 transition-colors">
-                <ChevronDown size={11} className={`text-gray-400 transition-transform ${subtasksCollapsed ? '' : 'rotate-180'}`}/>
+                <ChevronDown size={12} className={`text-gray-400 transition-transform ${subtasksCollapsed ? '' : 'rotate-180'}`}/>
                 <span>{subtasksCollapsed ? 'Expandir' : 'Recolher'}</span>
               </button>
               {toolbarExtra}
@@ -402,7 +402,7 @@ function OverviewView({ tasks, accent, pct, gut }: { tasks: Task[]; accent: stri
                       className="w-full flex items-center gap-2.5 text-left hover:bg-gray-50 px-2 py-1.5 rounded-lg transition-colors">
                       <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: late ? '#E24B4A' : accent }}/>
                       <span className="flex-1 text-[13px] font-medium text-gray-700 truncate">{t.title}</span>
-                      <span className={`text-[10px] font-semibold flex-shrink-0 px-2 py-0.5 rounded-md border tabnum ${late ? 'text-red-500 bg-red-50 border-red-100' : 'text-gray-400 bg-gray-50 border-gray-100'}`}>
+                      <span className={`text-[10px] font-semibold flex-shrink-0 px-2 py-0.5 rounded-md border tabnum ${late ? 'text-danger-500 bg-danger-50 border-danger-100' : 'text-gray-400 bg-gray-50 border-gray-100'}`}>
                         {dueLabel(t.dueDate as string)}
                       </span>
                     </button>
@@ -417,14 +417,14 @@ function OverviewView({ tasks, accent, pct, gut }: { tasks: Task[]; accent: stri
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {overdue.length>0 && (
             <div className={OV_CARD}>
-              <p className="text-[10px] font-bold text-red-400 uppercase tracking-wider mb-3">Atrasadas ({overdue.length})</p>
+              <p className="text-[10px] font-bold text-danger-500 uppercase tracking-wider mb-3">Atrasadas ({overdue.length})</p>
               <div className="space-y-0.5">
                 {overdue.slice(0,6).map(t=>(
                   <button key={t.id} onClick={()=>setSelectedTask(t.id)}
-                    className="w-full flex items-center gap-2.5 text-left hover:bg-red-50/50 px-2 py-1.5 rounded-lg transition-colors">
-                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0"/>
+                    className="w-full flex items-center gap-2.5 text-left hover:bg-danger-50/50 px-2 py-1.5 rounded-lg transition-colors">
+                    <span className="w-1.5 h-1.5 rounded-full bg-danger-500 flex-shrink-0"/>
                     <span className="flex-1 text-[13px] font-medium text-gray-700 truncate">{t.title}</span>
-                    <span className="text-[10px] text-red-500 font-semibold flex-shrink-0 bg-red-50 px-2 py-0.5 rounded-md border border-red-100 tabnum">{fmtDate(t.dueDate as string)}</span>
+                    <span className="text-[10px] text-danger-500 font-semibold flex-shrink-0 bg-danger-50 px-2 py-0.5 rounded-md border border-danger-100 tabnum">{fmtDate(t.dueDate as string)}</span>
                   </button>
                 ))}
               </div>
@@ -438,7 +438,7 @@ function OverviewView({ tasks, accent, pct, gut }: { tasks: Task[]; accent: stri
                   className="w-full flex items-center gap-2.5 text-left hover:bg-gray-50 px-2 py-1.5 rounded-lg transition-colors">
                   <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: t.status==='done'?'#1D9E75':t.status==='in_progress'?'#378ADD':'#C7C7C7' }}/>
                   <span className={`flex-1 text-[13px] font-medium truncate ${t.status==='done'?'text-gray-400 line-through':'text-gray-700'}`}>{t.title}</span>
-                  <span className="text-[10px] text-gray-300 flex-shrink-0 tabnum">{fmtDate(t.updatedAt)}</span>
+                  <span className="text-[10px] text-gray-500 flex-shrink-0 tabnum">{fmtDate(t.updatedAt)}</span>
                 </button>
               ))}
             </div>
@@ -485,9 +485,9 @@ function BoardView({ tasks }: { tasks: Task[] }) {
                 {colTasks.map(t=>{
                   const selected = sel.includes(t.id)
                   const priorityConfig = {
-                    urgent: { label: 'Urgente', color: 'text-red-600 bg-red-50 border-red-100' },
-                    high:   { label: 'Alta',    color: 'text-orange-600 bg-orange-50 border-orange-100' },
-                    medium: { label: 'Média',   color: 'text-blue-600 bg-blue-50 border-blue-100' },
+                    urgent: { label: 'Urgente', color: 'text-danger-600 bg-danger-50 border-danger-100' },
+                    high:   { label: 'Alta',    color: 'text-warning-700 bg-warning-50 border-warning-100' },
+                    medium: { label: 'Média',   color: 'text-info-600 bg-info-50 border-info-100' },
                     low:    { label: 'Baixa',   color: 'text-gray-500 bg-gray-50 border-gray-200/60' },
                   }[t.priority] || { label: t.priority, color: 'text-gray-400' }
 
@@ -499,7 +499,7 @@ function BoardView({ tasks }: { tasks: Task[] }) {
                       {/* Checkbox de seleção */}
                       <button onClick={e=>{e.stopPropagation();toggle(t.id)}}
                         className={`absolute top-3 right-3 w-4.5 h-4.5 rounded-md border flex items-center justify-center transition-all ${selected?'bg-brand-500 border-brand-500 opacity-100':'border-gray-300 bg-white opacity-0 group-hover:opacity-100 hover:border-brand-400'}`}>
-                        {selected && <Check size={11} className="text-white" strokeWidth={3.5}/>}
+                        {selected && <Check size={12} className="text-white" strokeWidth={3.5}/>}
                       </button>
                       <p className="text-[13px] font-semibold text-gray-800 mb-3 leading-snug pr-6">{t.title}</p>
                       <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -511,11 +511,11 @@ function BoardView({ tasks }: { tasks: Task[] }) {
                             {new Date(t.dueDate).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}
                           </span>
                         )}
-                        <span className="w-5 h-5 rounded-full bg-brand-50 text-brand-700 text-[9px] font-semibold flex items-center justify-center border border-brand-100">{t.assignee.slice(0,2)}</span>
+                        <span className="w-5 h-5 rounded-full bg-brand-50 text-brand-700 text-[10px] font-semibold flex items-center justify-center border border-brand-100">{t.assignee.slice(0,2)}</span>
                       </div>
                       {t.tags.length>0 && (
                         <div className="flex flex-wrap gap-1 mt-2.5 pt-2 border-t border-gray-50">
-                          {t.tags.slice(0,2).map((tag:string)=><span key={tag} className="text-[9.5px] font-medium px-2 py-0.5 bg-gray-100/80 text-gray-500 rounded border border-gray-200/40">{tag}</span>)}
+                          {t.tags.slice(0,2).map((tag:string)=><span key={tag} className="text-[10px] font-medium px-2 py-0.5 bg-gray-100/80 text-gray-500 rounded border border-gray-200/40">{tag}</span>)}
                         </div>
                       )}
                     </div>
@@ -536,8 +536,8 @@ function BoardView({ tasks }: { tasks: Task[] }) {
             onChange={v=>bulkStatus(v as TaskStatus)} ariaLabel="Definir status"/>
           <Select value="" placeholder="Prioridade..." options={PRIORITY_OPTIONS}
             onChange={v=>bulkPriority(v as Priority)} ariaLabel="Definir prioridade"/>
-          <button onClick={bulkDelete} className="flex items-center gap-1 text-xs px-2 py-1 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors">
-            <Trash2 size={11}/> Excluir
+          <button onClick={bulkDelete} className="flex items-center gap-1 text-xs px-2 py-1 border border-danger-100 text-danger-600 rounded-lg hover:bg-danger-50 transition-colors">
+            <Trash2 size={12}/> Excluir
           </button>
           <button onClick={clear} className="text-xs text-gray-400 hover:text-gray-600">Cancelar</button>
         </div>
@@ -715,8 +715,8 @@ function ActivityView({ tasks }: { tasks: Task[] }) {
                 <div className="w-7 h-7 rounded-full border-2 border-white shadow-sm flex items-center justify-center flex-shrink-0 z-10"
                   style={{background: statusColor[t.status] + '20', borderColor: statusColor[t.status]}}>
                   {t.status==='done'
-                    ? <Check size={11} strokeWidth={3} style={{color:statusColor[t.status]}}/>
-                    : <Circle size={7} strokeWidth={0} fill={statusColor[t.status]} style={{color:statusColor[t.status]}}/>}
+                    ? <Check size={12} strokeWidth={3} style={{color:statusColor[t.status]}}/>
+                    : <Circle size={12} strokeWidth={0} fill={statusColor[t.status]} style={{color:statusColor[t.status]}}/>}
                 </div>
                 <div className="flex-1 min-w-0 bg-white border border-gray-100 rounded-xl px-3 py-2.5 hover:border-gray-200 transition-colors cursor-pointer shadow-sm"
                   onClick={() => setSelectedTask(t.id)}>
@@ -730,7 +730,7 @@ function ActivityView({ tasks }: { tasks: Task[] }) {
                       {statusLabel[t.status]}
                     </span>
                     {t.assignee && <span className="text-[10px] text-gray-400">{t.assignee}</span>}
-                    {t.dueDate && <span className="inline-flex items-center gap-1 text-[10px] text-gray-400"><Calendar size={10}/>{new Date(t.dueDate).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}</span>}
+                    {t.dueDate && <span className="inline-flex items-center gap-1 text-[10px] text-gray-400"><Calendar size={12}/>{new Date(t.dueDate).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}</span>}
                   </div>
                 </div>
               </div>

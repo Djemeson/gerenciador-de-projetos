@@ -187,7 +187,7 @@ export function TaskList({ tasks, projectId, scopeKey, columns=[], showProject=f
                   color: pill.color,
                   borderColor: pill.color + '30'
                 }}>
-                {PillIcon && <PillIcon size={11} strokeWidth={2.5}/>} {label}
+                {PillIcon && <PillIcon size={12} strokeWidth={2.5}/>} {label}
               </span>
             ) : (
               <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-100/80 shadow-sm">
@@ -195,12 +195,12 @@ export function TaskList({ tasks, projectId, scopeKey, columns=[], showProject=f
                 <span className="text-xs font-bold text-gray-700 tracking-tight">{label}</span>
               </div>
             )}
-            <span className="text-[11px] text-gray-300 font-bold tabnum">{items.length}</span>
+            <span className="text-[11px] text-gray-500 font-bold tabnum">{items.length}</span>
           </button>
           <div className="flex-1 h-px bg-gray-100"/>
           {status!=='done'&&(
             <button onClick={()=>setQuickAdd({key,status})} className="opacity-0 group-hover:opacity-100 text-[11px] text-gray-300 hover:text-brand-600 flex items-center gap-1 transition-all font-medium">
-              <Plus size={11}/> adicionar
+              <Plus size={12}/> adicionar
             </button>
           )}
         </div>
@@ -219,7 +219,7 @@ export function TaskList({ tasks, projectId, scopeKey, columns=[], showProject=f
               <div className="px-6 py-1">
                 <button onClick={()=>setQuickAdd({key,status})}
                   className="w-full flex items-center justify-center gap-2 py-2.5 text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50/20 border border-dashed border-gray-200 hover:border-brand-300 rounded-xl transition-all duration-200 font-semibold cursor-pointer">
-                  <Plus size={13} className="transition-transform duration-200 group-hover:scale-110"/> Adicionar tarefa
+                  <Plus size={14} className="transition-transform duration-200 group-hover:scale-110"/> Adicionar tarefa
                 </button>
               </div>
             )}
@@ -264,8 +264,8 @@ export function TaskList({ tasks, projectId, scopeKey, columns=[], showProject=f
             onChange={v=>bulkStatus(v as TaskStatus)} ariaLabel="Definir status"/>
           <Select value="" placeholder="Prioridade..." options={PRIORITY_OPTIONS}
             onChange={v=>bulkPriority(v as Priority)} ariaLabel="Definir prioridade"/>
-          <button onClick={bulkDelete} className="flex items-center gap-1 text-xs px-2 py-1 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors">
-            <Trash2 size={11}/> Excluir
+          <button onClick={bulkDelete} className="flex items-center gap-1 text-xs px-2 py-1 border border-danger-100 text-danger-600 rounded-lg hover:bg-danger-50 transition-colors">
+            <Trash2 size={12}/> Excluir
           </button>
           <button onClick={clearSel} className="text-xs text-gray-400 hover:text-gray-600">Cancelar</button>
         </div>

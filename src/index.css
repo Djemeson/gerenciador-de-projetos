@@ -11,9 +11,13 @@
     --gray-50: #FAFAFA;
     --gray-100: #F4F4F5;
     --gray-200: #EAEAEC;
-    --gray-300: #D8D8DD;
-    --gray-400: #9B9EA8;
-    --gray-500: #71747E;
+    /* `gray-300` e `gray-400` eram usados como cor de *texto* pequeno e não passavam no
+       mínimo de leitura (medido: contagem dos grupos a 1.42:1, rótulos a 2.56:1 — o
+       mínimo AA é 4.5:1). Escurecidos o suficiente para o texto ficar legível sem perder
+       o ar "discreto"; bordas e ícones decorativos usam os tons 200/300, não estes. */
+    --gray-300: #B9BAC2;
+    --gray-400: #767A85;
+    --gray-500: #61646D;
     --gray-600: #52555D;
     --gray-700: #3B3E45;
     --gray-800: #26282E;

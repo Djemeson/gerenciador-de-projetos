@@ -32,7 +32,7 @@ export function CalendarView() {
   return (
     <div className="flex flex-1 overflow-hidden">
       <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-200 bg-white">
-        <Calendar size={15} className="text-gray-400" />
+        <Calendar size={16} className="text-gray-400" />
         <h1 className="text-sm font-semibold text-gray-900 flex-1">Calendário</h1>
         <button onClick={prevMonth} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors text-gray-500">
           <ChevronLeft size={14} />

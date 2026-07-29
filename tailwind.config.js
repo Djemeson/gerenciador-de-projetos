@@ -18,6 +18,41 @@ export default {
           800: '#3730A3',
           900: '#2C2879',
         },
+        // ── Cores semânticas de feedback ────────────────────────────────────
+        // Faltavam: o app tinha cor de *status de tarefa* e de *prioridade*, mas nada
+        // para sucesso/aviso/erro/informação. Cada tela então inventava a sua
+        // (`red-400`, `red-500`, `red-600`, `#E24B4A`, `#D85A30` no mesmo papel).
+        // Os valores vêm das cores que o app já usava como referência: verde do status
+        // "Concluído", âmbar da meta "Em risco", vermelho da prioridade "Urgente" e azul
+        // do status "Em progresso".
+        success: {
+          50:  '#E8F6F0',
+          100: '#D0EDE1',
+          500: '#1D9E75',
+          600: '#178462',
+          700: '#12684D',
+        },
+        warning: {
+          50:  '#FDF6E7',
+          100: '#F9EAC6',
+          500: '#D89A18',
+          600: '#B57F12',
+          700: '#8F640E',
+        },
+        danger: {
+          50:  '#FDECEC',
+          100: '#FAD7D7',
+          500: '#E24B4A',
+          600: '#C93B3A',
+          700: '#A32E2D',
+        },
+        info: {
+          50:  '#EAF3FC',
+          100: '#D3E6F8',
+          500: '#378ADD',
+          600: '#2B72BC',
+          700: '#215B98',
+        },
         // ── Cinzas refinados (frios, quase neutros) — base minimalista ──────
         // Sobrescreve a paleta `gray` do Tailwind para dar acabamento premium
         // a todo o app sem tocar em cada componente.

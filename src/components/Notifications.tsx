@@ -4,9 +4,9 @@ import { useNotificationStore } from '../stores/useNotificationStore'
 import { useAppStore } from '../stores/useAppStore'
 
 const TYPE_CONFIG = {
-  overdue:  { icon: AlertCircle, label: 'Em atraso',   bg: 'bg-red-50',    border: 'border-red-200',   iconColor: 'text-red-500',    badge: 'bg-red-100 text-red-700' },
-  due_today:{ icon: Clock,       label: 'Vence hoje',  bg: 'bg-orange-50', border: 'border-orange-200',iconColor: 'text-orange-500', badge: 'bg-orange-100 text-orange-700' },
-  due_soon: { icon: Bell,        label: 'Amanhã',      bg: 'bg-blue-50',   border: 'border-blue-200',  iconColor: 'text-blue-500',   badge: 'bg-blue-100 text-blue-700' },
+  overdue:  { icon: AlertCircle, label: 'Em atraso',   bg: 'bg-danger-50',    border: 'border-danger-100',   iconColor: 'text-danger-500',    badge: 'bg-danger-100 text-danger-700' },
+  due_today:{ icon: Clock,       label: 'Vence hoje',  bg: 'bg-warning-50', border: 'border-warning-100',iconColor: 'text-warning-600', badge: 'bg-warning-100 text-warning-700' },
+  due_soon: { icon: Bell,        label: 'Amanhã',      bg: 'bg-info-50',   border: 'border-info-100',  iconColor: 'text-info-500',   badge: 'bg-info-100 text-info-700' },
   automation:{icon: Zap,         label: 'Automação',   bg: 'bg-brand-50',  border: 'border-brand-200', iconColor: 'text-brand-500',  badge: 'bg-brand-100 text-brand-700' },
 }
 
@@ -27,7 +27,7 @@ export function Notifications() {
       {notifications.length > 1 && (
         <div className="flex justify-end">
           <button onClick={clearAll} className="text-[10px] text-gray-400 hover:text-gray-600 flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-1 shadow-sm">
-            <CheckCheck size={10} /> Dispensar todas ({notifications.length})
+            <CheckCheck size={12} /> Dispensar todas ({notifications.length})
           </button>
         </div>
       )}
@@ -61,7 +61,7 @@ export function Notifications() {
                   <>
                     <button onClick={() => snooze(n.id, 1)}
                       className="text-[11px] px-2 py-1 bg-white border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors flex items-center gap-1">
-                      <AlarmClock size={10} /> 1h
+                      <AlarmClock size={12} /> 1h
                     </button>
                     <button onClick={() => snooze(n.id, 24)}
                       className="text-[11px] px-2 py-1 bg-white border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors">
@@ -72,7 +72,7 @@ export function Notifications() {
               </div>
             </div>
             <button onClick={() => dismiss(n.id)} className="text-gray-300 hover:text-gray-500 flex-shrink-0 transition-colors">
-              <X size={13} />
+              <X size={14} />
             </button>
           </div>
         )

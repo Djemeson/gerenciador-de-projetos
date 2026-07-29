@@ -59,7 +59,7 @@ export function NewProjectModal() {
             style={{ background: color + '1F', color }}
           >
             {icon
-              ? (() => { const Icon = getIconComponent(icon); return Icon ? <Icon size={19}/> : null })()
+              ? (() => { const Icon = getIconComponent(icon); return Icon ? <Icon size={18}/> : null })()
               : (name.trim().charAt(0).toUpperCase() || '+')}
           </button>
           <input
@@ -109,7 +109,7 @@ export function NewProjectModal() {
               <button key={c} type="button" onClick={() => setColor(c)} title={c}
                 className="w-7 h-7 rounded-full flex items-center justify-center transition-transform hover:scale-110 border-2 border-white shadow-sm ring-1 ring-gray-200"
                 style={{ background: c, ...(color===c ? { boxShadow: `0 0 0 2px white, 0 0 0 3.5px ${c}` } : {}) }}>
-                {color===c && <Check size={13} className="text-white" strokeWidth={3}/>}
+                {color===c && <Check size={14} className="text-white" strokeWidth={3}/>}
               </button>
             ))}
           </div>
@@ -117,7 +117,7 @@ export function NewProjectModal() {
 
         <div className="flex items-start gap-2 p-2.5 rounded-lg bg-gray-50 border border-gray-100">
           <Info size={12} className="text-gray-400 mt-0.5 flex-shrink-0" />
-          <p className="text-[10.5px] text-gray-500 leading-relaxed">Configure a pontuação GUT (prioridade) após criar o projeto.</p>
+          <p className="text-[11px] text-gray-500 leading-relaxed">Configure a pontuação GUT (prioridade) após criar o projeto.</p>
         </div>
 
         <div className="flex gap-2 pt-1">

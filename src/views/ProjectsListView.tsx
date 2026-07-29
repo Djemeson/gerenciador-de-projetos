@@ -45,7 +45,7 @@ export function ProjectsListView() {
           </span>
           <div className="flex-1 min-w-0">
             <button onClick={() => !isArchived && setView('project_detail', p.id)}
-              className={`block text-[13.5px] font-bold truncate text-left w-full ${isArchived ? 'text-gray-500 cursor-default' : 'text-gray-900 hover:text-brand-600 transition-colors'}`}>
+              className={`block text-[13px] font-bold truncate text-left w-full ${isArchived ? 'text-gray-500 cursor-default' : 'text-gray-900 hover:text-brand-600 transition-colors'}`}>
               {p.name}
             </button>
             <p className="text-[11px] text-gray-400 truncate">{p.description || 'Sem descrição'}</p>
@@ -73,7 +73,7 @@ export function ProjectsListView() {
             <div className="flex items-center gap-3 mt-2 text-[11px] font-medium text-gray-400">
               <span><b className="text-gray-600 tabnum">{stats.active}</b> ativas</span>
               <span><b className="text-gray-600 tabnum">{stats.done}</b> feitas</span>
-              {stats.overdue > 0 && <span className="text-red-500"><b className="tabnum">{stats.overdue}</b> atrasadas</span>}
+              {stats.overdue > 0 && <span className="text-danger-500"><b className="tabnum">{stats.overdue}</b> atrasadas</span>}
             </div>
           </>
         )}
@@ -94,18 +94,18 @@ export function ProjectsListView() {
           ) : (
             <button onClick={() => archiveProject(p.id)} title="Arquivar"
               className="p-1.5 rounded-lg text-gray-300 hover:text-gray-600 hover:bg-gray-50 transition-colors md:opacity-0 md:group-hover:opacity-100">
-              <Archive size={13} />
+              <Archive size={14} />
             </button>
           )}
           {isConfirming ? (
             <button onClick={() => handleDelete(p.id)}
-              className="flex items-center gap-1 text-[11px] font-bold px-2 py-1 bg-red-500 text-white rounded-lg animate-pulse">
+              className="flex items-center gap-1 text-[11px] font-bold px-2 py-1 bg-danger-500 text-white rounded-lg animate-pulse">
               Confirmar?
             </button>
           ) : (
             <button onClick={() => handleDelete(p.id)} title="Excluir"
-              className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors md:opacity-0 md:group-hover:opacity-100">
-              <Trash2 size={13} />
+              className="p-1.5 rounded-lg text-gray-300 hover:text-danger-500 hover:bg-danger-50 transition-colors md:opacity-0 md:group-hover:opacity-100">
+              <Trash2 size={14} />
             </button>
           )}
         </div>
@@ -117,11 +117,11 @@ export function ProjectsListView() {
     <div className="flex flex-col flex-1 overflow-hidden">
       <div className="flex items-center gap-3 px-5 py-3.5 border-b border-gray-200 bg-white">
         <LayoutGrid size={16} className="text-gray-400" />
-        <h1 className="text-[15px] font-extrabold text-gray-900 flex-1 tracking-tight">Projetos <span className="text-gray-300 font-bold">{active.length}</span></h1>
-        <Button variant="default" size="sm" icon={<Sparkles size={13} className="text-brand-500"/>} onClick={() => openAIProject()}>
+        <h1 className="text-[14px] font-extrabold text-gray-900 flex-1 tracking-tight">Projetos <span className="text-gray-300 font-bold">{active.length}</span></h1>
+        <Button variant="default" size="sm" icon={<Sparkles size={14} className="text-brand-500"/>} onClick={() => openAIProject()}>
           Criar com IA
         </Button>
-        <Button variant="primary" size="sm" icon={<Plus size={13} />} onClick={() => openNewProject()}>
+        <Button variant="primary" size="sm" icon={<Plus size={14} />} onClick={() => openNewProject()}>
           Novo projeto
         </Button>
       </div>
@@ -155,8 +155,8 @@ export function ProjectsListView() {
           <div className="mt-6">
             <button onClick={() => setShowArchived(v => !v)}
               className="flex items-center gap-2 text-xs font-semibold text-gray-400 hover:text-gray-600 transition-colors mb-3">
-              {showArchived ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-              <Archive size={13} />
+              {showArchived ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              <Archive size={14} />
               Arquivados ({archived.length})
             </button>
             {showArchived && (

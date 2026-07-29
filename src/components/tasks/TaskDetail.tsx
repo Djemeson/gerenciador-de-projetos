@@ -44,7 +44,7 @@ function SubtaskTreeItem({ task, depth, editMode }: { task: import('../../types'
           {hasChildren ? (
             <button onClick={e => { e.stopPropagation(); setExpanded(v => !v) }}
               className="w-3.5 h-3.5 flex items-center justify-center text-gray-300 hover:text-gray-500 flex-shrink-0">
-              {expanded ? <ChevronDown size={11}/> : <ChevronRight size={11}/>}
+              {expanded ? <ChevronDown size={12}/> : <ChevronRight size={12}/>}
             </button>
           ) : <span className="w-3.5 flex-shrink-0"/>}
           <button
@@ -64,11 +64,11 @@ function SubtaskTreeItem({ task, depth, editMode }: { task: import('../../types'
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           {sPrio && (
-            <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
+            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
               style={{ background: sPrio.color+'15', color: sPrio.color }}>{sPrio.label}</span>
           )}
           {editMode && (
-            <button onClick={e => { e.stopPropagation(); deleteTask(task.id) }} className="p-1 rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors">
+            <button onClick={e => { e.stopPropagation(); deleteTask(task.id) }} className="p-1 rounded text-gray-300 hover:text-danger-500 hover:bg-danger-50 transition-colors">
               <X size={12} />
             </button>
           )}
@@ -99,12 +99,12 @@ function blockTypeForFile(file: File): 'image' | 'audio' | 'file' {
 function getAvatarBg(name: string) {
   const hash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
   const colors = [
-    'from-indigo-500 to-purple-600',
-    'from-emerald-500 to-teal-600',
-    'from-blue-500 to-sky-600',
-    'from-rose-500 to-pink-600',
-    'from-amber-500 to-orange-600',
-    'from-violet-500 to-fuchsia-600',
+    'from-brand-500 to-brand-600',
+    'from-success-500 to-success-600',
+    'from-info-500 to-info-600',
+    'from-danger-500 to-pink-600',
+    'from-warning-500 to-orange-600',
+    'from-brand-500 to-fuchsia-600',
   ]
   return colors[hash % colors.length]
 }
@@ -555,7 +555,7 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
           {siblings.length > 1 && (
             <button onClick={() => setSiblingsMenuOpen(v => !v)}
               className="flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 hover:bg-gray-200 text-[11px] font-bold text-gray-600 flex-shrink-0 transition-colors">
-              <GitBranch size={11}/>{siblings.length}<ChevronDown size={10}/>
+              <GitBranch size={12}/>{siblings.length}<ChevronDown size={12}/>
             </button>
           )}
           {siblingsMenuOpen && (
@@ -570,7 +570,7 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
                       {sb.status==='done' && <span className="w-1.5 h-1.5 rounded-full" style={{ background: statusColorOf(sb.status) }}/>}
                     </span>
                     <span className={`flex-1 text-xs truncate ${sb.status==='done' ? 'line-through text-gray-400' : 'text-gray-700'}`}>{sb.title}</span>
-                    {sb.id===task.id && <Check size={13} className="text-brand-600 flex-shrink-0" strokeWidth={2.6}/>}
+                    {sb.id===task.id && <Check size={14} className="text-brand-600 flex-shrink-0" strokeWidth={2.6}/>}
                   </button>
                 ))}
               </div>
@@ -608,7 +608,7 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
                 aiMenuOpen ? 'bg-brand-50 border-brand-200 text-brand-700' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-brand-600'
               }`}
             >
-              <Wand2 size={15}/>
+              <Wand2 size={16}/>
             </button>
             {aiMenuOpen && (
               <div className="absolute right-0 top-full mt-1.5 w-60 bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 z-50 animate-scale-in">
@@ -645,12 +645,12 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
           >
             {activeMode === 'full' ? (
               <>
-                <Minimize2 size={13} className="text-brand-600" />
+                <Minimize2 size={14} className="text-brand-600" />
                 <span className="hidden sm:inline">Sair do Foco</span>
               </>
             ) : (
               <>
-                <Maximize2 size={13} className="text-gray-500" />
+                <Maximize2 size={14} className="text-gray-500" />
                 <span className="hidden sm:inline">Focar Tarefa</span>
               </>
             )}
@@ -676,7 +676,7 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
                 className="transition-all p-1.5 rounded-lg border flex items-center gap-1.5 text-xs font-bold shadow-sm cursor-pointer select-none text-gray-500 bg-white border-gray-200 hover:bg-gray-50"
                 title="Expandir descrição em painel completo"
               >
-                <Maximize2 size={13} className="text-gray-400" />
+                <Maximize2 size={14} className="text-gray-400" />
                 <span>Expandir</span>
               </button>
             </div>
@@ -727,7 +727,7 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
                 </button>
               )}
             </div>
-            {aiNotice && <p className="text-[10.5px] text-amber-600">{aiNotice}</p>}
+            {aiNotice && <p className="text-[11px] text-warning-600">{aiNotice}</p>}
           </div>
 
           {/* SUBTAREFAS (se ativas ou presentes) */}
@@ -736,8 +736,8 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
               <div className="flex items-center justify-between">
                 <button onClick={() => setSubtasksSectionCollapsed(v => !v)}
                   className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                  <ChevronDown size={11} className={`transition-transform ${subtasksSectionCollapsed ? '-rotate-90' : ''}`}/>
-                  <GitBranch size={11} /> Subtarefas
+                  <ChevronDown size={12} className={`transition-transform ${subtasksSectionCollapsed ? '-rotate-90' : ''}`}/>
+                  <GitBranch size={12} /> Subtarefas
                   {subtasks.length > 0 && <span className="ml-1">({subtasks.filter(s => s.status==='done').length}/{subtasks.length})</span>}
                 </button>
                 <div className="flex items-center gap-2">
@@ -784,8 +784,8 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
               <div className="flex items-center justify-between">
                 <button onClick={() => setChecklistsSectionCollapsed(v => !v)}
                   className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider hover:text-gray-600 transition-colors select-none">
-                  <ChevronDown size={11} className={`text-gray-400 transition-transform ${checklistsSectionCollapsed ? '-rotate-90' : ''}`} />
-                  <ListChecks size={11} className="text-gray-400" /> Checklists ({task.checklists.length})
+                  <ChevronDown size={12} className={`text-gray-400 transition-transform ${checklistsSectionCollapsed ? '-rotate-90' : ''}`} />
+                  <ListChecks size={12} className="text-gray-400" /> Checklists ({task.checklists.length})
                 </button>
                 <button onClick={handleAISuggestChecklist} disabled={aiChecklistLoading}
                   className="p-1 text-gray-400 hover:text-brand-600 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-wait"
@@ -802,7 +802,7 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
                 </button>
                 <button onClick={() => handleModeChange('full')} title="Expandir para o modo completo"
                   className="p-1 text-gray-300 hover:text-brand-600 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer">
-                  <Maximize2 size={13}/>
+                  <Maximize2 size={14}/>
                 </button>
               </div>
 
@@ -885,10 +885,10 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
                             </button>
                             <button
                               onClick={() => removeChecklist(task.id, cl.id)}
-                              className="p-1 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                              className="p-1 rounded text-gray-400 hover:text-danger-500 hover:bg-danger-50 transition-colors"
                               title="Excluir Checklist"
                             >
-                              <X size={13} />
+                              <X size={14} />
                             </button>
                           </div>
                         </div>
@@ -898,13 +898,13 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
                           <div className="flex items-center gap-2.5 select-none">
                             <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden relative">
                               <div
-                                className={`h-full rounded-full transition-all duration-500 ease-out ${pct === 100 ? 'bg-emerald-500' : 'bg-brand-500'}`}
+                                className={`h-full rounded-full transition-all duration-500 ease-out ${pct === 100 ? 'bg-success-500' : 'bg-brand-500'}`}
                                 style={{ width: `${pct}%` }}
                               />
                             </div>
                             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md tabnum transition-all
                               ${pct === 100 
-                                ? 'bg-emerald-50 text-emerald-600 border border-emerald-100/50' 
+                                ? 'bg-success-50 text-success-600 border border-success-100/50' 
                                 : 'text-slate-500 bg-slate-50 border border-slate-100'}`}>
                               {pct}%
                             </span>
@@ -970,7 +970,7 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
                                   {!isEditing && (
                                     <button
                                       onClick={() => removeChecklistItem(task.id, cl.id, item.id)}
-                                      className="opacity-0 group-hover/item:opacity-100 p-1 rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all cursor-pointer"
+                                      className="opacity-0 group-hover/item:opacity-100 p-1 rounded text-gray-300 hover:text-danger-500 hover:bg-danger-50 transition-all cursor-pointer"
                                       title="Remover Item"
                                     >
                                       <X size={12} />
@@ -1002,8 +1002,8 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
             <div className="flex items-center justify-between">
               <button onClick={() => setAnexosCollapsed(v => !v)}
                 className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider hover:text-gray-600 transition-colors select-none">
-                <ChevronDown size={11} className={`text-gray-400 transition-transform ${anexosCollapsed ? '-rotate-90' : ''}`} />
-                <Paperclip size={11} /> Anexos {attachments.length > 0 && <span className="ml-0.5">({attachments.length})</span>}
+                <ChevronDown size={12} className={`text-gray-400 transition-transform ${anexosCollapsed ? '-rotate-90' : ''}`} />
+                <Paperclip size={12} /> Anexos {attachments.length > 0 && <span className="ml-0.5">({attachments.length})</span>}
               </button>
               
               <button onClick={() => setAnexosEditMode(v => !v)} title="Editar itens"
@@ -1031,20 +1031,20 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
                   return (
                     <div key={b.id} className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg transition-all ${cardClass}`}>
                       <button onClick={() => openData(b.data, b.mimeType)} className="flex items-center gap-2 min-w-0 text-left flex-1">
-                        <FileText size={13} className={`${iconColor} flex-shrink-0`} />
+                        <FileText size={14} className={`${iconColor} flex-shrink-0`} />
                         <p className="text-[12px] font-medium text-gray-700 truncate">{b.name || 'Arquivo'}</p>
                       </button>
 
                       <div className="flex items-center gap-2 flex-shrink-0">
                         {isAudioFile ? (
-                          <span className="text-[10px] font-bold text-rose-400 tabnum">0:42</span>
+                          <span className="text-[10px] font-bold text-danger-500 tabnum">0:42</span>
                         ) : b.size ? (
                           <span className="text-[10px] font-semibold text-gray-400 tabnum">{humanSize(b.size)}</span>
                         ) : null}
 
                         {anexosEditMode && (
-                          <button onClick={() => removeAttachment(b.id)} className="p-0.5 rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors">
-                            <X size={11} />
+                          <button onClick={() => removeAttachment(b.id)} className="p-0.5 rounded text-gray-300 hover:text-danger-500 hover:bg-danger-50 transition-colors">
+                            <X size={12} />
                           </button>
                         )}
                       </div>
@@ -1054,13 +1054,13 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
 
                 <div className="flex items-center gap-1.5 pt-1">
                   <button onClick={pickAttachment} className="px-2.5 py-1 border border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-gray-500 font-medium text-[11px] rounded-full transition-colors flex items-center gap-1 cursor-pointer">
-                    <Paperclip size={11} /> Adicionar anexo
+                    <Paperclip size={12} /> Adicionar anexo
                   </button>
                   <input ref={attachmentFileRef} type="file" multiple className="hidden" onChange={onAttachmentPicked} />
 
                   <button onClick={() => (recordingAttachment ? stopAttachmentRecording() : startAttachmentRecording())}
-                    className={`px-2.5 py-1 border text-[11px] font-medium rounded-full transition-colors flex items-center gap-1 cursor-pointer ${recordingAttachment ? 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100' : 'border-gray-200 text-gray-500 hover:bg-gray-50 hover:border-gray-300'}`}>
-                    <Mic size={11} /> {recordingAttachment ? 'Parar gravação' : 'Gravar áudio'}
+                    className={`px-2.5 py-1 border text-[11px] font-medium rounded-full transition-colors flex items-center gap-1 cursor-pointer ${recordingAttachment ? 'border-danger-100 bg-danger-50 text-danger-600 hover:bg-danger-100' : 'border-gray-200 text-gray-500 hover:bg-gray-50 hover:border-gray-300'}`}>
+                    <Mic size={12} /> {recordingAttachment ? 'Parar gravação' : 'Gravar áudio'}
                   </button>
                 </div>
               </div>
@@ -1072,8 +1072,8 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
             <div className="flex items-center justify-between">
               <button onClick={() => setCommentsSectionCollapsed(v => !v)}
                 className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider select-none">
-                <ChevronDown size={11} className={`text-gray-400 transition-transform ${commentsSectionCollapsed ? '-rotate-90' : ''}`}/>
-                <MessageCircle size={11} /> Comentários
+                <ChevronDown size={12} className={`text-gray-400 transition-transform ${commentsSectionCollapsed ? '-rotate-90' : ''}`}/>
+                <MessageCircle size={12} /> Comentários
                 {task.comments.length > 0 && <span className="ml-1">({task.comments.length})</span>}
               </button>
               {task.comments.length > 0 && (
@@ -1092,23 +1092,23 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
                   const repliesOf = (id: string) => task.comments.filter(c => c.parentId === id)
                   const renderComment = (cm: typeof task.comments[number], isReply: boolean) => (
                     <div key={cm.id} className="flex gap-2 group/cm items-start">
-                      <span className={`${isReply ? 'w-5 h-5 text-[8px]' : 'w-6 h-6 text-[9px]'} rounded-full bg-gradient-to-br ${getAvatarBg(cm.author)} font-bold flex items-center justify-center flex-shrink-0 shadow-sm border border-white/10`}>
+                      <span className={`${isReply ? 'w-5 h-5 text-[10px]' : 'w-6 h-6 text-[10px]'} rounded-full bg-gradient-to-br ${getAvatarBg(cm.author)} font-bold flex items-center justify-center flex-shrink-0 shadow-sm border border-white/10`}>
                         {cm.author.slice(0, 2).toUpperCase()}
                       </span>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-baseline gap-2">
-                          <span className="text-[11.5px] font-bold text-gray-700">{cm.author}</span>
-                          <span className="text-[9.5px] text-gray-400 font-semibold">{formatCommentTime(cm.createdAt)}</span>
+                          <span className="text-[11px] font-bold text-gray-700">{cm.author}</span>
+                          <span className="text-[10px] text-gray-400 font-semibold">{formatCommentTime(cm.createdAt)}</span>
                           {commentEditMode && (
                             <button onClick={() => removeComment(task.id, cm.id)}
-                              className="ml-auto text-gray-300 hover:text-red-500 p-0.5 rounded transition-colors opacity-0 group-hover/cm:opacity-100"><X size={11} /></button>
+                              className="ml-auto text-gray-300 hover:text-danger-500 p-0.5 rounded transition-colors opacity-0 group-hover/cm:opacity-100"><X size={12} /></button>
                           )}
                         </div>
                         {cm.text && <p className="text-[13px] text-gray-600 leading-snug whitespace-pre-wrap">{cm.text}</p>}
                         {cm.attachment && (
                           <button onClick={() => openData(cm.attachment!.data, cm.attachment!.mimeType)}
-                            className="mt-1 inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100/80 transition-all border border-indigo-100/40">
-                            <FileText size={11} />{cm.attachment.name}
+                            className="mt-1 inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-1 rounded-lg bg-brand-50 text-brand-700 hover:bg-brand-100/80 transition-all border border-brand-100/40">
+                            <FileText size={12} />{cm.attachment.name}
                           </button>
                         )}
                         {cm.audio && <audio src={cm.audio.data} controls className="mt-1 h-7 max-w-[220px] rounded-lg" />}
@@ -1155,46 +1155,46 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
                 {(pendingCommentAttachment || pendingCommentAudio || recordingComment || micError) && (
                   <div className="ml-11 p-3 bg-gray-50 border border-gray-100/60 rounded-xl space-y-2 text-xs">
                     {micError && (
-                      <div className="flex items-center justify-between text-red-600 font-semibold bg-red-50 p-2 rounded-lg border border-red-100">
+                      <div className="flex items-center justify-between text-danger-600 font-semibold bg-danger-50 p-2 rounded-lg border border-danger-100">
                         <span>{micError}</span>
-                        <button onClick={() => setMicError(null)} className="text-red-400 hover:text-red-600"><X size={14} /></button>
+                        <button onClick={() => setMicError(null)} className="text-danger-500 hover:text-danger-600"><X size={14} /></button>
                       </div>
                     )}
                     {recordingComment && (
-                      <div className="flex items-center justify-between bg-red-50 text-red-600 px-3 py-2 rounded-lg animate-pulse border border-red-100">
+                      <div className="flex items-center justify-between bg-danger-50 text-danger-600 px-3 py-2 rounded-lg animate-pulse border border-danger-100">
                         <div className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                          <span className="w-2 h-2 rounded-full bg-danger-500 animate-ping" />
                           <span className="font-bold">Gravando áudio do comentário...</span>
                         </div>
-                        <button onClick={stopCommentRecording} className="bg-red-600 text-white font-bold text-[10px] px-2 py-1 rounded hover:bg-red-700 transition-colors uppercase tracking-wider">
+                        <button onClick={stopCommentRecording} className="bg-danger-600 text-white font-bold text-[10px] px-2 py-1 rounded hover:bg-danger-700 transition-colors uppercase tracking-wider">
                           Parar
                         </button>
                       </div>
                     )}
                     {pendingCommentAudio && (
-                      <div className="flex items-center justify-between bg-rose-50/70 border border-rose-100/60 p-2 rounded-xl">
+                      <div className="flex items-center justify-between bg-danger-50/70 border border-danger-100/60 p-2 rounded-xl">
                         <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                          <span className="p-1.5 bg-rose-100 text-rose-600 rounded-lg"><Mic size={14} /></span>
+                          <span className="p-1.5 bg-danger-100 text-danger-600 rounded-lg"><Mic size={14} /></span>
                           <div className="min-w-0 flex-1">
-                            <p className="font-semibold text-rose-700 truncate">Áudio Gravado</p>
+                            <p className="font-semibold text-danger-700 truncate">Áudio Gravado</p>
                             <audio src={pendingCommentAudio.data} controls className="h-6 mt-1 max-w-full" />
                           </div>
                         </div>
-                        <button onClick={() => setPendingCommentAudio(null)} className="text-rose-400 hover:text-rose-600 p-1" title="Remover áudio">
+                        <button onClick={() => setPendingCommentAudio(null)} className="text-danger-500 hover:text-danger-600 p-1" title="Remover áudio">
                           <X size={14} />
                         </button>
                       </div>
                     )}
                     {pendingCommentAttachment && (
-                      <div className="flex items-center justify-between bg-indigo-50/70 border border-indigo-100/60 p-2 rounded-xl">
+                      <div className="flex items-center justify-between bg-brand-50/70 border border-brand-100/60 p-2 rounded-xl">
                         <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                          <span className="p-1.5 bg-indigo-100 text-indigo-600 rounded-lg"><FileText size={14} /></span>
+                          <span className="p-1.5 bg-brand-100 text-brand-600 rounded-lg"><FileText size={14} /></span>
                           <div className="min-w-0 flex-1">
-                            <p className="font-semibold text-indigo-700 truncate">{pendingCommentAttachment.name}</p>
-                            <p className="text-[10px] text-indigo-400 font-semibold uppercase">Anexo pronto para enviar</p>
+                            <p className="font-semibold text-brand-700 truncate">{pendingCommentAttachment.name}</p>
+                            <p className="text-[10px] text-brand-400 font-semibold uppercase">Anexo pronto para enviar</p>
                           </div>
                         </div>
-                        <button onClick={() => setPendingCommentAttachment(null)} className="text-indigo-400 hover:text-indigo-600 p-1" title="Remover anexo">
+                        <button onClick={() => setPendingCommentAttachment(null)} className="text-brand-400 hover:text-brand-600 p-1" title="Remover anexo">
                           <X size={14} />
                         </button>
                       </div>
@@ -1222,7 +1222,7 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
                       <input ref={commentFileRef} type="file" className="hidden" onChange={onCommentAttachPicked} />
                       
                       <button onClick={() => (recordingComment ? stopCommentRecording() : startCommentRecording())}
-                        className={`transition-colors p-1 ${recordingComment ? 'text-red-500 animate-pulse' : 'hover:text-gray-600'}`} title="Gravar áudio">
+                        className={`transition-colors p-1 ${recordingComment ? 'text-danger-500 animate-pulse' : 'hover:text-gray-600'}`} title="Gravar áudio">
                         {recordingComment ? <MicOff size={14} /> : <Mic size={14} />}
                       </button>
 
@@ -1288,7 +1288,7 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
           {/* Botão excluir integrado no rodapé da barra lateral de forma muito limpa */}
           <div className="pt-4 mt-6 border-t border-gray-100">
             <button onClick={() => { setSelectedTask(null); deleteTask(task.id) }}
-              className="w-full flex items-center justify-center gap-2 py-2 px-3 text-sm font-semibold text-red-500 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all border border-transparent hover:border-red-100">
+              className="w-full flex items-center justify-center gap-2 py-2 px-3 text-sm font-semibold text-danger-500 hover:bg-danger-50 hover:text-danger-600 rounded-xl transition-all border border-transparent hover:border-danger-100">
               <Trash2 size={14} /> Excluir tarefa
             </button>
           </div>

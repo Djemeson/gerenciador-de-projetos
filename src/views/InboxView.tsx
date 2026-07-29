@@ -31,7 +31,7 @@ export function InboxView() {
       <div className="flex flex-col flex-1 overflow-hidden">
         {/* Header */}
         <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-200 bg-white flex-shrink-0">
-          <Inbox size={15} className="text-gray-400" />
+          <Inbox size={16} className="text-gray-400" />
           <h1 className="text-sm font-semibold text-gray-900 flex-1">Caixa de entrada</h1>
           <span className="text-xs text-gray-400">{pending.length} itens para processar</span>
           <button onClick={() => setAdding(true)}
@@ -68,14 +68,14 @@ export function InboxView() {
               {/* Process action */}
               <div className="hidden group-hover:flex items-center gap-2 px-5 py-1.5 bg-gray-50 border-b border-gray-100 flex-wrap">
                 <span className="text-[10px] text-gray-400 flex items-center gap-1 flex-shrink-0">
-                  <ArrowRight size={10} /> Mover para:
+                  <ArrowRight size={12} /> Mover para:
                 </span>
                 {activeProjects.length === 0 ? (
                   <span className="text-[10px] text-gray-400 italic">Nenhum projeto disponível — crie um projeto primeiro.</span>
                 ) : activeProjects.map(p => (
                   <button key={p.id} onClick={() => processTask(t.id, p.id)}
                     className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border border-gray-200 hover:border-brand-300 hover:bg-brand-50 bg-white text-gray-600 transition-colors">
-                    <ProjectIcon project={p} size={11}/>
+                    <ProjectIcon project={p} size={12}/>
                     {p.name}
                   </button>
                 ))}

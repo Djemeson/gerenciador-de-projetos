@@ -25,7 +25,7 @@ export function AllTasksView() {
         options={[{ value:'all', label:'Todos os projetos' }, ...projects.map(p => ({ value:p.id, label:p.name, color:p.color }))]}/>
       <button onClick={openQuickCapture}
         className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold rounded-lg shadow-sm shadow-brand-600/30 transition-colors flex-shrink-0">
-        <Plus size={13}/> Nova tarefa
+        <Plus size={14}/> Nova tarefa
       </button>
     </>
   )
@@ -35,7 +35,7 @@ export function AllTasksView() {
       scopeKey="alltasks"
       tasks={filtered}
       title="Todas as tarefas"
-      icon={<Layers size={15} className="text-gray-400 flex-shrink-0" />}
+      icon={<Layers size={16} className="text-gray-400 flex-shrink-0" />}
       headerRight={headerRight}
       showProject
       defaultProjectId={defaultProject}

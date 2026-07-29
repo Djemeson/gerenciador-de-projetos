@@ -133,9 +133,9 @@ export default function App() {
               className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"
               title="Abrir menu"
             >
-              <Menu size={20} />
+              <Menu size={18} />
             </button>
-            <span className="font-extrabold text-[15px] text-gray-800 tracking-tight">Gerenciador de Projetos</span>
+            <span className="font-extrabold text-[14px] text-gray-800 tracking-tight">Gerenciador de Projetos</span>
           </div>
           <button 
             onClick={toggleQuickCapture}

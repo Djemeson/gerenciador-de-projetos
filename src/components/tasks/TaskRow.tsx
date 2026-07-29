@@ -3,25 +3,25 @@ import {
   Check, ChevronRight, ChevronDown, GitBranch, Trash2, Search,
 } from 'lucide-react'
 import type { Task, Project, Priority, ColumnDef, TaskType, ListColumn } from '../../types'
-import { PRIORITY_LABEL, TASK_TYPE_META } from '../../types'
+import { PRIORITY_LABEL, PRIORITY_COLOR, PRIORITY_TEXT_COLOR, priorityTint, TASK_TYPE_META } from '../../types'
 import { TYPE_ICON, TYPE_ICON_COLOR } from '../../lib/taskTypeIcons'
 import { useAppStore } from '../../stores/useAppStore'
 import { QuickAddRow } from './QuickAddRow'
 import { CustomFieldCell } from './CustomFieldCell'
 import { TaskGutBadge } from './TaskGutBadge'
-import { Select, PRIORITY_OPTIONS } from '../ui/Select'
+import { Select, PRIORITY_OPTIONS, STATUS_COLOR } from '../ui/Select'
 import { DueDatePicker } from '../ui/DueDatePicker'
 import { AssigneePicker } from '../ui/AssigneePicker'
 import { TagsCell } from '../ui/TagsCell'
 import { ProjectIcon } from '../ui/EntityBadges'
 import { taskProgress } from '../../lib/taskProgress'
 
-const PRIORITY_CIRCLE: Record<Priority,{border:string;bg:string}> = {
-  urgent: { border:'border-red-500',    bg:'bg-red-50'    },
-  high:   { border:'border-orange-400', bg:'bg-orange-50' },
-  medium: { border:'border-blue-400',   bg:''             },
-  low:    { border:'border-gray-300',   bg:''             },
-}
+// Círculo de prioridade: borda na cor da prioridade e fundo com a mesma cor em tinta.
+// Derivado de PRIORITY_COLOR — era a terceira paleta paralela de prioridade do app.
+const priorityCircleStyle = (p: Priority): React.CSSProperties => ({
+  borderColor: PRIORITY_COLOR[p],
+  backgroundColor: p === 'urgent' || p === 'high' ? priorityTint(p, '14') : 'transparent',
+})
 
 const TASK_TYPES: TaskType[] = ['task','milestone','meeting_note','bug','goal','objective','form_response','request']
 
@@ -42,8 +42,6 @@ interface TaskRowProps {
   groupBy?:       'status' | 'priority' | 'dueDate' | 'project' | 'assignee'
 }
 
-const PRIORITY_ICON_COLOR: Record<Priority, string> = { urgent:'#E24B4A', high:'#D85A30', medium:'#378ADD', low:'#9B9EA8' }
-
 export function TaskRow({ task, project, showProject=false, depth=0, columns=[], orderedColumns, selected=false, focused=false, onSelect, dragTaskId, onDragStartTask, onDropTask, defaultExpanded=true, groupBy }: TaskRowProps) {
   const { updateTask, deleteTask, setSelectedTask, selectedTaskId, tasks } = useAppStore()
   const [dropOver, setDropOver] = useState(false)
@@ -62,7 +60,7 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
   const isDone      = task.status==='done'
   const isOverdue   = task.dueDate && !isDone && new Date(task.dueDate) < new Date()
   const indent      = depth * 20
-  const circle      = isDone ? null : PRIORITY_CIRCLE[task.priority]
+  const circleStyle = isDone ? null : priorityCircleStyle(task.priority)
   const typeMeta    = TASK_TYPE_META[task.taskType ?? 'task']
 
   // Close type picker on outside click
@@ -106,7 +104,6 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
     ...columns.map(c => ({ key:c.id, label:c.name, width:c.width ?? 100, kind:'custom' as const, col:c })),
   ]
 
-  const prioTextColor = task.priority==='urgent'?'text-red-500':task.priority==='high'?'text-orange-500':task.priority==='medium'?'text-blue-500':'text-gray-400'
 
   // Conteúdo das células — editável inline (clicar edita o campo, não abre a tarefa)
   const renderCellContent = (c: ListColumn): React.ReactNode => {
@@ -127,8 +124,8 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
       case 'project':
         return project ? <span className="flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full font-semibold truncate max-w-full"
           style={{background:project.color+'18',color:project.color}}>
-          <ProjectIcon project={project} size={11}/><span className="truncate">{project.name}</span>
-        </span> : <span className="text-gray-300 text-[10px] italic">Sem projeto</span>
+          <ProjectIcon project={project} size={12}/><span className="truncate">{project.name}</span>
+        </span> : <span className="text-gray-500 text-[10px] italic">Sem projeto</span>
       case 'createdAt':
         return <span className="text-[11px] text-gray-500">{new Date(task.createdAt).toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'2-digit'})}</span>
       case 'updatedAt':
@@ -146,19 +143,19 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
         return <TaskGutBadge task={task}/>
       case 'progress': {
         const prog = taskProgress(task, subtasks)
-        if (!prog) return <span className="text-gray-300 text-xs">—</span>
+        if (!prog) return <span className="text-gray-400 text-xs">—</span>
         const isCompleted = prog.pct === 100
         return (
           <div className="flex items-center gap-2 w-full select-none" title={`${prog.pct}% concluído (${prog.done}/${prog.total})`}>
             <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden min-w-[40px] relative">
               <div 
-                className={`h-full rounded-full transition-all duration-500 ease-out ${isCompleted ? 'bg-emerald-500' : 'bg-brand-500'}`} 
+                className={`h-full rounded-full transition-all duration-500 ease-out ${isCompleted ? 'bg-success-500' : 'bg-brand-500'}`} 
                 style={{ width: `${prog.pct}%` }}
               />
             </div>
             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md tabnum transition-all
               ${isCompleted 
-                ? 'bg-emerald-50 text-emerald-600 border border-emerald-100/50' 
+                ? 'bg-success-50 text-success-600 border border-success-100/50' 
                 : 'text-slate-500 bg-slate-50 border border-slate-100'}`}>
               {prog.pct}%
             </span>
@@ -192,7 +189,7 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
         {/* Expand */}
         <button onClick={e=>{e.stopPropagation();setExpanded(v=>!v)}}
           className={`w-4 h-4 flex items-center justify-center flex-shrink-0 mr-1 ${hasChildren?'text-gray-400 hover:text-gray-600':'text-transparent pointer-events-none'}`}>
-          {expanded?<ChevronDown size={11}/>:<ChevronRight size={11}/>}
+          {expanded?<ChevronDown size={12}/>:<ChevronRight size={12}/>}
         </button>
 
         {/* Task-type icon — substitui o círculo (estilo ClickUp) */}
@@ -201,7 +198,7 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
           // Ícone na cor do status (estilo ClickUp): a fazer = cinza, em progresso = azul, concluído = verde.
           // A forma (círculo, losango, troféu...) é sempre a do tipo da tarefa — concluir nunca
           // substitui por um círculo genérico, só muda a cor (mantém a identidade do tipo).
-          const statusIconColor = groupBy==='priority' ? PRIORITY_ICON_COLOR[task.priority] : (isDone ? '#1D9E75' : task.status==='in_progress' ? '#378ADD' : '#888780')
+          const statusIconColor = groupBy==='priority' ? PRIORITY_COLOR[task.priority] : STATUS_COLOR[task.status]
           return (
             <div ref={typeRef} className="relative flex-shrink-0 mr-2 flex items-center">
               <button
@@ -209,13 +206,13 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
                 title={isDone ? 'Reabrir' : `${typeMeta.label} · clique para concluir`}
                 className="group/st relative w-[18px] h-[18px] flex items-center justify-center transition-transform hover:scale-110">
                 {isDone ? (
-                  <div className="w-[16px] h-[16px] rounded-full bg-emerald-500 flex items-center justify-center">
-                    <Check size={10} className="text-white" strokeWidth={3} />
+                  <div className="w-[16px] h-[16px] rounded-full bg-success-500 flex items-center justify-center">
+                    <Check size={12} className="text-white" strokeWidth={3} />
                   </div>
                 ) : (
                   <>
                     <TypeIcon size={16} strokeWidth={2} style={{ color: statusIconColor }} className="transition-opacity group-hover/st:opacity-0"/>
-                    <Check size={12} strokeWidth={3} className="absolute text-emerald-500 opacity-0 transition-opacity group-hover/st:opacity-100"/>
+                    <Check size={12} strokeWidth={3} className="absolute text-success-500 opacity-0 transition-opacity group-hover/st:opacity-100"/>
                   </>
                 )}
               </button>
@@ -225,7 +222,7 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
                 onClick={e=>{e.stopPropagation();setTypeSearch('');setTypeOpen(v=>!v)}}
                 title={`Tipo: ${typeMeta.label}`}
                 className="w-3 h-4 -ml-px flex items-center justify-center text-gray-300 hover:text-gray-500 opacity-0 group-hover:opacity-100 transition-all">
-                <ChevronDown size={9}/>
+                <ChevronDown size={12}/>
               </button>
 
               {typeOpen && (
@@ -253,7 +250,7 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
                           <span className="text-[13px] text-gray-700">
                             {m.label}{type==='task' && <span className="text-gray-400"> (padrão)</span>}
                           </span>
-                          {selected && <Check size={13} className="ml-auto text-gray-600"/>}
+                          {selected && <Check size={14} className="ml-auto text-gray-600"/>}
                         </button>
                       )
                     })}
@@ -264,7 +261,7 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
           )
         })()}
 
-        {depth>0&&<GitBranch size={10} className="text-gray-300 flex-shrink-0 mr-1"/>}
+        {depth>0&&<GitBranch size={12} className="text-gray-300 flex-shrink-0 mr-1"/>}
 
         {/* Name */}
         <div className="flex-1 min-w-0 py-1.5 pr-2" style={{minWidth:120}}>
@@ -273,27 +270,34 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
               onClick={e=>e.stopPropagation()}
               onBlur={()=>{ const v=renameDraft.trim(); if (v) updateTask(task.id,{title:v}); setRenaming(false) }}
               onKeyDown={e=>{ if(e.key==='Enter') (e.target as HTMLInputElement).blur(); if(e.key==='Escape') setRenaming(false) }}
-              className="w-full text-[13.5px] font-medium text-gray-800 border border-brand-400 rounded-md px-1.5 py-0.5 outline-none bg-white"/>
+              className="w-full text-[13px] font-medium text-gray-800 border border-brand-400 rounded-md px-1.5 py-0.5 outline-none bg-white"/>
           ) : (
             <span onDoubleClick={e=>{e.stopPropagation();setRenameDraft(task.title);setRenaming(true)}}
-              className={`inline-block max-w-full text-[13.5px] font-medium truncate cursor-text ${isDone?'line-through text-gray-400':'text-gray-800'}`}>{task.title}</span>
+              className={`inline-block max-w-full text-[13px] font-medium truncate cursor-text ${isDone?'line-through text-gray-400':'text-gray-800'}`}>{task.title}</span>
           )}
           {task.description&&!isDone&&<span className="block text-[11px] text-gray-400 truncate">{task.description}</span>}
           {hasChildren&&(
             <span className="inline-flex items-center gap-0.5 text-[10px] text-gray-400">
-              <GitBranch size={9}/>{subtasks.filter(s=>s.status==='done').length}/{subtasks.length}
+              <GitBranch size={12}/>{subtasks.filter(s=>s.status==='done').length}/{subtasks.length}
             </span>
           )}
 
           {/* Mobile Info Badges */}
           <div className="flex md:hidden flex-wrap items-center gap-1.5 mt-1">
             {task.dueDate && (
-              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${isOverdue ? 'bg-red-50 text-red-500 border border-red-100' : 'bg-gray-100 text-gray-500 border border-gray-200'}`}>
+              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${isOverdue ? 'bg-danger-50 text-danger-700 border border-danger-100' : 'bg-gray-100 text-gray-600 border border-gray-200'}`}>
                 {formatDate(task.dueDate)}
               </span>
             )}
-            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${task.priority === 'urgent' ? 'bg-red-50 text-red-600 border border-red-100' : task.priority === 'high' ? 'bg-orange-50 text-orange-600 border border-orange-100' : task.priority === 'medium' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-gray-50 text-gray-500 border border-gray-100'}`}>
-              {task.priority.toUpperCase()}
+            {/* Cor e rótulo vêm da fonte única (types) — antes este badge tinha paleta
+                própria e mostrava "HIGH"/"URGENT" em inglês, só no celular. */}
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded border"
+              style={{
+                color: PRIORITY_TEXT_COLOR[task.priority],
+                backgroundColor: priorityTint(task.priority, '14'),
+                borderColor: priorityTint(task.priority, '33'),
+              }}>
+              {PRIORITY_LABEL[task.priority]}
             </span>
             {showProject && project && (
               <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded truncate max-w-[120px]" style={{ backgroundColor: `${project.color}15`, color: project.color, border: `1px solid ${project.color}30` }}>
@@ -301,7 +305,7 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
               </span>
             )}
             {task.assignee && (
-              <span className="text-[10px] font-medium bg-indigo-50 border border-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded">
+              <span className="text-[10px] font-medium bg-brand-50 border border-brand-100 text-brand-600 px-1.5 py-0.5 rounded">
                 {task.assignee}
               </span>
             )}
@@ -323,12 +327,12 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
           <div className="w-16 px-2 flex items-center gap-1 md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
             {confirmDel?(
               <button onClick={e=>{e.stopPropagation();deleteTask(task.id)}}
-                className="text-[10px] text-red-500 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded animate-pulse">
+                className="text-[10px] text-danger-500 bg-danger-50 border border-danger-100 px-1.5 py-0.5 rounded animate-pulse">
                 Del?
               </button>
             ):(
               <button onClick={e=>{e.stopPropagation();setConfirmDel(true);setTimeout(()=>setConfirmDel(false),2500)}}
-                className="text-gray-300 hover:text-red-400 transition-colors" title="Deletar">
+                className="text-gray-300 hover:text-danger-500 transition-colors" title="Deletar">
                 <Trash2 size={12}/>
               </button>
             )}

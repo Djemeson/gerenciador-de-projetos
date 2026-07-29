@@ -183,7 +183,7 @@ export function ColumnsModal() {
               {/* Campos com IA — seção própria, com destaque gradiente estilo Gemini */}
               <div>
                 <div className="flex items-center gap-1.5 mb-2">
-                  <Sparkles size={11} className="ai-gradient-text flex-shrink-0"/>
+                  <Sparkles size={12} className="ai-gradient-text flex-shrink-0"/>
                   <p className="text-[10px] font-bold ai-gradient-text uppercase tracking-wider">Campos com IA</p>
                 </div>
                 <div className="grid grid-cols-1 gap-2">
@@ -199,9 +199,9 @@ export function ColumnsModal() {
                         <div className="min-w-0">
                           <p className="text-[13px] font-semibold text-gray-800 flex items-center gap-1.5">
                             {t.label}
-                            <span className="text-[9px] font-bold uppercase tracking-wide ai-gradient-bg text-white px-1.5 py-[1px] rounded-full">IA</span>
+                            <span className="text-[10px] font-bold uppercase tracking-wide ai-gradient-bg text-white px-1.5 py-[1px] rounded-full">IA</span>
                           </p>
-                          <p className="text-[10.5px] text-gray-400 leading-snug mt-0.5">{t.desc}</p>
+                          <p className="text-[11px] text-gray-400 leading-snug mt-0.5">{t.desc}</p>
                         </div>
                       </button>
                     )
@@ -224,7 +224,7 @@ export function ColumnsModal() {
                             <Icon size={16} strokeWidth={2}/>
                           </div>
                           <div className="min-w-0 pt-0.5">
-                            <p className="text-[12.5px] font-semibold text-gray-800 group-hover:text-brand-700 leading-tight">{t.label}</p>
+                            <p className="text-[12px] font-semibold text-gray-800 group-hover:text-brand-700 leading-tight">{t.label}</p>
                             <p className="text-[10px] text-gray-400 leading-snug mt-0.5 line-clamp-2">{t.desc}</p>
                           </div>
                         </button>
@@ -239,7 +239,7 @@ export function ColumnsModal() {
             <div>
               <div className="flex items-center gap-3 mb-4 p-2.5 bg-gray-50 border border-gray-100 rounded-xl">
                 <button onClick={() => setStep('pick')} className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:bg-white hover:text-gray-600 transition-colors flex-shrink-0">
-                  <ChevronLeft size={15}/>
+                  <ChevronLeft size={16}/>
                 </button>
                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 shadow-xs ${selType?.ai ? 'ai-gradient-bg text-white' : ''}`}
                   style={selType?.ai ? undefined : { background: selType ? tint(selType.color) : undefined, color: selType?.color }}>
@@ -248,7 +248,7 @@ export function ColumnsModal() {
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
                     {selType?.label}
-                    {selType?.ai && <span className="text-[9px] font-bold uppercase tracking-wide ai-gradient-bg text-white px-1.5 py-[1px] rounded-full">IA</span>}
+                    {selType?.ai && <span className="text-[10px] font-bold uppercase tracking-wide ai-gradient-bg text-white px-1.5 py-[1px] rounded-full">IA</span>}
                   </p>
                   <p className="text-[11px] text-gray-400 truncate">{selType?.desc}</p>
                 </div>
@@ -277,7 +277,7 @@ export function ColumnsModal() {
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Opções da lista</label>
                     <button onClick={addOpt} className="flex items-center gap-1 text-[11px] text-brand-600 hover:text-brand-700 font-semibold px-2 py-1 rounded-lg hover:bg-brand-50 transition-colors">
-                      <Plus size={11}/> Adicionar opção
+                      <Plus size={12}/> Adicionar opção
                     </button>
                   </div>
 
@@ -287,22 +287,22 @@ export function ColumnsModal() {
                       return (
                       <div key={opt.id} className="group">
                         <div className="flex items-center gap-2">
-                          <GripVertical size={13} className="text-gray-200 flex-shrink-0"/>
+                          <GripVertical size={14} className="text-gray-200 flex-shrink-0"/>
                           <button
                             onClick={e => setColorPicker(colorPicker?.id===opt.id ? null : { id: opt.id, anchor: e.currentTarget })}
                             className="w-6 h-6 rounded-full border-2 border-white shadow ring-1 ring-gray-200 hover:ring-gray-400 hover:scale-110 transition-all flex-shrink-0 flex items-center justify-center"
                             style={OptIcon ? { background: opt.color + '25', color: opt.color } : { background: opt.color }}
                             title="Clique para escolher ícone e cor"
-                          >{OptIcon && <OptIcon size={13}/>}</button>
+                          >{OptIcon && <OptIcon size={14}/>}</button>
                           <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium flex-shrink-0"
                             style={{ background: opt.color + '25', color: opt.color }}>
-                            {OptIcon && <OptIcon size={11}/>}
+                            {OptIcon && <OptIcon size={12}/>}
                             {opt.label || `Opção ${idx+1}`}
                           </span>
                           <input value={opt.label} onChange={e => updateOpt(opt.id, { label: e.target.value })}
                             className="flex-1 text-xs px-2 py-1 border border-gray-200 rounded-lg outline-none focus:border-brand-300 transition-all min-w-0"
                             placeholder={`Opção ${idx+1}`}/>
-                          <button onClick={() => removeOpt(opt.id)} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-all flex-shrink-0">
+                          <button onClick={() => removeOpt(opt.id)} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-danger-500 transition-all flex-shrink-0">
                             <X size={12}/>
                           </button>
                         </div>
@@ -374,7 +374,7 @@ export function ColumnsModal() {
                       <div key={c.id} className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-white transition-colors group">
                         <div className={`w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 ${tc?.ai ? 'ai-gradient-bg text-white' : ''}`}
                           style={tc?.ai ? undefined : { background: tc ? tint(tc.color) : undefined, color: tc?.color }}>
-                          {(() => { const Icon = FIELD_TYPE_ICON[c.type]; return Icon ? <Icon size={13} strokeWidth={2}/> : null })()}
+                          {(() => { const Icon = FIELD_TYPE_ICON[c.type]; return Icon ? <Icon size={14} strokeWidth={2}/> : null })()}
                         </div>
                         {editingCol === c.id ? (
                           <input autoFocus defaultValue={c.name}
@@ -390,7 +390,7 @@ export function ColumnsModal() {
                           <SlidersHorizontal size={12}/>
                         </button>
                         <button onClick={() => deleteColumn(targetId, c.id)}
-                          className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-all flex-shrink-0" title="Excluir campo">
+                          className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-danger-500 transition-all flex-shrink-0" title="Excluir campo">
                           <Trash2 size={12}/>
                         </button>
                         <button onClick={() => toggleHiddenAndRefresh(c.id)}

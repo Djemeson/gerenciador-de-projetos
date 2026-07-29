@@ -532,13 +532,13 @@ export function BlockEditor({ blocks, onChange, placeholder = 'Adicione notas, c
 
   // ── Menu "+" (estilo TickTick) ──
   const menuItems: { icon: React.ReactNode; label: string; run: () => void }[] = [
-    { icon: <Heading1 size={15} />, label: 'Título 1', run: () => exec('formatBlock', 'H1') },
-    { icon: <Heading2 size={15} />, label: 'Título 2', run: () => exec('formatBlock', 'H2') },
-    { icon: <Heading3 size={15} />, label: 'Título 3', run: () => exec('formatBlock', 'H3') },
-    { icon: <List size={15} />, label: 'Lista com marcadores', run: () => exec('insertUnorderedList') },
-    { icon: <ListOrdered size={15} />, label: 'Lista numerada', run: () => exec('insertOrderedList') },
+    { icon: <Heading1 size={16} />, label: 'Título 1', run: () => exec('formatBlock', 'H1') },
+    { icon: <Heading2 size={16} />, label: 'Título 2', run: () => exec('formatBlock', 'H2') },
+    { icon: <Heading3 size={16} />, label: 'Título 3', run: () => exec('formatBlock', 'H3') },
+    { icon: <List size={16} />, label: 'Lista com marcadores', run: () => exec('insertUnorderedList') },
+    { icon: <ListOrdered size={16} />, label: 'Lista numerada', run: () => exec('insertOrderedList') },
     {
-      icon: <CheckSquare size={15} />, label: 'Item de verificação', run: () => {
+      icon: <CheckSquare size={16} />, label: 'Item de verificação', run: () => {
         const id = 'tt' + nanoid()
         insertInline(`<div class="todo-item" data-checked="false"><span class="todo-box" contenteditable="false"></span><span class="todo-text" id="${id}">​</span></div>`)
         const span = document.getElementById(id)
@@ -550,12 +550,12 @@ export function BlockEditor({ blocks, onChange, placeholder = 'Adicione notas, c
         }
       },
     },
-    { icon: <Quote size={15} />, label: 'Citação', run: () => exec('formatBlock', 'BLOCKQUOTE') },
-    { icon: <Minus size={15} />, label: 'Linha horizontal', run: () => exec('insertHorizontalRule') },
-    { icon: <Columns2 size={15} />, label: '2 colunas', run: () => insertColumns(2) },
-    { icon: <Columns3 size={15} />, label: '3 colunas', run: () => insertColumns(3) },
-    { icon: <ImageIcon size={15} />, label: 'Imagem', run: () => imgInputRef.current?.click() },
-    { icon: <Paperclip size={15} />, label: 'Anexo', run: () => fileInputRef.current?.click() },
+    { icon: <Quote size={16} />, label: 'Citação', run: () => exec('formatBlock', 'BLOCKQUOTE') },
+    { icon: <Minus size={16} />, label: 'Linha horizontal', run: () => exec('insertHorizontalRule') },
+    { icon: <Columns2 size={16} />, label: '2 colunas', run: () => insertColumns(2) },
+    { icon: <Columns3 size={16} />, label: '3 colunas', run: () => insertColumns(3) },
+    { icon: <ImageIcon size={16} />, label: 'Imagem', run: () => imgInputRef.current?.click() },
+    { icon: <Paperclip size={16} />, label: 'Anexo', run: () => fileInputRef.current?.click() },
   ]
   const runItem = (run: () => void) => { setMenuOpen(false); run() }
 
@@ -588,49 +588,49 @@ export function BlockEditor({ blocks, onChange, placeholder = 'Adicione notas, c
             onMouseDown={e => e.preventDefault()}
           >
             <button onClick={() => exec('bold')} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white/15 transition-colors text-white" title="Negrito (Ctrl+B)">
-              <Bold size={13} />
+              <Bold size={14} />
             </button>
             <button onClick={() => exec('italic')} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white/15 transition-colors text-white" title="Itálico (Ctrl+I)">
-              <Italic size={13} />
+              <Italic size={14} />
             </button>
             <button onClick={() => exec('underline')} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white/15 transition-colors text-white" title="Sublinhado (Ctrl+U)">
-              <Underline size={13} />
+              <Underline size={14} />
             </button>
             <button onClick={() => exec('strikeThrough')} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white/15 transition-colors text-white" title="Tachado">
-              <Strikethrough size={13} />
+              <Strikethrough size={14} />
             </button>
             
             <div className="w-[1px] h-4 bg-white/10 mx-0.5" />
 
             <button onClick={() => exec('formatBlock', 'H1')} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white/15 transition-colors text-white font-bold" title="Título 1">
-              <Heading1 size={13} />
+              <Heading1 size={14} />
             </button>
             <button onClick={() => exec('formatBlock', 'H2')} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white/15 transition-colors text-white font-bold" title="Título 2">
-              <Heading2 size={13} />
+              <Heading2 size={14} />
             </button>
             <button onClick={() => exec('formatBlock', 'P')} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white/15 transition-colors text-white" title="Texto Normal">
-              <Type size={13} />
+              <Type size={14} />
             </button>
 
             <div className="w-[1px] h-4 bg-white/10 mx-0.5" />
 
             <button onClick={() => exec('insertUnorderedList')} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white/15 transition-colors text-white" title="Marcadores">
-              <List size={13} />
+              <List size={14} />
             </button>
             <button onClick={() => exec('insertOrderedList')} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white/15 transition-colors text-white" title="Lista Numerada">
-              <ListOrdered size={13} />
+              <ListOrdered size={14} />
             </button>
             <button onClick={() => exec('formatBlock', 'BLOCKQUOTE')} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white/15 transition-colors text-white" title="Citação">
-              <Quote size={13} />
+              <Quote size={14} />
             </button>
 
             <div className="w-[1px] h-4 bg-white/10 mx-0.5" />
 
-            <button onClick={() => exec('backColor', '#FEF08A')} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white/15 transition-colors text-yellow-300" title="Destacar (Amarelo)">
-              <Highlighter size={13} />
+            <button onClick={() => exec('backColor', '#FEF08A')} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white/15 transition-colors text-warning-500" title="Destacar (Amarelo)">
+              <Highlighter size={14} />
             </button>
             <button onClick={() => exec('removeFormat')} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white/15 transition-colors text-gray-400 hover:text-white" title="Limpar Formatação">
-              <X size={13} />
+              <X size={14} />
             </button>
           </div>
         )}
@@ -642,7 +642,7 @@ export function BlockEditor({ blocks, onChange, placeholder = 'Adicione notas, c
               onClick={() => setMenuOpen(o => !o)}
               className="w-5 h-5 rounded flex items-center justify-center text-gray-300 hover:text-brand-600 hover:bg-gray-100 transition-colors"
               title="Inserir…"
-            ><Plus size={15} /></button>
+            ><Plus size={16} /></button>
 
             {menuOpen && (
               <div className="absolute left-0 top-6 z-40 w-56 bg-white rounded-xl shadow-2xl border border-gray-200/70 py-1 animate-scale-in max-h-72 overflow-y-auto">
@@ -725,7 +725,7 @@ function AttachmentRow({ b, editMode, onRename, onToggleDisplay, onExpand, onOpe
 }) {
   const ctrl = (onClick: () => void, title: string, node: React.ReactNode, danger = false) => (
     <button onClick={onClick} title={title}
-      className={`w-6 h-6 rounded flex items-center justify-center transition-colors ${danger ? 'text-gray-300 hover:text-red-500 hover:bg-red-50' : 'text-gray-400 hover:text-brand-600 hover:bg-gray-100'}`}>
+      className={`w-6 h-6 rounded flex items-center justify-center transition-colors ${danger ? 'text-gray-300 hover:text-danger-500 hover:bg-danger-50' : 'text-gray-400 hover:text-brand-600 hover:bg-gray-100'}`}>
       {node}
     </button>
   )
@@ -762,7 +762,7 @@ function AttachmentRow({ b, editMode, onRename, onToggleDisplay, onExpand, onOpe
   if (b.type === 'audio') {
     return (
       <div className="group flex items-center gap-2 bg-gray-50 rounded-lg px-2.5 py-1.5 border border-gray-100">
-        <Mic size={13} className="text-brand-500 flex-shrink-0" />{titleField}
+        <Mic size={14} className="text-brand-500 flex-shrink-0" />{titleField}
         <audio src={b.data} controls style={{ height: 26 }} className="flex-shrink-0 max-w-[160px]" />{controls}
       </div>
     )
@@ -771,8 +771,8 @@ function AttachmentRow({ b, editMode, onRename, onToggleDisplay, onExpand, onOpe
     <div className="group flex items-center gap-2 bg-gray-50 rounded-lg px-2.5 py-2 border border-gray-100">
       <button onClick={() => (b.type === 'file' ? onOpen() : onExpand())} title={b.type === 'file' ? 'Abrir' : 'Ver imagem'} className="flex-shrink-0">
         {b.type === 'image'
-          ? <ImageIcon size={15} className="text-gray-400 hover:text-brand-600 transition-colors" />
-          : <FileText size={15} className={isPdf(b) ? 'text-red-400' : 'text-gray-400 hover:text-brand-600 transition-colors'} />}
+          ? <ImageIcon size={16} className="text-gray-400 hover:text-brand-600 transition-colors" />
+          : <FileText size={16} className={isPdf(b) ? 'text-danger-500' : 'text-gray-400 hover:text-brand-600 transition-colors'} />}
       </button>
       <div className="min-w-0 flex-1">
         {titleField}

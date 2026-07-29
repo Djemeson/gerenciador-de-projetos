@@ -28,12 +28,12 @@ export function TagsCell({ value, onChange }: TagsCellProps) {
         {value.length ? (
           <>
             {value.slice(0, 2).map(t => (
-              <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-50/70 text-indigo-700 border border-indigo-100/50 truncate max-w-[60px] font-medium">{t}</span>
+              <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-brand-50/70 text-brand-700 border border-brand-100/50 truncate max-w-[60px] font-medium">{t}</span>
             ))}
             {value.length > 2 && <span className="text-[10px] text-gray-400 font-semibold">+{value.length - 2}</span>}
           </>
         ) : (
-          <span className="text-gray-300 group-hover:text-gray-400 inline-flex items-center gap-0.5 text-xs"><Plus size={11} /></span>
+          <span className="text-gray-300 group-hover:text-gray-400 inline-flex items-center gap-0.5 text-xs"><Plus size={12} /></span>
         )}
       </button>
       {open && ref.current && (

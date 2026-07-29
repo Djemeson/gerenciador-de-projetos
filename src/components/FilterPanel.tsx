@@ -22,7 +22,7 @@ export function FilterPanel() {
         <span className="text-sm font-medium text-gray-800 flex-1">Filtros</span>
         {isActive && (
           <button onClick={clearFilters} className="text-[11px] text-brand-600 hover:text-brand-700 flex items-center gap-1">
-            <RotateCcw size={10}/> Limpar
+            <RotateCcw size={12}/> Limpar
           </button>
         )}
         <button onClick={toggleFilterPanel} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={14}/></button>
@@ -89,7 +89,7 @@ export function FilterPanel() {
           <div className="flex items-center justify-between mb-2">
             <label className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">Data</label>
             {filters.datePeriod && (
-              <button onClick={()=>setFilters({datePeriod:null})} className="text-[10px] text-gray-400 hover:text-red-500 transition-colors">Limpar</button>
+              <button onClick={()=>setFilters({datePeriod:null})} className="text-[10px] text-gray-400 hover:text-danger-500 transition-colors">Limpar</button>
             )}
           </div>
           <DatePeriodPicker

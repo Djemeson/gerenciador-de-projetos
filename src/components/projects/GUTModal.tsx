@@ -38,13 +38,13 @@ export function GUTModal() {
             <Target size={16} style={{ color: tier.color }} />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[9px] font-bold uppercase tracking-wider opacity-70" style={{ color: tier.color }}>Prioridade GUT</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider opacity-70" style={{ color: tier.color }}>Prioridade GUT</p>
             <div className="flex items-baseline gap-1.5">
               <span className="text-xl font-extrabold tracking-tight tabnum leading-none" style={{ color: tier.color }}>{score}</span>
               <span className="text-[10px] font-medium tabnum" style={{ color: tier.color + 'B0' }}>{g}×{u}×{t}</span>
             </div>
           </div>
-          <span className="text-[9.5px] font-extrabold uppercase tracking-wider px-2 py-1 rounded-full flex-shrink-0"
+          <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-1 rounded-full flex-shrink-0"
             style={{ background: tier.color, color: '#fff' }}>
             {tier.label}
           </span>
@@ -77,7 +77,7 @@ export function GUTModal() {
 
         {/* Info */}
         <div className="flex items-start gap-1.5 px-2.5 py-2 rounded-lg bg-gray-50 border border-gray-100">
-          <Info size={11} className="text-gray-400 mt-0.5 flex-shrink-0" />
+          <Info size={12} className="text-gray-400 mt-0.5 flex-shrink-0" />
           <p className="text-[10px] text-gray-500 leading-relaxed">
             1 a 125 — quanto maior, mais prioritário. <span className="text-gray-400">≥80 crítico · 40–79 alto · 15–39 médio · &lt;15 baixo.</span>
           </p>
@@ -103,8 +103,8 @@ function GUTSlider({
     <div className="px-2.5 py-2 bg-gray-50 hover:bg-gray-100/70 border border-gray-100 rounded-lg transition-colors duration-200">
       <div className="flex items-center justify-between mb-0.5 gap-2">
         <div className="min-w-0 flex items-baseline gap-1.5">
-          <span className="text-[11.5px] font-bold text-gray-800 flex-shrink-0">{label}</span>
-          <p className="text-[9.5px] text-gray-400 truncate">{hint}</p>
+          <span className="text-[11px] font-bold text-gray-800 flex-shrink-0">{label}</span>
+          <p className="text-[10px] text-gray-400 truncate">{hint}</p>
         </div>
         <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-full flex-shrink-0 tabnum"
           style={{ background: color + '14', color }}>

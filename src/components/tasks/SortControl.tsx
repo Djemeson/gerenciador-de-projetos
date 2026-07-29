@@ -46,7 +46,7 @@ export function SortControl({ value, onChange }: SortControlProps) {
           <div className="space-y-1.5">
             {value.map((rule, i) => (
               <div key={i} className="flex items-center gap-1.5">
-                <GripVertical size={13} className="text-gray-200 flex-shrink-0"/>
+                <GripVertical size={14} className="text-gray-200 flex-shrink-0"/>
                 <div className="flex-1 min-w-0">
                   <Select value={rule.key} ariaLabel="Campo"
                     options={SORT_FIELDS.map(f => ({ value: f.key, label: f.label }))}
@@ -57,8 +57,8 @@ export function SortControl({ value, onChange }: SortControlProps) {
                   className="flex items-center gap-0.5 px-1.5 py-1.5 text-[11px] font-semibold border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 flex-shrink-0">
                   {rule.dir === 'asc' ? <ArrowUp size={12}/> : <ArrowDown size={12}/>}
                 </button>
-                <button onClick={() => removeRule(i)} className="p-1 text-gray-300 hover:text-red-400 transition-colors flex-shrink-0">
-                  <X size={13}/>
+                <button onClick={() => removeRule(i)} className="p-1 text-gray-300 hover:text-danger-500 transition-colors flex-shrink-0">
+                  <X size={14}/>
                 </button>
               </div>
             ))}

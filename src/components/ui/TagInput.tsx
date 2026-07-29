@@ -55,10 +55,10 @@ export function TagInput({ value, onChange }: TagInputProps) {
           <span className="text-sm font-medium text-gray-400 italic">Sem etiquetas</span>
         )}
         {value.map(tag => (
-          <span key={tag} className="inline-flex items-center gap-1 text-xs px-2 py-0.5 bg-indigo-50/60 text-indigo-700 rounded-full border border-indigo-100/50 font-medium">
+          <span key={tag} className="inline-flex items-center gap-1 text-xs px-2 py-0.5 bg-brand-50/60 text-brand-700 rounded-full border border-brand-100/50 font-medium">
             {tag}
-            <button type="button" onClick={e => { e.stopPropagation(); remove(tag) }} className="text-indigo-400 hover:text-indigo-700">
-              <X size={10} />
+            <button type="button" onClick={e => { e.stopPropagation(); remove(tag) }} className="text-brand-400 hover:text-brand-700">
+              <X size={12} />
             </button>
           </span>
         ))}
@@ -72,7 +72,7 @@ export function TagInput({ value, onChange }: TagInputProps) {
           className="flex-1 min-w-[60px] text-sm outline-none bg-transparent text-gray-700 placeholder:text-gray-400"
         />
         {value.length === 0 && !open && !input && (
-          <ChevronDown size={13} className="text-gray-400 ml-auto flex-shrink-0" />
+          <ChevronDown size={14} className="text-gray-400 ml-auto flex-shrink-0" />
         )}
       </div>
 

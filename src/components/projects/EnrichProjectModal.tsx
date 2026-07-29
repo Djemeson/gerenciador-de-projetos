@@ -157,7 +157,7 @@ export function EnrichProjectModal() {
     <Modal open={!!enrichProjectModal} onClose={handleClose} title="" width="max-w-xl">
       <div className="flex items-center gap-2.5 mb-4">
         <div className="w-9 h-9 rounded-lg ai-gradient-bg text-white flex items-center justify-center flex-shrink-0">
-          <Wand2 size={17}/>
+          <Wand2 size={16}/>
         </div>
         <div className="min-w-0">
           <h2 className="text-sm font-bold text-gray-900">Enriquecer com IA</h2>
@@ -178,16 +178,16 @@ export function EnrichProjectModal() {
               <button type="button" onClick={toggleListening}
                 title={listening ? 'Parar ditado' : 'Ditar por voz'}
                 className={`absolute bottom-2.5 right-2.5 w-8 h-8 rounded-full flex items-center justify-center transition-colors shadow-sm
-                  ${listening ? 'bg-red-500 text-white animate-pulse' : 'bg-white border border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
-                {listening ? <Square size={13}/> : <Mic size={14}/>}
+                  ${listening ? 'bg-danger-500 text-white animate-pulse' : 'bg-white border border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+                {listening ? <Square size={14}/> : <Mic size={14}/>}
               </button>
             )}
           </div>
-          {listening && <p className="text-[11px] text-red-500 font-medium flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"/> Ouvindo...</p>}
+          {listening && <p className="text-[11px] text-danger-500 font-medium flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-danger-500 animate-pulse"/> Ouvindo...</p>}
 
           <div className="flex items-start gap-2 p-2.5 rounded-lg bg-gray-50 border border-gray-100">
             <Info size={12} className="text-gray-400 mt-0.5 flex-shrink-0" />
-            <p className="text-[10.5px] text-gray-500 leading-relaxed">
+            <p className="text-[11px] text-gray-500 leading-relaxed">
               {(openAIKey || geminiApiKey)
                 ? `A IA vai analisar as ${existing.length} tarefas já existentes deste projeto${context.trim() ? ' e o contexto que você adicionou' : ''} para sugerir o que falta.`
                 : context.trim()
@@ -196,11 +196,11 @@ export function EnrichProjectModal() {
             </p>
           </div>
 
-          {error && <p className="text-xs text-red-500">{error}</p>}
+          {error && <p className="text-xs text-danger-500">{error}</p>}
 
           <div className="flex gap-2 pt-1">
             <Button type="button" variant="default" onClick={handleClose} className="flex-1">Cancelar</Button>
-            <Button type="button" variant="primary" className="flex-1" onClick={handleGenerate} icon={<Sparkles size={13}/>}>
+            <Button type="button" variant="primary" className="flex-1" onClick={handleGenerate} icon={<Sparkles size={14}/>}>
               {context.trim() ? 'Gerar sugestões' : 'Analisar projeto e gerar'}
             </Button>
           </div>
@@ -218,7 +218,7 @@ export function EnrichProjectModal() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Sugestões novas ({totalNew})</label>
-            {!usedAI && <span className="text-[9.5px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">Plano local</span>}
+            {!usedAI && <span className="text-[10px] font-bold text-warning-600 bg-warning-50 border border-warning-100 px-1.5 py-0.5 rounded-full">Plano local</span>}
           </div>
           <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
             {suggestions.map((t, i) => (
@@ -230,11 +230,11 @@ export function EnrichProjectModal() {
             {generatingMore ? <Loader2 size={12} className="animate-spin"/> : <Plus size={12}/>}
             {generatingMore ? 'Gerando mais sugestões...' : 'Gerar mais sugestões'}
           </button>
-          {error && <p className="text-[10.5px] text-amber-600">{error}</p>}
+          {error && <p className="text-[11px] text-warning-600">{error}</p>}
 
           <div className="flex gap-2 pt-1">
             <Button type="button" variant="default" onClick={() => setStep('input')} className="flex-1">Voltar</Button>
-            <Button type="button" variant="primary" className="flex-1" disabled={suggestions.length===0} onClick={handleAdd} icon={<Plus size={13}/>}>
+            <Button type="button" variant="primary" className="flex-1" disabled={suggestions.length===0} onClick={handleAdd} icon={<Plus size={14}/>}>
               Adicionar ao projeto
             </Button>
           </div>
@@ -261,7 +261,7 @@ function EnrichNode({ item, path, depth, onUpdate, onRemove }: {
         <Icon size={depth === 0 ? 13 : 11} style={{ color: isMilestone ? '#4F46E5' : TYPE_ICON_COLOR }} className="flex-shrink-0"/>
         <input value={item.title} onChange={e => onUpdate(path, { title: e.target.value })}
           className={`flex-1 min-w-0 bg-transparent outline-none ${depth === 0 ? 'text-xs font-semibold text-gray-800' : 'text-[11px] text-gray-600'}`}/>
-        <button onClick={() => onRemove(path)} className="text-gray-300 hover:text-red-400 transition-colors flex-shrink-0"><X size={depth === 0 ? 13 : 11}/></button>
+        <button onClick={() => onRemove(path)} className="text-gray-300 hover:text-danger-500 transition-colors flex-shrink-0"><X size={depth === 0 ? 13 : 11}/></button>
       </div>
       {(item.subtasks ?? []).length > 0 && (
         <div className="space-y-1">

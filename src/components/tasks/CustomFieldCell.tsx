@@ -58,13 +58,13 @@ export function CustomFieldCell({ task, column }: Props) {
               className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium truncate"
               style={{ background: selected.color + '25', color: selected.color }}
             >
-              <OptionMarker icon={selected.icon} color={selected.color} size={11}/>
+              <OptionMarker icon={selected.icon} color={selected.color} size={12}/>
               {selected.label}
             </span>
           ) : (
             <span className="text-gray-300 text-[11px]">—</span>
           )}
-          <ChevronDown size={9} className="text-gray-400 flex-shrink-0 ml-auto"/>
+          <ChevronDown size={12} className="text-gray-400 flex-shrink-0 ml-auto"/>
         </button>
 
         {dropOpen && (
@@ -81,7 +81,7 @@ export function CustomFieldCell({ task, column }: Props) {
                 className="w-full text-left px-3 py-1.5 flex items-center gap-2 hover:bg-gray-50 transition-colors">
                 <OptionMarker icon={opt.icon} color={opt.color} size={12}/>
                 <span className="text-[12px] text-gray-700 flex-1">{opt.label}</span>
-                {value === opt.label && <Check size={11} className="text-brand-500 flex-shrink-0"/>}
+                {value === opt.label && <Check size={12} className="text-brand-500 flex-shrink-0"/>}
               </button>
             ))}
           </div>
@@ -108,7 +108,7 @@ export function CustomFieldCell({ task, column }: Props) {
               {selectedLabels.length > 2 && <span className="text-[10px] text-gray-400">+{selectedLabels.length-2}</span>}
             </div>
           ) : <span className="text-gray-300 text-[11px]">—</span>}
-          <ChevronDown size={9} className="text-gray-400 flex-shrink-0 ml-auto"/>
+          <ChevronDown size={12} className="text-gray-400 flex-shrink-0 ml-auto"/>
         </button>
 
         {dropOpen && (
@@ -120,7 +120,7 @@ export function CustomFieldCell({ task, column }: Props) {
                 <button key={opt.id} onClick={() => toggle(opt.label)}
                   className="w-full text-left px-3 py-1.5 flex items-center gap-2 hover:bg-gray-50 transition-colors">
                   <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 ${on ? 'bg-brand-500 border-brand-500' : 'border-gray-300'}`}>
-                    {on && <Check size={9} className="text-white" strokeWidth={3}/>}
+                    {on && <Check size={12} className="text-white" strokeWidth={3}/>}
                   </span>
                   <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: opt.color }}/>
                   <span className="text-[12px] text-gray-700 flex-1">{opt.label}</span>
@@ -141,7 +141,7 @@ export function CustomFieldCell({ task, column }: Props) {
       <div className="flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
         {[1,2,3,4,5].map(n => (
           <button key={n} onClick={() => update(rating === n ? 0 : n)} className="transition-transform hover:scale-110">
-            <Star size={11} className={n <= rating ? 'text-amber-400 fill-amber-400' : 'text-gray-200'}/>
+            <Star size={12} className={n <= rating ? 'text-warning-500 fill-warning-500' : 'text-gray-200'}/>
           </button>
         ))}
       </div>
@@ -188,7 +188,7 @@ export function CustomFieldCell({ task, column }: Props) {
     return url ? (
       <a href={url.startsWith('http') ? url : `https://${url}`} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
         className="flex items-center gap-1 text-[11px] text-brand-600 hover:underline truncate w-full">
-        {column.type === 'website' && <Globe size={10} className="flex-shrink-0"/>}
+        {column.type === 'website' && <Globe size={12} className="flex-shrink-0"/>}
         {url.replace(/^https?:\/\//, '')}
       </a>
     ) : (
@@ -206,7 +206,7 @@ export function CustomFieldCell({ task, column }: Props) {
     return email ? (
       <a href={`mailto:${email}`} onClick={e => e.stopPropagation()}
         className="flex items-center gap-1 text-[11px] text-brand-600 hover:underline truncate w-full">
-        <Mail size={10} className="flex-shrink-0"/>{email}
+        <Mail size={12} className="flex-shrink-0"/>{email}
       </a>
     ) : (
       <input type="email" value={email}
@@ -223,7 +223,7 @@ export function CustomFieldCell({ task, column }: Props) {
     return phone ? (
       <a href={`tel:${phone.replace(/\D/g,'')}`} onClick={e => e.stopPropagation()}
         className="flex items-center gap-1 text-[11px] text-brand-600 hover:underline truncate w-full">
-        <Phone size={10} className="flex-shrink-0"/>{phone}
+        <Phone size={12} className="flex-shrink-0"/>{phone}
       </a>
     ) : (
       <input type="tel" value={phone}
@@ -239,8 +239,8 @@ export function CustomFieldCell({ task, column }: Props) {
     const names = String(value ?? '')
     return (
       <div className="flex items-center gap-1.5 min-w-0 w-full">
-        {names && <span className="w-5 h-5 rounded-full bg-brand-100 text-brand-700 text-[9px] font-medium flex items-center justify-center flex-shrink-0">{names.slice(0,2).toUpperCase()}</span>}
-        {!names && <User size={11} className="text-gray-300 flex-shrink-0"/>}
+        {names && <span className="w-5 h-5 rounded-full bg-brand-100 text-brand-700 text-[10px] font-medium flex items-center justify-center flex-shrink-0">{names.slice(0,2).toUpperCase()}</span>}
+        {!names && <User size={12} className="text-gray-300 flex-shrink-0"/>}
         <input value={names} onChange={e => { e.stopPropagation(); update(e.target.value) }}
           onClick={e => e.stopPropagation()}
           placeholder="Nome(s)"
@@ -309,17 +309,17 @@ function AISummaryCell({ task, text, generating, hasKey, onRegenerate, onSaveKey
         className="flex items-center gap-1.5 w-full text-left min-w-0">
         {generating ? (
           <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium ai-gradient-bg text-white ai-generating">
-            <Sparkles size={10}/> Gerando…
+            <Sparkles size={12}/> Gerando…
           </span>
         ) : text ? (
           <span className="inline-flex items-center gap-1 min-w-0 text-[11px] px-2 py-0.5 rounded-full font-medium truncate"
             style={{ boxShadow: '0 0 0 1px rgba(155,114,203,0.4)', color: '#6B4FBB' }}>
-            <Sparkles size={10} className="flex-shrink-0 ai-gradient-text"/>
+            <Sparkles size={12} className="flex-shrink-0 ai-gradient-text"/>
             <span className="truncate">{text}</span>
           </span>
         ) : (
           <span className="inline-flex items-center gap-1 text-[11px] text-gray-300">
-            <Sparkles size={10}/> {task.status === 'done' ? 'Sem resumo' : 'Gera ao concluir'}
+            <Sparkles size={12}/> {task.status === 'done' ? 'Sem resumo' : 'Gera ao concluir'}
           </span>
         )}
       </button>
@@ -342,14 +342,14 @@ function AISummaryCell({ task, text, generating, hasKey, onRegenerate, onSaveKey
           {!text && !generating && (
             <button onClick={onRegenerate}
               className="w-full mb-2 py-1.5 text-[11px] font-medium ai-gradient-bg text-white rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-1.5">
-              <Sparkles size={11}/> Gerar agora
+              <Sparkles size={12}/> Gerar agora
             </button>
           )}
 
           {!hasKey && (
             showKeyForm ? (
               <div className="pt-2 border-t border-gray-100">
-                <p className="text-[10px] text-gray-400 mb-1.5 flex items-center gap-1"><Key size={10}/> Chave da API do Gemini:</p>
+                <p className="text-[10px] text-gray-400 mb-1.5 flex items-center gap-1"><Key size={12}/> Chave da API do Gemini:</p>
                 <div className="flex gap-1.5">
                   <input type="password" value={keyInput} onChange={e => setKeyInput(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && saveKey()}
@@ -357,12 +357,12 @@ function AISummaryCell({ task, text, generating, hasKey, onRegenerate, onSaveKey
                     className="flex-1 min-w-0 text-[11px] px-2 py-1 border border-gray-200 rounded-lg outline-none focus:ring-1 focus:ring-brand-400"/>
                   <button onClick={saveKey} className="text-[11px] px-2 py-1 bg-brand-600 text-white rounded-lg hover:bg-brand-700 flex-shrink-0">Salvar</button>
                 </div>
-                <p className="text-[9px] text-gray-400 mt-1">Armazenada localmente no navegador. Sem chave, o resumo é montado a partir dos dados da tarefa (sem IA generativa).</p>
+                <p className="text-[10px] text-gray-400 mt-1">Armazenada localmente no navegador. Sem chave, o resumo é montado a partir dos dados da tarefa (sem IA generativa).</p>
               </div>
             ) : (
               <button onClick={() => setShowKeyForm(true)}
                 className="text-[10px] text-gray-400 hover:text-gray-600 transition-colors flex items-center gap-1 pt-1">
-                <Key size={9}/> Usar Gemini de verdade (configurar chave)
+                <Key size={12}/> Usar Gemini de verdade (configurar chave)
               </button>
             )
           )}

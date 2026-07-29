@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import {
+  MoreHorizontal,
   Target, ChevronLeft, Archive, Trash2, AlertTriangle,
   LayoutGrid, Table2, Calendar, List, SlidersHorizontal, Sparkles, Columns,
   LayoutDashboard, PenTool, Activity, Eye, Plus, X, Check, Circle, ChevronDown, Wand2,
@@ -30,6 +31,7 @@ export function ProjectDetailView() {
 
   const [sortBy,         setSortBy]         = useState<SortBy>('status')
   const [confirmDel,     setConfirmDel]     = useState(false)
+  const [moreOpen,       setMoreOpen]       = useState(false)
   const [activeCustomId, setActiveCustomId] = useState<string|null>(null)
   const [subtasksCollapsed, setSubtasksCollapsed] = useState(false)
   const [expandVersion,     setExpandVersion]     = useState(0)
@@ -83,17 +85,17 @@ export function ProjectDetailView() {
   const mainContent = (
     <div className="flex flex-col flex-1 overflow-hidden min-w-0">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 flex-shrink-0">
+      <div className="bg-white flex-shrink-0">
 
         {/* ── Breadcrumb + toolbar row ── */}
         <div className="px-4 pt-3 pb-0 flex items-center justify-between gap-2 flex-wrap">
           {/* Breadcrumb */}
           <div className="flex items-center gap-1 text-[13px] min-w-0">
             <button onClick={() => setView('projects')} className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0">
-              <ChevronLeft size={15}/>
+              <ChevronLeft size={16}/>
             </button>
-            <span className="text-gray-400 hover:text-gray-600 cursor-pointer transition-colors">Projetos</span>
-            <span className="text-gray-300 mx-0.5">/</span>
+            <span className="text-gray-500 hover:text-gray-700 cursor-pointer transition-colors">Projetos</span>
+            <span className="text-gray-400 mx-0.5">/</span>
             <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: project.color }}/>
             <h1 className="font-semibold text-gray-900 truncate min-w-0">{project.name}</h1>
           </div>
@@ -116,39 +118,62 @@ export function ProjectDetailView() {
               className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-brand-600 transition-colors">
               <Wand2 size={14}/>
             </button>
+
+            {/* Separador: os quatro acima são ferramentas de tela; o que vem depois age
+                sobre o projeto. Sem essa divisão eram nove alvos numa fileira só. */}
+            <span className="w-px h-5 bg-gray-200 mx-1" />
+
             <button onClick={() => openGUT(project.id)}
               className="flex items-center gap-1.5 px-2 py-1 rounded-lg border text-xs font-medium transition-colors hover:border-gray-300"
               style={{ background: tier.bg, color: tier.color, borderColor: tier.color+'33' }}>
-              <Target size={11}/> GUT {project.gut.score}
+              <Target size={12}/> GUT {project.gut.score}
             </button>
             <button onClick={() => { archiveProject(project.id); setView('projects') }}
               className="flex items-center gap-1 text-xs px-2 py-1 border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50">
-              <Archive size={11}/> Arquivar
+              <Archive size={12}/> Arquivar
             </button>
-            {confirmDel ? (
-              <button onClick={() => { deleteProject(project.id); setView('projects') }}
-                className="flex items-center gap-1 text-xs px-2 py-1 bg-red-500 text-white rounded-lg animate-pulse">
-                <AlertTriangle size={11}/> Confirmar
+
+            {/* Excluir sai da barra principal e vira item do menu: era o elemento mais
+                chamativo do cabeçalho sendo a única ação irreversível da tela. */}
+            <div className="relative">
+              <button onClick={() => setMoreOpen(v => !v)} title="Mais ações"
+                className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
+                <MoreHorizontal size={14}/>
               </button>
-            ) : (
-              <button onClick={() => { setConfirmDel(true); setTimeout(() => setConfirmDel(false), 3000) }}
-                className="flex items-center gap-1 text-xs px-2 py-1 border border-red-200 text-red-500 rounded-lg hover:bg-red-50">
-                <Trash2 size={11}/> Deletar
-              </button>
-            )}
+              {moreOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => { setMoreOpen(false); setConfirmDel(false) }} />
+                  <div className="absolute right-0 top-full mt-1 z-50 w-52 bg-white border border-gray-200 rounded-xl shadow-lg py-1 animate-scale-in">
+                    {confirmDel ? (
+                      <button onClick={() => { deleteProject(project.id); setView('projects') }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-[12px] font-semibold text-danger-600 hover:bg-danger-50 transition-colors">
+                        <AlertTriangle size={14}/> Confirmar exclusão
+                      </button>
+                    ) : (
+                      <button onClick={() => setConfirmDel(true)}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-[12px] text-gray-700 hover:bg-gray-50 transition-colors">
+                        <Trash2 size={14} className="text-gray-400"/> Excluir projeto
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* ── Progress bar ── */}
-        <div className="flex items-center gap-3 px-4 mt-2">
-          <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
+        {/* ── Progresso ── discreto e contido, não uma faixa de ponta a ponta */}
+        <div className="flex items-center gap-2.5 px-4 mt-2">
+          <div className="w-40 h-[3px] bg-gray-100 rounded-full overflow-hidden flex-shrink-0">
             <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: project.color }}/>
           </div>
-          <span className="text-xs text-gray-400 flex-shrink-0">{done}/{total} · {pct}%</span>
+          <span className="text-[11px] font-semibold text-gray-500 flex-shrink-0">{done}/{total} · {pct}%</span>
         </div>
 
         {/* ── View tabs (ClickUp underline style) ── */}
-        <div className="flex items-center overflow-x-auto scrollbar-none px-3 mt-1">
+        {/* Régua contínua: as abas são a maior mudança de contexto da tela e eram a única
+            faixa sem separação — o indicador da aba ativa flutuava sem linha de base. */}
+        <div className="flex items-center overflow-x-auto scrollbar-none px-3 mt-1 border-b border-gray-200">
           {VIEW_TABS.map(({ key, label, Icon }) => (
             <button key={key} onClick={() => selectView(key)}
               className={`flex items-center gap-1.5 px-2.5 py-2.5 text-xs font-medium whitespace-nowrap transition-all flex-shrink-0 border-b-2 -mb-px
@@ -169,8 +194,8 @@ export function ProjectDetailView() {
                 <span>{cv.icon}</span>{cv.name}
               </button>
               <button onClick={() => { deleteCustomView(scopeKey, cv.id); if(activeCustomId===cv.id) setActiveCustomId(null) }}
-                className="opacity-0 group-hover/cv:opacity-100 px-1 py-2.5 text-gray-300 hover:text-red-400 transition-all text-xs">
-                <X size={10}/>
+                className="opacity-0 group-hover/cv:opacity-100 px-1 py-2.5 text-gray-300 hover:text-danger-500 transition-all text-xs">
+                <X size={12}/>
               </button>
             </div>
           ))}
@@ -180,16 +205,16 @@ export function ProjectDetailView() {
             onClick={() => openNewViewModal(scopeKey)}
             className="group/newview flex items-center gap-1.5 px-3 py-1 my-1.5 text-[11px] font-semibold text-gray-500 hover:text-brand-600 bg-gray-50/50 hover:bg-brand-50/40 border border-dashed border-gray-200 hover:border-brand-300 rounded-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] cursor-pointer flex-shrink-0 shadow-xs"
           >
-            <Plus size={11} className="text-gray-400 group-hover/newview:text-brand-500 transition-colors" />
+            <Plus size={12} className="text-gray-400 group-hover/newview:text-brand-500 transition-colors" />
             <span>Nova visualização</span>
           </button>
         </div>
 
         {/* Sort (list/custom-list only) com botão atraente de recolher subtarefas */}
         {(activeView==='list' || currentCustomView?.baseType==='list') && !['overview','whiteboard','activity','dashboard'].includes(activeView) && (
-          <div className="px-4 py-2 bg-slate-50/60 border-t border-b border-gray-100/80 flex items-center justify-between gap-3 flex-wrap mt-2 select-none">
+          <div className="px-4 py-2 flex items-center justify-between gap-3 flex-wrap mt-1 select-none">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Agrupar por</span>
+              <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Agrupar por</span>
               <div className="flex items-center gap-0.5 bg-gray-200/50 rounded-lg p-[3px]">
                 {(['status','priority','dueDate'] as SortBy[]).map(s=>(
                   <button key={s} onClick={()=>setSortBy(s)}
@@ -205,7 +230,7 @@ export function ProjectDetailView() {
               onClick={toggleAllSubtasks}
               className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold rounded-xl border transition-all duration-300 shadow-sm cursor-pointer select-none
                 ${subtasksCollapsed 
-                  ? 'bg-gradient-to-r from-brand-50 to-indigo-50 border-brand-200 text-brand-700 hover:from-brand-100/60 hover:to-indigo-100/60' 
+                  ? 'bg-gradient-to-r from-brand-50 to-brand-50 border-brand-200 text-brand-700 hover:from-brand-100/60 hover:to-brand-100/60' 
                   : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'}`}
               title={subtasksCollapsed ? 'Expandir todas as subtarefas do projeto' : 'Recolher todas as subtarefas do projeto'}
             >
@@ -372,10 +397,10 @@ function OverviewView({ tasks, project, pct, tier }: { tasks: any[]; project: an
             <div className="space-y-2">
               {overdue.slice(0,5).map(t=>(
                 <button key={t.id} onClick={()=>setSelectedTask(t.id)}
-                  className="w-full flex items-center gap-2 text-left hover:bg-red-50 px-1 py-1 rounded-lg transition-colors">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0"/>
+                  className="w-full flex items-center gap-2 text-left hover:bg-danger-50 px-1 py-1 rounded-lg transition-colors">
+                  <span className="w-1.5 h-1.5 rounded-full bg-danger-500 flex-shrink-0"/>
                   <span className="flex-1 text-xs text-gray-700 truncate">{t.title}</span>
-                  <span className="text-[10px] text-red-400 flex-shrink-0">{new Date(t.dueDate).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}</span>
+                  <span className="text-[10px] text-danger-500 flex-shrink-0">{new Date(t.dueDate).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}</span>
                 </button>
               ))}
             </div>
@@ -384,7 +409,7 @@ function OverviewView({ tasks, project, pct, tier }: { tasks: any[]; project: an
               {recent.map(t=>(
                 <button key={t.id} onClick={()=>setSelectedTask(t.id)}
                   className="w-full flex items-center gap-2 text-left hover:bg-gray-50 px-1 py-1 rounded-lg transition-colors">
-                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${t.status==='done'?'bg-green-400':t.status==='in_progress'?'bg-blue-400':'bg-gray-300'}`}/>
+                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${t.status==='done'?'bg-success-500':t.status==='in_progress'?'bg-info-500':'bg-gray-300'}`}/>
                   <span className="flex-1 text-xs text-gray-700 truncate">{t.title}</span>
                 </button>
               ))}
@@ -423,7 +448,7 @@ function BoardView({ tasks, projectId, project }: { tasks: any[]; projectId: str
                   <span className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: col.color+'14' }}>
                     <span className="w-1.5 h-1.5 rounded-full" style={{ background: col.color }}/>
                   </span>
-                  <p className="text-[10.5px] text-gray-400">Nenhuma tarefa aqui</p>
+                  <p className="text-[11px] text-gray-400">Nenhuma tarefa aqui</p>
                 </div>
               )}
               {colTasks.map(t=>(
@@ -434,10 +459,10 @@ function BoardView({ tasks, projectId, project }: { tasks: any[]; projectId: str
                   <p className="text-sm text-gray-800 mb-2 leading-5">{t.title}</p>
                   <div className="flex items-center justify-between">
                     <span className={`text-[10px] font-medium ${
-                      t.priority==='urgent'?'text-red-500':t.priority==='high'?'text-orange-500':t.priority==='medium'?'text-blue-500':'text-gray-400'
+                      ''
                     }`}>{t.priority}</span>
                     {t.dueDate&&<span className="text-[10px] text-gray-400">{new Date(t.dueDate).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}</span>}
-                    <span className="w-5 h-5 rounded-full bg-brand-100 text-brand-700 text-[9px] font-medium flex items-center justify-center">{t.assignee.slice(0,2)}</span>
+                    <span className="w-5 h-5 rounded-full bg-brand-100 text-brand-700 text-[10px] font-medium flex items-center justify-center">{t.assignee.slice(0,2)}</span>
                   </div>
                   {t.tags.length>0&&<div className="flex gap-1 mt-1.5">{t.tags.slice(0,2).map((tag:string)=><span key={tag} className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded">{tag}</span>)}</div>}
                 </div>
@@ -458,7 +483,7 @@ function TableView({ tasks, project }: { tasks: any[]; project: any }) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center py-16">
         <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
-          <Table2 size={17} className="text-gray-300"/>
+          <Table2 size={16} className="text-gray-300"/>
         </div>
         <p className="text-sm font-medium text-gray-500">Nenhuma tarefa ainda</p>
         <p className="text-xs text-gray-400">As tarefas criadas neste projeto aparecerão aqui em formato de tabela.</p>
@@ -583,8 +608,8 @@ function ActivityView({ tasks, project }: { tasks: any[]; project: any }) {
                 <div className="w-7 h-7 rounded-full border-2 border-white shadow-sm flex items-center justify-center flex-shrink-0 z-10"
                   style={{background: statusColor[t.status] + '20', borderColor: statusColor[t.status]}}>
                   {t.status==='done'
-                    ? <Check size={11} strokeWidth={3} style={{color:statusColor[t.status]}}/>
-                    : <Circle size={7} strokeWidth={0} fill={statusColor[t.status]} style={{color:statusColor[t.status]}}/>}
+                    ? <Check size={12} strokeWidth={3} style={{color:statusColor[t.status]}}/>
+                    : <Circle size={12} strokeWidth={0} fill={statusColor[t.status]} style={{color:statusColor[t.status]}}/>}
                 </div>
                 <div className="flex-1 min-w-0 bg-white border border-gray-100 rounded-xl px-3 py-2.5 hover:border-gray-200 transition-colors cursor-pointer shadow-sm"
                   onClick={() => setSelectedTask(t.id)}>
@@ -598,7 +623,7 @@ function ActivityView({ tasks, project }: { tasks: any[]; project: any }) {
                       {statusLabel[t.status]}
                     </span>
                     {t.assignee && <span className="text-[10px] text-gray-400">{t.assignee}</span>}
-                    {t.dueDate && <span className="inline-flex items-center gap-1 text-[10px] text-gray-400"><Calendar size={10}/>{new Date(t.dueDate).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}</span>}
+                    {t.dueDate && <span className="inline-flex items-center gap-1 text-[10px] text-gray-400"><Calendar size={12}/>{new Date(t.dueDate).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}</span>}
                   </div>
                 </div>
               </div>

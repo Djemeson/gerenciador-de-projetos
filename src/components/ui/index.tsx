@@ -34,7 +34,7 @@ export function Button({ variant = 'default', size = 'md', icon, children, class
     default: 'bg-white border-gray-200 text-gray-700 shadow-xs hover:bg-gray-50 hover:border-gray-300',
     primary: 'bg-brand-600 border-brand-600 text-white shadow-sm hover:bg-brand-700 hover:shadow-md',
     ghost:   'bg-transparent border-transparent text-gray-500 hover:bg-gray-100 hover:text-gray-800',
-    danger:  'bg-white border-red-200 text-red-600 shadow-xs hover:bg-red-50 hover:border-red-300',
+    danger:  'bg-white border-danger-100 text-danger-600 shadow-xs hover:bg-danger-50 hover:border-danger-500',
   }
   return (
     <button className={`${base} ${sizes[size]} ${variants[variant]} ${className}`} {...props}>

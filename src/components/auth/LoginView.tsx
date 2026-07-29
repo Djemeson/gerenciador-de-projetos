@@ -52,7 +52,7 @@ export function LoginView() {
           <div className="relative">
             <div className="absolute inset-0 rounded-2xl bg-brand-500 blur-xl opacity-50" />
             <div className="relative w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-400 to-[#7C3AED] flex items-center justify-center shadow-[0_8px_24px_-6px_rgba(79,70,229,.7)] ring-1 ring-white/20">
-              <Zap size={24} className="text-white" fill="currentColor" />
+              <Zap size={24} className="text-white" />
             </div>
           </div>
           <span className="mt-5 text-[10px] font-bold uppercase tracking-[.2em] text-white/45">
@@ -61,7 +61,7 @@ export function LoginView() {
           <h1 className="mt-3 text-[27px] leading-tight font-extrabold tracking-tight text-white">
             Bem-vindo de volta
           </h1>
-          <p className="mt-2 text-[13.5px] text-white/55 leading-relaxed max-w-[300px]">
+          <p className="mt-2 text-[13px] text-white/55 leading-relaxed max-w-[300px]">
             Seus projetos, tarefas e metas — no computador e no celular, sempre em dia.
           </p>
         </div>
@@ -80,17 +80,17 @@ export function LoginView() {
             >
               {signingIn
                 ? <Loader2 size={18} className="animate-spin text-gray-400" />
-                : <GoogleMark size={19} />}
+                : <GoogleMark size={18} />}
               {signingIn ? 'Entrando…' : 'Continuar com Google'}
               {!signingIn && (
-                <ArrowRight size={15} className="text-gray-300 -ml-1 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200" />
+                <ArrowRight size={16} className="text-gray-300 -ml-1 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200" />
               )}
             </button>
 
             {authError && (
-              <div className="mt-4 flex items-start gap-2.5 p-3 rounded-xl bg-red-500/10 border border-red-400/25 text-red-200">
+              <div className="mt-4 flex items-start gap-2.5 p-3 rounded-xl bg-danger-500/10 border border-danger-500/25 text-danger-100">
                 <AlertCircle size={14} className="shrink-0 mt-px" />
-                <span className="text-[11.5px] leading-relaxed">{authError}</span>
+                <span className="text-[11px] leading-relaxed">{authError}</span>
               </div>
             )}
 
@@ -101,7 +101,7 @@ export function LoginView() {
                   <span className="w-8 h-8 rounded-xl bg-white/[.06] border border-white/[.08] flex items-center justify-center">
                     <Icon size={14} className="text-brand-300" />
                   </span>
-                  <span className="text-[10.5px] leading-tight text-white/55 font-medium">{label}</span>
+                  <span className="text-[11px] leading-tight text-white/55 font-medium">{label}</span>
                 </div>
               ))}
             </div>
@@ -125,7 +125,7 @@ export function AuthSplash() {
         <div className="relative">
           <div className="absolute inset-0 rounded-2xl bg-brand-500 blur-xl opacity-50" />
           <div className="relative w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-400 to-[#7C3AED] flex items-center justify-center ring-1 ring-white/20">
-            <Zap size={24} className="text-white" fill="currentColor" />
+            <Zap size={24} className="text-white" />
           </div>
         </div>
         <Loader2 size={16} className="animate-spin text-white/30" />

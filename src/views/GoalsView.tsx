@@ -59,8 +59,8 @@ export function GoalsView() {
     <div className="flex flex-col flex-1 overflow-hidden">
       <div className="flex items-center gap-3 px-5 py-3.5 border-b border-gray-200 bg-white">
         <Target size={16} className="text-gray-400"/>
-        <h1 className="text-[15px] font-extrabold text-gray-900 flex-1 tracking-tight">Metas <span className="text-gray-300 font-bold">{goals.length}</span></h1>
-        <Button variant="primary" size="sm" icon={<Plus size={13}/>} onClick={() => setEditing('new')}>Nova meta</Button>
+        <h1 className="text-[14px] font-extrabold text-gray-900 flex-1 tracking-tight">Metas <span className="text-gray-300 font-bold">{goals.length}</span></h1>
+        <Button variant="primary" size="sm" icon={<Plus size={14}/>} onClick={() => setEditing('new')}>Nova meta</Button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-5 bg-gray-50/40">
@@ -91,16 +91,16 @@ export function GoalsView() {
                         </div>
                         <div className="flex items-center gap-0.5 flex-shrink-0 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                           <button onClick={() => setEditing(g)} className="p-1 rounded-lg text-gray-300 hover:text-brand-600 hover:bg-gray-50" title="Editar"><Pencil size={12}/></button>
-                          <button onClick={() => handleDelete(g.id)} className={`p-1 rounded-lg transition-colors ${confirmDelete===g.id ? 'text-white bg-red-500' : 'text-gray-300 hover:text-red-500 hover:bg-red-50'}`} title="Excluir"><Trash2 size={12}/></button>
+                          <button onClick={() => handleDelete(g.id)} className={`p-1 rounded-lg transition-colors ${confirmDelete===g.id ? 'text-white bg-danger-500' : 'text-gray-300 hover:text-danger-500 hover:bg-danger-50'}`} title="Excluir"><Trash2 size={12}/></button>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 mt-2 flex-wrap">
                         <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full" style={{ background: sm.color+'18', color: sm.color }}>
-                          <Flag size={9}/>{sm.label}
+                          <Flag size={12}/>{sm.label}
                         </span>
                         {g.targetDate && (
-                          <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${overdue ? 'text-red-500 bg-red-50 border-red-100' : 'text-gray-400 bg-gray-50 border-gray-100'}`}>
-                            <Calendar size={9}/>{new Date(g.targetDate).toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'2-digit'})}
+                          <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${overdue ? 'text-danger-500 bg-danger-50 border-danger-100' : 'text-gray-400 bg-gray-50 border-gray-100'}`}>
+                            <Calendar size={12}/>{new Date(g.targetDate).toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'2-digit'})}
                           </span>
                         )}
                       </div>
@@ -197,7 +197,7 @@ function GoalEditor({ goal, onClose, onSave }: {
             {GOAL_COLORS.map(c => (
               <button key={c} onClick={() => setColor(c)} className="w-7 h-7 rounded-full flex items-center justify-center transition-transform hover:scale-110 border-2 border-white ring-1 ring-gray-200"
                 style={{ background:c, ...(color===c ? { boxShadow:`0 0 0 2px white, 0 0 0 3.5px ${c}` } : {}) }}>
-                {color===c && <Check size={13} className="text-white" strokeWidth={3}/>}
+                {color===c && <Check size={14} className="text-white" strokeWidth={3}/>}
               </button>
             ))}
           </div>
@@ -208,7 +208,7 @@ function GoalEditor({ goal, onClose, onSave }: {
           <div className="flex items-center justify-between mb-2">
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Alvos mensuráveis</label>
             <button onClick={addTarget} className="flex items-center gap-1 text-[11px] font-semibold text-brand-600 hover:text-brand-700 px-2 py-1 rounded-lg hover:bg-brand-50 transition-colors">
-              <Plus size={11}/> Adicionar alvo
+              <Plus size={12}/> Adicionar alvo
             </button>
           </div>
           {targets.length === 0 && <p className="text-[11px] text-gray-400">Sem alvos — o progresso será baseado no status.</p>}
@@ -221,7 +221,7 @@ function GoalEditor({ goal, onClose, onSave }: {
                   <div className="w-32 flex-shrink-0">
                     <Select value={t.type} options={TARGET_TYPE_OPTS} ariaLabel="Tipo" onChange={v => updTarget(t.id, { type: v as GoalTargetType })}/>
                   </div>
-                  <button onClick={() => rmTarget(t.id)} className="text-gray-300 hover:text-red-400 flex-shrink-0"><X size={13}/></button>
+                  <button onClick={() => rmTarget(t.id)} className="text-gray-300 hover:text-danger-500 flex-shrink-0"><X size={14}/></button>
                 </div>
                 {t.type === 'boolean' ? (
                   <label className="flex items-center gap-2 text-[11px] text-gray-600">
@@ -232,7 +232,7 @@ function GoalEditor({ goal, onClose, onSave }: {
                   <div className="grid grid-cols-3 gap-2">
                     {(['start','current','target'] as const).map(field => (
                       <div key={field}>
-                        <label className="block text-[9px] text-gray-400 uppercase tracking-wider mb-0.5">{field==='start'?'Início':field==='current'?'Atual':'Alvo'}</label>
+                        <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-0.5">{field==='start'?'Início':field==='current'?'Atual':'Alvo'}</label>
                         <input type="number" value={t[field]} onChange={e => updTarget(t.id, { [field]: Number(e.target.value) } as Partial<GoalTarget>)}
                           className="w-full text-xs px-2 py-1 border border-gray-200 rounded-lg outline-none tabnum"/>
                       </div>

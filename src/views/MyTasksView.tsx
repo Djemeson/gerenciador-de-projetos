@@ -20,7 +20,7 @@ export function MyTasksView() {
       scopeKey="mytasks"
       tasks={filtered}
       title="Minhas tarefas"
-      icon={<CheckSquare size={15} className="text-brand-500 flex-shrink-0" />}
+      icon={<CheckSquare size={16} className="text-brand-500 flex-shrink-0" />}
       headerRight={headerRight}
       showProject
       defaultProjectId={projects.find(p => p.workspaceId === activeWorkspaceId)?.id}

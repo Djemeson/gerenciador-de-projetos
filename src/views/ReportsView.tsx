@@ -201,16 +201,16 @@ export function ReportsView() {
       {/* ── Cabeçalho ── */}
       <div className="px-6 py-3.5 border-b border-gray-200 bg-white space-y-3 flex-shrink-0">
         <div className="flex items-center gap-3">
-          <BarChart2 size={17} className="text-gray-400" />
+          <BarChart2 size={16} className="text-gray-400" />
           <h1 className="text-[20px] font-extrabold tracking-tight text-gray-900 flex-1">Relatórios</h1>
           <span className="text-[11px] text-gray-400 hidden md:inline tabnum">{rangeLabel}</span>
           <button onClick={exportarTudo}
             className="flex items-center gap-1.5 text-xs px-3 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors flex-shrink-0 print:hidden">
-            <Download size={13} /> CSV
+            <Download size={14} /> CSV
           </button>
           <button onClick={() => window.print()}
             className="flex items-center gap-1.5 text-xs px-3 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors flex-shrink-0 print:hidden">
-            <Printer size={13} /> Imprimir
+            <Printer size={14} /> Imprimir
           </button>
         </div>
 
@@ -264,7 +264,7 @@ export function ReportsView() {
             .
           </p>
           {scopeActive && (
-            <p className="text-[10.5px] text-gray-400 mt-2">
+            <p className="text-[11px] text-gray-400 mt-2">
               {periodTasks.length} de {scopedTasks.length} tarefas no recorte
               {period && dateField === 'completedAt' && ' · atraso, urgentes e carga refletem o momento atual'}
             </p>
@@ -303,12 +303,12 @@ export function ReportsView() {
         <div className="flex items-center gap-1 border-b border-gray-200 -mt-1 print:hidden">
           {TABS.map(({ id, label, icon: Icon }) => (
             <button key={id} onClick={() => changeTab(id)}
-              className={`flex items-center gap-1.5 px-3 py-2 text-[12.5px] font-semibold border-b-2 -mb-px transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-2 text-[12px] font-semibold border-b-2 -mb-px transition-colors ${
                 tab === id
                   ? 'border-brand-500 text-brand-600'
                   : 'border-transparent text-gray-500 hover:text-gray-800'
               }`}>
-              <Icon size={13} /> {label}
+              <Icon size={14} /> {label}
             </button>
           ))}
         </div>
@@ -325,18 +325,18 @@ export function ReportsView() {
 
           <Section icon={<Timer size={14} className="text-gray-400" />} title="Ritmo de entrega">
             <div className="p-4 space-y-3.5">
-              <Stat icon={<Hourglass size={13} className="text-brand-500" />}
+              <Stat icon={<Hourglass size={14} className="text-brand-500" />}
                 label="Tempo médio de entrega"
                 value={kpis.leadTimeDays !== null ? `${kpis.leadTimeDays} dias` : '—'}
                 hint="da criação até a conclusão" />
-              <Stat icon={<Clock size={13} className="text-[#D89A18]" />}
+              <Stat icon={<Clock size={14} className="text-[#D89A18]" />}
                 label="Idade média do backlog"
                 value={kpis.backlogAgeDays !== null ? `${kpis.backlogAgeDays} dias` : '—'}
                 hint="tarefas ainda abertas" />
               <button
                 onClick={() => setDrill({ title: `Paradas há ${STALLED_DAYS}+ dias`, tasks: kpis.stalled })}
                 className="w-full text-left rounded-lg hover:bg-gray-50 transition-colors -mx-1 px-1 py-0.5">
-                <Stat icon={<PauseCircle size={13} className="text-[#E24B4A]" />}
+                <Stat icon={<PauseCircle size={14} className="text-[#E24B4A]" />}
                   label="Paradas" value={String(kpis.stalled.length)}
                   hint={`sem movimento há ${STALLED_DAYS}+ dias`} />
               </button>
@@ -359,7 +359,7 @@ export function ReportsView() {
                   <div key={g.id} className="px-4 py-3">
                     <div className="flex items-center gap-3 mb-2">
                       <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: g.color }} />
-                      <span className="text-[12.5px] font-semibold text-gray-800 flex-1 truncate">{g.name}</span>
+                      <span className="text-[12px] font-semibold text-gray-800 flex-1 truncate">{g.name}</span>
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0"
                         style={{ background: `${meta.color}1F`, color: meta.color }}>{meta.label}</span>
                       {g.targetDate && (
@@ -397,7 +397,7 @@ export function ReportsView() {
                       <div key={p.id} className="px-4 py-3">
                         <div className="flex items-center gap-3 mb-2">
                           <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: p.color }} />
-                          <span className="text-[12.5px] font-semibold text-gray-800 flex-1 truncate">{p.name}</span>
+                          <span className="text-[12px] font-semibold text-gray-800 flex-1 truncate">{p.name}</span>
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: tier.bg, color: tier.color }}>
                             GUT {p.gut.score}
                           </span>
@@ -432,8 +432,8 @@ export function ReportsView() {
                     tasks: currentTasks.filter(t => t.priority === value && t.status !== 'done' && !t.parentId),
                   })}>
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-[11.5px] text-gray-600">{label}</span>
-                    <span className="text-[11.5px] font-semibold text-gray-700 tabnum">{count} <span className="text-gray-400 font-normal">({pct}%)</span></span>
+                    <span className="text-[11px] text-gray-600">{label}</span>
+                    <span className="text-[11px] font-semibold text-gray-700 tabnum">{count} <span className="text-gray-400 font-normal">({pct}%)</span></span>
                   </div>
                   <MiniBar pct={pct} color={color} />
                 </button>
@@ -448,7 +448,7 @@ export function ReportsView() {
                   {tagRows.map(r => (
                     <button key={r.key} onClick={() => setDrill({ title: `Etiqueta "${r.label}"`, tasks: currentTasks.filter(t => t.tags.includes(r.key) && !t.parentId) })}
                       className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-gray-50 transition-colors text-left">
-                      <span className="text-[11.5px] text-gray-700 flex-1 truncate">{r.label}</span>
+                      <span className="text-[11px] text-gray-700 flex-1 truncate">{r.label}</span>
                       <span className="text-[10px] text-gray-400 tabnum">{r.done}/{r.total}</span>
                       <div className="w-16"><MiniBar pct={r.pct} color={r.color} /></div>
                     </button>
@@ -467,7 +467,7 @@ export function ReportsView() {
                         {r.label.slice(0, 2).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[11.5px] font-semibold text-gray-800 truncate">{r.label}</p>
+                        <p className="text-[11px] font-semibold text-gray-800 truncate">{r.label}</p>
                         <p className="text-[10px] text-gray-400">
                           {r.total} em aberto
                           {r.overdue > 0 && <span className="text-[#E24B4A]"> · {r.overdue} atraso</span>}
@@ -564,7 +564,7 @@ function Stat({ icon, label, value, hint }: { icon: React.ReactNode; label: stri
       <span className="mt-0.5 flex-shrink-0">{icon}</span>
       <div className="min-w-0 flex-1">
         <p className="text-[16px] font-extrabold tracking-tight text-gray-900 tabnum leading-tight">{value}</p>
-        <p className="text-[11.5px] text-gray-600 font-medium">{label}</p>
+        <p className="text-[11px] text-gray-600 font-medium">{label}</p>
         <p className="text-[10px] text-gray-400">{hint}</p>
       </div>
     </div>

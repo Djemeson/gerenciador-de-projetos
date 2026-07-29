@@ -61,11 +61,11 @@ export function TaskGutBadge({ task }: { task: Task }) {
             <div className="flex items-center gap-2 mb-3">
               <span className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm"
                 style={{ background: 'linear-gradient(135deg,#F59E0B,#E24B4A 55%,#378ADD)' }}>
-                <Zap size={13} className="text-white" strokeWidth={2.4}/>
+                <Zap size={14} className="text-white" strokeWidth={2.4}/>
               </span>
               <div className="min-w-0">
                 <p className="text-[13px] font-bold text-gray-900 leading-tight">Matriz GUT</p>
-                <p className="text-[10.5px] text-gray-400 leading-tight">Gravidade × Urgência × Tendência</p>
+                <p className="text-[11px] text-gray-400 leading-tight">Gravidade × Urgência × Tendência</p>
               </div>
             </div>
 
@@ -88,7 +88,7 @@ export function TaskGutBadge({ task }: { task: Task }) {
                   ))}
                 </div>
                 {/* Descrição em tempo real da opção selecionada (UX de alta fidelidade) */}
-                <p className="text-[9.5px] text-gray-500 font-semibold mt-1.5 pl-0.5 transition-all">
+                <p className="text-[10px] text-gray-500 font-semibold mt-1.5 pl-0.5 transition-all">
                   {DIM_TIPS[dim][draft[dim] - 1]}
                 </p>
               </div>
