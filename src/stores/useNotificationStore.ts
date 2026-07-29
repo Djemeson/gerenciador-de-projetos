@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { nanoid } from '../lib/nanoid'
 
-export type NotifType = 'overdue' | 'due_today' | 'due_soon'
+export type NotifType = 'overdue' | 'due_today' | 'due_soon' | 'automation'
 
 export interface AppNotification {
   id:         string
@@ -11,6 +11,7 @@ export interface AppNotification {
   projectName:string
   dueDate:    string
   snoozedUntil?: string
+  message?:   string        // texto da automação (type 'automation')
 }
 
 interface NotifState {
@@ -18,6 +19,8 @@ interface NotifState {
   dismissed:     Set<string>  // taskId + date key → não mostra de novo
 
   generate: (tasks: { id:string; title:string; dueDate:string|null; status:string; projectName:string }[]) => void
+  /** Notificação avulsa, disparada por automação (ação "Enviar notificação"). */
+  push:     (n: { title: string; body: string; taskId: string; projectName?: string }) => void
   dismiss:  (id: string) => void
   snooze:   (id: string, hours: number) => void
   clearAll: () => void
@@ -58,12 +61,29 @@ export const useNotificationStore = create<NotifState>((set, get) => ({
       if (type) notifs.push({ id: nanoid(), type, taskId: t.id, taskTitle: t.title, projectName: t.projectName, dueDate: t.dueDate })
     })
 
-    set({ notifications: notifs })
+    // As de automação sobrevivem ao ciclo: `generate` roda a cada minuto e, se
+    // substituísse a lista inteira, a notificação disparada por uma regra sumiria antes
+    // de ser lida.
+    set({ notifications: [...get().notifications.filter(n => n.type === 'automation'), ...notifs] })
+  },
+
+  push: ({ title, body, taskId, projectName }) => {
+    const n: AppNotification = {
+      id: nanoid(), type: 'automation', taskId, taskTitle: body,
+      projectName: projectName ?? '', dueDate: '', message: title,
+    }
+    set(s => ({ notifications: [n, ...s.notifications] }))
   },
 
   dismiss: (id) => {
     const { notifications, dismissed } = get()
     const n = notifications.find(n => n.id === id)
+    // Notificação de automação não tem prazo para virar chave de "não mostrar de novo":
+    // dispensar é só tirar da tela.
+    if (n?.type === 'automation') {
+      set({ notifications: notifications.filter(x => x.id !== id) })
+      return
+    }
     if (n) {
       const next = new Set(dismissed); next.add(`${n.taskId}-${n.dueDate}`)
       saveDismissed(next)
@@ -81,7 +101,7 @@ export const useNotificationStore = create<NotifState>((set, get) => ({
   clearAll: () => {
     const { notifications, dismissed } = get()
     const next = new Set(dismissed)
-    notifications.forEach(n => next.add(`${n.taskId}-${n.dueDate}`))
+    notifications.filter(n => n.type !== 'automation').forEach(n => next.add(`${n.taskId}-${n.dueDate}`))
     saveDismissed(next)
     set({ notifications: [], dismissed: next })
   },

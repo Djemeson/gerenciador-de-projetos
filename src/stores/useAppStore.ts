@@ -5,15 +5,17 @@ import { SEED_PROJECTS, SEED_TASKS } from '../lib/seed'
 import { db, doc, setDoc, getDoc, onSnapshot } from '../lib/firebase'
 import { stripAndUploadAttachments, hydrateAttachments } from '../lib/cloudAttachments'
 import type {
-  Project, Task, Space, Folder, ColumnDef, Automation, ViewType,
-  View, TaskStatus, Priority, Checklist, ChecklistItem, ContentBlock,
+  Project, Task, Space, Folder, ColumnDef, Automation, AutomationRun, ViewType,
+  View, TaskStatus, Priority, Checklist, ChecklistItem, ContentBlock, TriggerType,
   TaskType, TaskOpenMode, CustomProjectView, DateFieldKey, DateFilterValue,
   Workspace, TaskComment, Goal, GoalTarget,
 } from '../types'
 import {
   calcGUT, migrateTask, migrateProject, migrateSpace, migrateFolder, migrateAutomation,
-  INBOX_PROJECT_ID, DEFAULT_WORKSPACE_ID,
+  INBOX_PROJECT_ID, DEFAULT_WORKSPACE_ID, ANY, STATUS_LABEL, PRIORITY_LABEL,
 } from '../types'
+import { matchesTrigger } from '../lib/automationEngine'
+import { useNotificationStore } from './useNotificationStore'
 import { matchesDateFilter } from '../lib/dateFilter'
 import { generateCompletionSummary } from '../lib/aiSummary'
 import { useSettingsStore } from './useSettingsStore'
@@ -23,6 +25,10 @@ const FOLDERS_KEY     = 'tf_folders'
 const WORKSPACES_KEY  = 'tf_workspaces'
 const ACTIVE_WS_KEY   = 'tf_active_workspace'
 const AUTOMATIONS_KEY = 'tf_automations'
+const AUTOMATION_RUNS_KEY = 'tf_automation_runs'
+const MAX_AUTOMATION_RUNS  = 200   // histórico recente; o doc de sincronização tem limite de 1 MiB
+const MAX_AUTOMATION_DEPTH = 5     // profundidade da cadeia automação → tarefa → automação
+let automationDepth = 0
 const GOALS_KEY       = 'tf_goals'
 const INBOX_COLS_KEY  = 'tf_inbox_columns'
 const CUSTOM_VIEWS_KEY= 'tf_custom_views'   // Record<scopeKey, CustomProjectView[]> — todas as visualizações personalizadas, de qualquer escopo (projeto, espaço, pasta, minhas/todas tarefas)
@@ -188,9 +194,18 @@ interface AppState {
 
   // Automations
   addAutomation:    (a: Omit<Automation,'id'|'workspaceId'|'createdAt'>) => void
+  updateAutomation: (id: string, patch: Partial<Automation>) => void
+  duplicateAutomation: (id: string) => void
   toggleAutomation: (id: string) => void
   deleteAutomation: (id: string) => void
   runAutomations:   (trigger: string, taskId: string, prev?: Partial<Task>) => void
+  applyAutomation:  (automation: Automation, taskId: string) => void
+  runDueDateAutomations: () => void
+
+  // Histórico de execuções (ver types/index.ts → AutomationRun)
+  automationRuns:      AutomationRun[]
+  logAutomationRun:    (automation: Automation, task: Task, result: AutomationRun['result'], detail: string) => void
+  clearAutomationRuns: () => void
 
   // Metas / Objetivos
   addGoal:      (g: Omit<Goal,'id'|'workspaceId'|'createdAt'|'updatedAt'>) => Goal
@@ -311,7 +326,7 @@ function pProjects(p: Project[], t: Task[]) {
 export const useAppStore = create<AppState>((set, get) => ({
   projects: [], tasks: [], spaces: [], folders: [],
   workspaces: [], activeWorkspaceId: DEFAULT_WORKSPACE_ID,
-  automations: [], goals: [], inboxColumns: [], undoStack: [],
+  automations: [], automationRuns: [], goals: [], inboxColumns: [], undoStack: [],
   customViewsByScope: {},
   aiGeneratingKeys: [],
   activeView:'my_tasks', activeProjectId:null, activeSpaceId:null, activeFolderId:null, selectedTaskId:null,
@@ -748,6 +763,21 @@ export const useAppStore = create<AppState>((set, get) => ({
     const automations = [...get().automations, automation]
     saveJSON(AUTOMATIONS_KEY, automations); set({ automations })
   },
+  updateAutomation: (id, patch) => {
+    const automations = get().automations.map(a => a.id===id ? {...a,...patch,updatedAt:new Date().toISOString()} : a)
+    saveJSON(AUTOMATIONS_KEY, automations); set({ automations })
+  },
+  duplicateAutomation: (id) => {
+    const original = get().automations.find(a => a.id===id); if (!original) return
+    // Nasce desligada: duplicar costuma ser o começo de uma variação, e uma cópia ativa
+    // por engano faz a mesma coisa duas vezes na mesma tarefa.
+    const copia: Automation = {
+      ...original, id: nanoid(), name: `${original.name} (cópia)`,
+      enabled: false, createdAt: new Date().toISOString(), updatedAt: undefined,
+    }
+    const automations = [...get().automations, copia]
+    saveJSON(AUTOMATIONS_KEY, automations); set({ automations })
+  },
   toggleAutomation: (id) => {
     const automations = get().automations.map(a => a.id===id ? {...a,enabled:!a.enabled} : a)
     saveJSON(AUTOMATIONS_KEY, automations); set({ automations })
@@ -756,16 +786,150 @@ export const useAppStore = create<AppState>((set, get) => ({
     const automations = get().automations.filter(a => a.id!==id)
     saveJSON(AUTOMATIONS_KEY, automations); set({ automations })
   },
-  runAutomations: (triggerType, taskId, _prev) => {
-    const { tasks, automations, updateTask } = get()
+  runAutomations: (triggerType, taskId, prev) => {
+    const { tasks, automations } = get()
     const task = tasks.find(t => t.id===taskId); if (!task) return
-    automations
-      .filter(a => a.enabled && a.workspaceId===task.workspaceId && a.trigger.type===triggerType && (a.projectId===task.projectId || a.projectId==='*'))
-      .forEach(a => {
-        if (a.action.type==='change_status')   updateTask(taskId, { status:   a.action.value as TaskStatus })
-        if (a.action.type==='change_priority') updateTask(taskId, { priority: a.action.value as Priority  })
-        if (a.action.type==='assign')          updateTask(taskId, { assignee: a.action.value as string    })
+
+    const candidatas = automations.filter(a =>
+      a.enabled && a.workspaceId===task.workspaceId &&
+      matchesTrigger(a, triggerType as TriggerType, { task, prev }))
+    if (candidatas.length === 0) return
+
+    // Guarda de cadeia: uma automação que altera a tarefa dispara o gatilho de novo, e
+    // duas regras cruzadas (A: a fazer→em progresso, B: em progresso→a fazer) travariam o
+    // app num laço infinito. Acima do limite a execução é registrada como ignorada, para
+    // o usuário ver no histórico em vez de ficar sem entender por que parou.
+    if (automationDepth >= MAX_AUTOMATION_DEPTH) {
+      candidatas.forEach(a => get().logAutomationRun(a, task, 'skipped', 'Interrompida: automações disparando umas às outras'))
+      return
+    }
+
+    automationDepth++
+    try {
+      candidatas.forEach(a => get().applyAutomation(a, task.id))
+    } finally {
+      automationDepth--
+    }
+  },
+
+  /** Executa a ação de uma automação sobre uma tarefa e registra o resultado. */
+  applyAutomation: (automation, taskId) => {
+    const task = get().tasks.find(t => t.id === taskId)
+    if (!task) return
+    const { type, value } = automation.action
+
+    try {
+      switch (type) {
+        case 'change_status': {
+          const novo = value as TaskStatus
+          if (task.status === novo) return get().logAutomationRun(automation, task, 'skipped', 'Status já era esse')
+          get().updateTask(taskId, { status: novo })
+          return get().logAutomationRun(automation, task, 'ok', `Status → ${STATUS_LABEL[novo] ?? novo}`)
+        }
+        case 'change_priority': {
+          const nova = value as Priority
+          if (task.priority === nova) return get().logAutomationRun(automation, task, 'skipped', 'Prioridade já era essa')
+          get().updateTask(taskId, { priority: nova })
+          return get().logAutomationRun(automation, task, 'ok', `Prioridade → ${PRIORITY_LABEL[nova] ?? nova}`)
+        }
+        case 'assign': {
+          const quem = String(value ?? '')
+          if (task.assignee === quem) return get().logAutomationRun(automation, task, 'skipped', 'Responsável já era esse')
+          get().updateTask(taskId, { assignee: quem })
+          return get().logAutomationRun(automation, task, 'ok', `Atribuída a ${quem}`)
+        }
+        case 'add_tag': {
+          const tag = String(value ?? '').trim()
+          if (!tag) return get().logAutomationRun(automation, task, 'error', 'Etiqueta não definida na automação')
+          if (task.tags.includes(tag)) return get().logAutomationRun(automation, task, 'skipped', `Já tinha a etiqueta "${tag}"`)
+          get().updateTask(taskId, { tags: [...task.tags, tag] })
+          return get().logAutomationRun(automation, task, 'ok', `Etiqueta "${tag}" aplicada`)
+        }
+        case 'set_due_date': {
+          const dias = Number(value ?? 0)
+          const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() + dias)
+          const iso = d.toISOString().slice(0, 10)
+          if (task.dueDate) return get().logAutomationRun(automation, task, 'skipped', 'A tarefa já tinha prazo')
+          get().updateTask(taskId, { dueDate: iso })
+          return get().logAutomationRun(automation, task, 'ok', `Prazo definido para ${iso}`)
+        }
+        case 'move_project': {
+          const destino = String(value ?? '')
+          const proj = get().projects.find(p => p.id === destino)
+          if (!proj) return get().logAutomationRun(automation, task, 'error', 'Projeto de destino não existe mais')
+          if (task.projectId === destino) return get().logAutomationRun(automation, task, 'skipped', 'Já estava neste projeto')
+          get().updateTask(taskId, { projectId: destino })
+          return get().logAutomationRun(automation, task, 'ok', `Movida para ${proj.name}`)
+        }
+        case 'add_comment': {
+          const texto = String(value ?? '').trim()
+          if (!texto) return get().logAutomationRun(automation, task, 'error', 'Comentário vazio na automação')
+          // `addComment` já define o autor; a automação entra como um comentário normal.
+          get().addComment(taskId, { text: texto })
+          return get().logAutomationRun(automation, task, 'ok', 'Comentário adicionado')
+        }
+        case 'notify': {
+          // Antes esta ação não fazia nada: existia no formulário e era descartada.
+          useNotificationStore.getState().push({
+            title: String(value || automation.name),
+            body: task.title,
+            taskId,
+          })
+          return get().logAutomationRun(automation, task, 'ok', 'Notificação enviada')
+        }
+        case 'ai_enrich': {
+          get().generateAISummaries(taskId)
+          return get().logAutomationRun(automation, task, 'ok', 'Resumo de conclusão solicitado')
+        }
+      }
+    } catch (e) {
+      get().logAutomationRun(automation, task, 'error', e instanceof Error ? e.message : 'Falha ao executar')
+    }
+  },
+
+  logAutomationRun: (automation, task, result, detail) => {
+    const run: AutomationRun = {
+      id: nanoid(), automationId: automation.id, automationName: automation.name,
+      taskId: task.id, taskTitle: task.title,
+      at: new Date().toISOString(), result, detail,
+    }
+    // Mantém só as últimas execuções: o histórico é para conferência do dia a dia, e o
+    // documento de sincronização do Firestore tem limite de 1 MiB.
+    const automationRuns = [run, ...get().automationRuns].slice(0, MAX_AUTOMATION_RUNS)
+    saveJSON(AUTOMATION_RUNS_KEY, automationRuns)
+    set({ automationRuns })
+  },
+
+  clearAutomationRuns: () => { saveJSON(AUTOMATION_RUNS_KEY, []); set({ automationRuns: [] }) },
+
+  /**
+   * Gatilho de prazo. Não existia executor: quem criasse "Prazo chegou" via a regra na
+   * lista e ela nunca rodava. É chamado no carregamento e a cada minuto pelo App, junto
+   * com a geração de notificações.
+   */
+  runDueDateAutomations: () => {
+    const { tasks, automations, automationRuns } = get()
+    const hoje = new Date(); hoje.setHours(0,0,0,0)
+    const hojeISO = hoje.toISOString().slice(0, 10)
+
+    automations.filter(a => a.enabled && a.trigger.type === 'due_date_reached').forEach(a => {
+      const dias = a.trigger.daysBefore ?? 0
+      tasks.filter(t => {
+        if (t.workspaceId !== a.workspaceId || t.status === 'done' || !t.dueDate) return false
+        if (a.projectId !== ANY && a.projectId !== t.projectId) return false
+        if (a.trigger.tag && !t.tags.includes(a.trigger.tag)) return false
+        if (a.trigger.priority && t.priority !== a.trigger.priority) return false
+        const prazo = new Date(t.dueDate + 'T00:00:00'); prazo.setHours(0,0,0,0)
+        const faltam = Math.round((prazo.getTime() - hoje.getTime()) / 86_400_000)
+        return faltam === dias
+      }).forEach(t => {
+        // Uma vez por tarefa por dia — senão o ciclo de 1 minuto repetiria o disparo.
+        const jaRodouHoje = automationRuns.some(r =>
+          r.automationId === a.id && r.taskId === t.id && r.at.slice(0, 10) === hojeISO)
+        if (jaRodouHoje) return
+        get().applyAutomation(a, t.id)
       })
+    })
   },
 
   // ── Metas / Objetivos ─────────────────────────────────────────────────
@@ -870,6 +1034,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const spaces      = loadJSON<Record<string,unknown>[]>(SPACES_KEY, []).map(migrateSpace)
     const folders     = loadJSON<Record<string,unknown>[]>(FOLDERS_KEY, []).map(migrateFolder)
     const automations = loadJSON<Record<string,unknown>[]>(AUTOMATIONS_KEY, []).map(migrateAutomation)
+    const automationRuns = loadJSON<AutomationRun[]>(AUTOMATION_RUNS_KEY, [])
     const goals       = loadJSON<Goal[]>(GOALS_KEY, [])
     const inboxColumns= loadJSON<ColumnDef[]>(INBOX_COLS_KEY, [])
 
@@ -898,11 +1063,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       const seededTasks = SEED_TASKS.map(t => ({ ...t, taskType:'task' as const }))
       pProjects(seeded as any, seededTasks as any)
       set({
-        projects: seeded as any, tasks: seededTasks as any, spaces, folders, workspaces, activeWorkspaceId, automations, goals, inboxColumns, customViewsByScope,
+        projects: seeded as any, tasks: seededTasks as any, spaces, folders, workspaces, activeWorkspaceId, automations, automationRuns, goals, inboxColumns, customViewsByScope,
       })
     } else {
       set({
-        projects, tasks, spaces, folders, workspaces, activeWorkspaceId, automations, goals, inboxColumns, customViewsByScope,
+        projects, tasks, spaces, folders, workspaces, activeWorkspaceId, automations, automationRuns, goals, inboxColumns, customViewsByScope,
       })
     }
   },

@@ -1,5 +1,5 @@
 import React from 'react'
-import { AlertCircle, Clock, Bell, X, AlarmClock, CheckCheck } from 'lucide-react'
+import { AlertCircle, Clock, Bell, X, AlarmClock, CheckCheck, Zap } from 'lucide-react'
 import { useNotificationStore } from '../stores/useNotificationStore'
 import { useAppStore } from '../stores/useAppStore'
 
@@ -7,6 +7,7 @@ const TYPE_CONFIG = {
   overdue:  { icon: AlertCircle, label: 'Em atraso',   bg: 'bg-red-50',    border: 'border-red-200',   iconColor: 'text-red-500',    badge: 'bg-red-100 text-red-700' },
   due_today:{ icon: Clock,       label: 'Vence hoje',  bg: 'bg-orange-50', border: 'border-orange-200',iconColor: 'text-orange-500', badge: 'bg-orange-100 text-orange-700' },
   due_soon: { icon: Bell,        label: 'Amanhã',      bg: 'bg-blue-50',   border: 'border-blue-200',  iconColor: 'text-blue-500',   badge: 'bg-blue-100 text-blue-700' },
+  automation:{icon: Zap,         label: 'Automação',   bg: 'bg-brand-50',  border: 'border-brand-200', iconColor: 'text-brand-500',  badge: 'bg-brand-100 text-brand-700' },
 }
 
 export function Notifications() {
@@ -43,23 +44,31 @@ export function Notifications() {
                 <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${cfg.badge}`}>{cfg.label}</span>
                 {n.projectName && <span className="text-[10px] text-gray-400 truncate">{n.projectName}</span>}
               </div>
+              {n.message && <p className="text-[11px] font-semibold text-gray-700 truncate">{n.message}</p>}
               <p className="text-xs font-medium text-gray-800 truncate">{n.taskTitle}</p>
-              <p className="text-[10px] text-gray-500 mt-0.5">
-                Prazo: {new Date(n.dueDate).toLocaleDateString('pt-BR', { day:'2-digit', month:'short' })}
-              </p>
+              {n.dueDate && (
+                <p className="text-[10px] text-gray-500 mt-0.5">
+                  Prazo: {new Date(n.dueDate).toLocaleDateString('pt-BR', { day:'2-digit', month:'short' })}
+                </p>
+              )}
               <div className="flex items-center gap-2 mt-2">
                 <button onClick={() => openTask(n.taskId)}
                   className="text-[11px] px-2 py-1 bg-white border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
                   Abrir
                 </button>
-                <button onClick={() => snooze(n.id, 1)}
-                  className="text-[11px] px-2 py-1 bg-white border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors flex items-center gap-1">
-                  <AlarmClock size={10} /> 1h
-                </button>
-                <button onClick={() => snooze(n.id, 24)}
-                  className="text-[11px] px-2 py-1 bg-white border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors">
-                  Amanhã
-                </button>
+                {/* Adiar é para lembrete de prazo; notificação de automação só se dispensa. */}
+                {n.type !== 'automation' && (
+                  <>
+                    <button onClick={() => snooze(n.id, 1)}
+                      className="text-[11px] px-2 py-1 bg-white border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors flex items-center gap-1">
+                      <AlarmClock size={10} /> 1h
+                    </button>
+                    <button onClick={() => snooze(n.id, 24)}
+                      className="text-[11px] px-2 py-1 bg-white border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors">
+                      Amanhã
+                    </button>
+                  </>
+                )}
               </div>
             </div>
             <button onClick={() => dismiss(n.id)} className="text-gray-300 hover:text-gray-500 flex-shrink-0 transition-colors">

@@ -167,11 +167,24 @@ export type TaskOpenMode = 'side' | 'center' | 'full'
 
 // ── Automations ───────────────────────────────────────────────────────────
 export type TriggerType = 'status_changed' | 'priority_changed' | 'task_created' | 'due_date_reached' | 'assignee_changed'
-export type ActionType  = 'change_status' | 'change_priority' | 'assign' | 'notify' | 'ai_enrich'
+export type ActionType  =
+  | 'change_status' | 'change_priority' | 'assign' | 'notify' | 'ai_enrich'
+  | 'add_tag' | 'set_due_date' | 'move_project' | 'add_comment'
+
+export const ANY = '*'   // "qualquer valor" em condições de gatilho
 
 export interface AutomationTrigger {
-  type:    TriggerType
-  filter?: Record<string, unknown>
+  type: TriggerType
+  /**
+   * Condições. Sem elas, "status alterado" dispara em **qualquer** mudança de status —
+   * era o comportamento antigo e tornava a automação imprevisível ("concluído → notificar"
+   * notificava ao mover para "em progresso"). `ANY` mantém o comportamento aberto.
+   */
+  from?: string          // valor anterior (status/prioridade/responsável), ANY = qualquer
+  to?: string            // valor novo
+  tag?: string           // só tarefas com esta etiqueta
+  priority?: Priority    // só tarefas nesta prioridade
+  daysBefore?: number    // 'due_date_reached': dispara N dias antes do prazo (0 = no dia)
 }
 
 export interface AutomationAction {
@@ -188,6 +201,22 @@ export interface Automation {
   action:      AutomationAction
   enabled:     boolean
   createdAt:   string
+  updatedAt?:  string
+}
+
+/**
+ * Uma execução registrada. Sem esse histórico não havia como saber se uma automação
+ * chegou a rodar — a pergunta mais comum de quem depende de automação.
+ */
+export interface AutomationRun {
+  id:           string
+  automationId: string
+  automationName: string
+  taskId:       string
+  taskTitle:    string
+  at:           string
+  result:       'ok' | 'skipped' | 'error'
+  detail:       string          // o que mudou, ou por que não rodou
 }
 
 // ── GUT ───────────────────────────────────────────────────────────────────
@@ -364,15 +393,27 @@ export function migrateFolder(raw: Record<string, unknown>): Folder {
 }
 
 export function migrateAutomation(raw: Record<string, unknown>): Automation {
+  const rawTrigger = (raw.trigger ?? { type: 'task_created' }) as Record<string, unknown>
+  // Regras antigas não tinham condição: sem `to`, o gatilho vale para qualquer valor
+  // (ANY), que é exatamente como elas se comportavam antes.
+  const trigger: AutomationTrigger = {
+    type: (rawTrigger.type as TriggerType) ?? 'task_created',
+    from: (rawTrigger.from as string | undefined) ?? ANY,
+    to:   (rawTrigger.to   as string | undefined) ?? ANY,
+    tag:  (rawTrigger.tag  as string | undefined) ?? undefined,
+    priority: (rawTrigger.priority as Priority | undefined) ?? undefined,
+    daysBefore: (rawTrigger.daysBefore as number | undefined) ?? 0,
+  }
   return {
     id: String(raw.id ?? ''),
     name: String(raw.name ?? ''),
     workspaceId: String(raw.workspaceId ?? DEFAULT_WORKSPACE_ID),
-    projectId: String(raw.projectId ?? ''),
-    trigger: raw.trigger as AutomationTrigger,
-    action: raw.action as AutomationAction,
+    projectId: String(raw.projectId ?? ANY),
+    trigger,
+    action: (raw.action ?? { type: 'notify' }) as AutomationAction,
     enabled: (raw.enabled as boolean) ?? true,
     createdAt: String(raw.createdAt ?? new Date().toISOString()),
+    updatedAt: (raw.updatedAt as string | undefined) ?? undefined,
   }
 }
 

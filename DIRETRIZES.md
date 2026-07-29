@@ -760,6 +760,46 @@ Regras:
 - Períodos abertos ("antes de", "depois de") não têm um dos lados: o eixo cai para a
   menor/maior data das tarefas do recorte.
 
+## 13.4. Automações (reconstruídas em 29/07/2026)
+
+> A versão anterior tinha três problemas que não eram de design: **"Prazo chegou" nunca
+> disparava** (não havia executor), **"Notificar" e "IA: enriquecer" não faziam nada**
+> (`runAutomations` só tratava três ações) e **não havia condição** — "status alterado"
+> disparava em qualquer mudança, então "concluído → notificar" notificava ao mover para
+> "em progresso". Nada disso pode voltar.
+
+- **Regras do motor em `lib/automationEngine.ts`**: `matchesTrigger` (escopo + condições),
+  `describeTrigger`/`describeAction`/`describeAutomation` (a frase em português usada no
+  card **e** na pré-visualização do editor — uma fonte só) e `RECIPES`. Gatilho ou ação
+  nova entra ali junto com o rótulo e a descrição.
+- **Condições no gatilho** (`AutomationTrigger`): `to`/`from` (`ANY` = qualquer),
+  `tag`, `priority` e `daysBefore` (prazo). `migrateAutomation` preenche regras antigas
+  com `ANY`, preservando o comportamento que elas tinham.
+- **Ações**: status, prioridade, responsável, **etiqueta, prazo relativo, mover de projeto,
+  comentar**, notificar e resumo por IA. Todas executam de verdade em `applyAutomation`
+  (`useAppStore`), que também decide entre `ok`/`skipped`/`error`.
+- **Gatilho de prazo**: `runDueDateAutomations()` roda no carregamento e a cada minuto,
+  junto com a geração de notificações (`App.tsx`). É **idempotente por dia** (consulta o
+  histórico antes de repetir) — sem isso o ciclo de 1 minuto dispararia a mesma regra
+  sessenta vezes por hora.
+- **Guarda de cadeia** (`MAX_AUTOMATION_DEPTH = 5`): automação que altera a tarefa dispara
+  o gatilho de novo, e duas regras cruzadas (A: a fazer→em progresso, B: em progresso→a
+  fazer) travariam o app num laço infinito. Acima do limite a execução vira `skipped` com
+  o motivo no histórico, em vez de silêncio. **Não remover essa guarda.** A tela ainda
+  marca com um selo as regras que alteram o mesmo campo que as dispara.
+- **Histórico** (`AutomationRun`, `tf_automation_runs`, últimas 200): aba própria na tela,
+  com resultado e o que mudou em cada tarefa; alimenta também o "N× · última ..." de cada
+  card. É como se responde "essa automação chegou a rodar?".
+- **Notificação de automação**: `useNotificationStore.push` cria uma notificação do tipo
+  `automation`, e `generate` **preserva** as desse tipo — ele roda a cada minuto e, se
+  substituísse a lista inteira, o aviso sumiria antes de ser lido.
+- **Tela** (`AutomationsView`): abas Regras/Histórico, receitas com o **porquê** de cada
+  uma, busca, filtro por projeto, e cada regra com editar (`AutomationEditor`, criar **e**
+  editar — antes só dava para apagar e refazer), duplicar (nasce desligada), pausar e
+  excluir.
+
+---
+
 ## 14. Painel da tarefa (TaskDetail) — layout estilo Todoist
 
 - **Duas colunas** (`components/tasks/TaskDetail.tsx`): à **esquerda** a área de escrita

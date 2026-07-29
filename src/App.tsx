@@ -28,7 +28,7 @@ import { LoginView, AuthSplash }    from './components/auth/LoginView'
 import { USE_FIREBASE }             from './lib/firebase'
 
 export default function App() {
-  const { activeView, tasks: allTasks, projects, init, undo, activeWorkspaceId, quickCaptureOpen, toggleQuickCapture, closeQuickCapture, toggleMobileSidebar, startCloudSync, stopCloudSync } = useAppStore()
+  const { activeView, tasks: allTasks, projects, init, undo, activeWorkspaceId, quickCaptureOpen, toggleQuickCapture, closeQuickCapture, toggleMobileSidebar, startCloudSync, stopCloudSync, runDueDateAutomations } = useAppStore()
   const { quickCaptureHotkey }  = useSettingsStore()
   const generate                = useNotificationStore(s => s.generate)
   const { user, authLoading, init: initAuth } = useAuthStore()
@@ -69,7 +69,11 @@ export default function App() {
       projectName: projects.find(p => p.id===t.projectId)?.name ?? '',
     }))
     generate(enriched)
-    const interval = setInterval(() => generate(enriched), 60_000)
+    // As automações de prazo entram no mesmo ciclo: sem um executor rodando, o gatilho
+    // "Prazo chegando" existia no formulário e nunca disparava. `runDueDateAutomations`
+    // é idempotente por dia (ver useAppStore), então repetir a cada minuto é seguro.
+    runDueDateAutomations()
+    const interval = setInterval(() => { generate(enriched); runDueDateAutomations() }, 60_000)
     return () => clearInterval(interval)
   }, [authed, tasks, projects])
 
