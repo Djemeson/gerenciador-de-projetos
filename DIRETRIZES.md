@@ -768,9 +768,9 @@ tarefa (corrige o bug do "trecho até dar Enter"). Não recriar um textarea/tipt
   inline, gravado com `MediaRecorder`, mesmo padrão de gravação já usado no `BlockEditor`
   para áudio inline na descrição — não recriar essa lógica de captura de microfone de novo,
   só reaproveitar o padrão).
-- Linha de adicionar: avatar "DJ" (autor único do app, mesmo texto fixo do rodapé da
-  sidebar — **não existe conta multiusuário dentro do app**, nem tela de login — ver seção 15
-  sobre o código de sincronização entre dispositivos, que não é um sistema de contas)
+- Linha de adicionar: avatar "DJ" (autor único do app — desde 29/07/2026 existe **login com
+  Google** (seção 15), mas o app continua **single-user**: uma conta, um dono, sem membros,
+  permissões ou cadastro de pessoas)
   + input (**Enter posta**) + botão de anexar (seletor de arquivo) + botão de gravar áudio
   (alterna gravação, ícone `Mic`/`MicOff`).
 - Ações na store: `addComment(taskId, patch)` / `removeComment(taskId, commentId)`
@@ -780,51 +780,99 @@ tarefa (corrige o bug do "trecho até dar Enter"). Não recriar um textarea/tipt
 
 ---
 
-## 15. Sincronização entre dispositivos (sem tela de login)
+## 15. Login com Google e sincronização entre dispositivos
 
-- **Continua sendo um app de um único dono** (não é multiusuário — seção 14.2) e **sem
-  tela de login** — abre direto, como sempre foi. Testamos login com Google numa rodada
-  anterior (histórico na conversa), mas a página `/__/auth/handler` do Firebase depende de
-  o projeto ter o Firebase Hosting inicializado, o que gerou bugs difíceis de reproduzir;
-  foi abandonado em favor do modelo abaixo, que não passa pelo Google.
-- **Autenticação anônima e silenciosa** (`src/lib/firebase.ts`, `ensureSignedIn`,
-  `src/stores/useAuthStore.ts`) roda em segundo plano em toda carga do app, sem nenhuma UI.
-  Ela existe **só para satisfazer as regras de segurança do Firestore** (`request.auth !=
-  null`) — não é um sistema de contas.
-- **Quem controla o acesso de verdade é o código de sincronização** (`TF-XXXXXX`,
-  `useAppStore.ts`: `syncCode`, gerado automaticamente na primeira vez que o app roda e
-  guardado em `localStorage` (`tf_sync_code`). Qualquer dispositivo que souber o código
-  entra no mesmo grupo de sincronização — é o mesmo modelo de "senha compartilhada" do
-  sistema antigo baseado em arquivo, só que agora no Firestore. UI em `SettingsModal.tsx`:
-  mostra o código atual (copiável), permite **vincular** a um código de outro dispositivo
-  (`linkToCode`, com escolha entre "baixar da nuvem" ou "enviar dados locais") e **começar
-  um grupo novo** (`generateNewCode`).
-- **Armazenamento**: Firebase Firestore, documento único `syncGroups/{code}` com todo o
+> **Mudança de modelo (29/07/2026)**: o app passou a ter **tela de login com Google** e os
+> dados agora pertencem à **conta**, não a um código compartilhado. O modelo anterior
+> (login anônimo + código `TF-XXXXXX`) foi aposentado — não reintroduzir.
+
+- **Tela de login** (`components/auth/LoginView.tsx`, exporta também o `AuthSplash`): é o
+  portão de entrada renderizado por `App.tsx` **depois de todos os hooks** (regra dos Hooks
+  — colocar o `return` antes deles trava o app com tela branca; já foi bug real). Fluxo:
+  `authLoading` → `AuthSplash`; sem usuário → `LoginView`; com usuário → o app.
+- **Login com Google** (`src/lib/firebase.ts`): `signInWithGoogle()` tenta **popup** e cai
+  para **redirecionamento** quando o navegador bloqueia o popup (comum no celular); o
+  retorno do redirect é lido por `consumeRedirectResult()` no `init()` do
+  `useAuthStore.ts`. Persistência `browserLocalPersistence` (o celular reabre o app o
+  tempo todo — a sessão tem que sobreviver).
+- **Erros de login são traduzidos** (`friendlyAuthError`, classe `AuthError`) e aparecem na
+  própria tela de login, não no console: provedor não habilitado, domínio não autorizado,
+  popup fechado, rede, chave inválida. Ao adicionar um caso novo, traduzir ali — a tela não
+  deve mostrar código cru do Firebase.
+- **Um documento por conta**: `syncGroups/{uid}`, onde `uid` é o do usuário Google.
+  `startCloudSync(uid)` é chamado no `App.tsx` quando o usuário entra; `syncUid` no store
+  substituiu o antigo `syncCode`. Entrar com a mesma conta em outro dispositivo já
+  sincroniza — **não existe mais código para digitar**, nem `linkToCode`/`generateNewCode`.
+- **Migração do modelo antigo** (`migrateLegacySyncCode` em `useAppStore.ts`): no primeiro
+  login, se o navegador ainda tiver `tf_sync_code` e aquele grupo existir na nuvem, o
+  conteúdo é baixado (com os anexos reidratados do grupo antigo) e reenviado sob o uid;
+  `tf_sync_code_migrated` marca que já rodou. Os caches de `cloudAttachments.ts` são
+  chaveados por **grupo + id** justamente por causa dessa cópia entre dois grupos.
+- **Regras de segurança** (`firestore.rules`): `syncGroups/{uid}` só é lido/escrito pelo
+  dono (`group == request.auth.uid`). Grupos legados `TF-*` continuam **apenas legíveis**
+  por usuário autenticado, exclusivamente para a migração acima — esse bloco pode (e deve)
+  sair quando todos os dispositivos já tiverem migrado.
+- **Sem Firebase configurado** (build sem `.env`, ex.: sessão do Claude Code na nuvem) o
+  app **pula o login** e roda só com `localStorage` (`USE_FIREBASE`/`localOnly` no
+  `App.tsx`). Não é modo de produção — é o que permite abrir o projeto sem segredos.
+- **Configuração no Firebase Console** (fora do código, feita uma vez): Authentication →
+  Sign-in method → **Google** habilitado; Authentication → Settings → **Authorized domains**
+  com `localhost` e o domínio da Vercel. Erro de login em produção quase sempre é um desses
+  dois.
+- **Armazenamento**: Firestore, documento único `syncGroups/{uid}` com todo o
   estado do app (projetos, tarefas, espaços, pastas, automações, metas, colunas do inbox e
   visualizações personalizadas). `localStorage` continua como cache local instantâneo
   (`localStore.ts`, `saveJSON`/`loadJSON` em `useAppStore.ts`) — a nuvem é a camada de
   sincronização por cima, não substitui o cache local.
+- **Conta na UI**: rodapé da sidebar mostra foto/nome da conta Google (não mais "DJ /
+  Djemeson" fixo); `SettingsModal.tsx` tem a seção **"Conta e sincronização"** com a conta,
+  botão **Sair**, status da nuvem e "Sincronizar agora".
 - **Tempo real**: `onSnapshot` no documento do grupo (não é polling). Toda alteração local
   já passava por `saveJSON`/`pProjects`, que dispara `triggerSyncPush` (debounce de 1.5s)
   → `pushToCloud()`. Ao aplicar um snapshot vindo da nuvem, `snap.metadata.hasPendingWrites`
   é checado para ignorar o eco da própria escrita (evita loop push→pull→push).
 - **Anexos e áudio** (`Task.comments[].attachment/audio`, `Task.blocks[].data`) são base64
   grandes demais para o documento único do Firestore (limite de 1 MiB). Ficam de fora dele:
-  sobem como documentos próprios em `syncGroups/{code}/attachments/{id}`
+  sobem como documentos próprios em `syncGroups/{uid}/attachments/{id}`
   (`src/lib/cloudAttachments.ts`, `stripAndUploadAttachments`/`hydrateAttachments`).
   **Anexos acima de ~900KB não sincronizam** (ficam só no dispositivo onde foram criados) —
   é uma limitação conhecida do plano gratuito do Firestore, não um bug.
-- **Regras de segurança**: `firestore.rules` na raiz — qualquer usuário autenticado (mesmo
-  anônimo) lê/escreve um grupo `syncGroups/{code}` se souber o código; a segurança real está
-  no código em si ser difícil de adivinhar, não em regras por dono (não tem "dono" — é
-  compartilhado por quem tiver o código, igual ao sistema antigo).
 - **IA (`/api/insights`)**: lógica compartilhada em `api/_lib/insights.ts`, usada tanto pelo
   `server.ts` (dev local, Express) quanto por `api/insights.ts` (função serverless da Vercel
   em produção) — não duplicar essa lógica entre os dois.
 
 ---
 
-_Última atualização: 15/07/2026 (Redesign de "Todas as tarefas" importado de protótipo
+## 16. Trabalhar no projeto pelo Claude Code do celular (sessões na nuvem)
+
+O repositório está preparado para ser aberto em **claude.ai/code** (navegador ou app do
+Claude no celular), onde a sessão roda numa VM da Anthropic com o repo clonado do GitHub.
+
+- **A VM clona do GitHub, não do PC**: o que não estiver **commitado e enviado** não existe
+  na sessão. Isso não muda a regra do push manual (seção 10) — só significa que o Djemeson
+  precisa dar o push antes de continuar o trabalho pelo celular.
+- **Instalação de dependências**: hook `SessionStart` em `.claude/settings.json` (versionado)
+  chama `scripts/install_pkgs.sh`. O script **sai imediatamente fora da nuvem**
+  (`CLAUDE_CODE_REMOTE != true`) e pula a instalação se `node_modules/vite` já existir —
+  não atrasar a abertura de sessão local é parte do contrato desse script.
+- **`.env` não vai para o repositório** (e nem deve): sem as variáveis do Firebase, a sessão
+  na nuvem builda e roda o app em **modo local sem login** (seção 15). Dá para editar código,
+  rodar `npm run lint` e `npm run build`; não dá para testar login/sincronização de verdade —
+  isso se valida no PC ou no deploy da Vercel.
+- **Nunca colocar `GEMINI_API_KEY`/`OPENAI_API_KEY` nas variáveis do ambiente de nuvem**: elas
+  ficam legíveis para quem usa o ambiente e não têm cofre de segredos.
+- **O que vale a pena rodar na sessão da nuvem**: `npm run lint` (typecheck) e `npm run build`.
+
+---
+
+_Última atualização: 29/07/2026 (Login com Google substituiu o login anônimo + código de
+sincronização `TF-XXXXXX`: tela de login, dados por conta em `syncGroups/{uid}`, migração
+única do grupo antigo, regras do Firestore por dono, seção "Conta e sincronização" nas
+Configurações e conta real no rodapé da sidebar — seção 15. Repositório preparado para
+sessões do Claude Code na nuvem/celular (hook `SessionStart` + `scripts/install_pkgs.sh`) —
+seção 16.)_
+
+_Atualização anterior: 15/07/2026 (Redesign de "Todas as tarefas" importado de protótipo
 Claude Design — feito em várias rodadas ao longo do dia, a última cruzando o **histórico
 completo da conversa com o Claude Design** (não só o `.dc.html` final) para pegar pedidos
 que não sobreviveram no HTML exportado mas foram decisões explícitas do autor. Resumo do

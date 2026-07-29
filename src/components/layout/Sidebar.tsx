@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { useAppStore } from '../../stores/useAppStore'
 import { useSettingsStore } from '../../stores/useSettingsStore'
+import { useAuthStore } from '../../stores/useAuthStore'
 import { useNotificationStore } from '../../stores/useNotificationStore'
 import { INBOX_PROJECT_ID, DEFAULT_WORKSPACE_ID, DEFAULT_FOLDER_COLOR } from '../../types'
 import type { View, Project } from '../../types'
@@ -33,6 +34,11 @@ export function Sidebar() {
   } = useAppStore()
   const { openSettings } = useSettingsStore()
   const notifCount = useNotificationStore(s => s.notifications.length)
+  const user = useAuthStore(s => s.user)
+
+  // Rodapé mostra a conta Google logada (antes era "DJ / Djemeson" fixo no código).
+  const userName = user?.displayName || user?.email || 'Minha conta'
+  const userInitials = userName.split(' ').filter(Boolean).slice(0, 2).map(p => p[0]).join('').toUpperCase() || 'DJ'
 
   const [addingSpace,   setAddingSpace]   = useState<'top'|'bottom'|null>(null)
   const [spaceName,     setSpaceName]     = useState('')
@@ -373,7 +379,7 @@ export function Sidebar() {
               <button
                 onClick={e => {
                   e.stopPropagation()
-                  const newProj = addProject('Novo Projeto', p.color, '', p.spaceId, p.folderId, 'circle')
+                  const newProj = addProject('Novo Projeto', p.color, '', p.spaceId ?? undefined, p.folderId ?? undefined, 'circle')
                   // Encontrar o próximo projeto na mesma pasta/espaço
                   const siblingProjects = activeProjects.filter(proj => proj.spaceId === p.spaceId && proj.folderId === p.folderId)
                   const currentIdx = siblingProjects.findIndex(proj => proj.id === p.id)
@@ -856,10 +862,16 @@ export function Sidebar() {
 
       {/* ── Footer / User ── */}
       <div className={`border-t px-2.5 py-3 flex items-center gap-2.5 ${dark ? 'border-white/5 bg-[#151519]' : 'border-[#EAEAEC] bg-[#F4F4F5]'}`}>
-        <div className="w-7 h-7 rounded-lg bg-brand-600 flex items-center justify-center text-[11px] text-white font-bold flex-shrink-0">
-          DJ
-        </div>
-        <span className={`text-[13px] font-semibold flex-1 truncate min-w-0 ${dark ? 'text-[#DADBE0]' : 'text-[#3B3E45]'}`}>Djemeson</span>
+        {user?.photoURL ? (
+          <img src={user.photoURL} alt="" referrerPolicy="no-referrer"
+            className="w-7 h-7 rounded-lg object-cover flex-shrink-0" />
+        ) : (
+          <div className="w-7 h-7 rounded-lg bg-brand-600 flex items-center justify-center text-[11px] text-white font-bold flex-shrink-0">
+            {userInitials}
+          </div>
+        )}
+        <span title={user?.email ?? undefined}
+          className={`text-[13px] font-semibold flex-1 truncate min-w-0 ${dark ? 'text-[#DADBE0]' : 'text-[#3B3E45]'}`}>{userName}</span>
         <button
           onClick={() => setTheme(t => t==='dark' ? 'light' : 'dark')}
           title={dark ? 'Tema claro' : 'Tema escuro'}

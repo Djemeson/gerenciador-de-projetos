@@ -203,26 +203,22 @@ interface AppState {
   filteredTasks: (tasks: Task[]) => Task[]
   init: () => void
 
-  // Sincronização entre Dispositivos (Firestore, agrupada por código — sem tela de login;
-  // o login anônimo do Firebase só existe para satisfazer as regras de segurança)
-  syncCode: string | null
+  // Sincronização entre dispositivos (Firestore, um documento por conta Google —
+  // o uid do usuário logado é a chave do grupo, ver DIRETRIZES.md seção 15)
+  syncUid: string | null
   cloudSyncStatus: 'idle' | 'syncing' | 'synced' | 'error'
   lastSyncedAt: string | null
 
-  startCloudSync: () => void
+  startCloudSync: (uid: string) => void
   stopCloudSync: () => void
   pushToCloud: () => Promise<void>
-  linkToCode: (code: string, mode: 'pull' | 'push') => Promise<boolean>
-  generateNewCode: () => void
 }
 
-const SYNC_CODE_KEY = 'tf_sync_code'
-function randomSyncCode() {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-  let code = 'TF-'
-  for (let i = 0; i < 6; i++) code += chars.charAt(Math.floor(Math.random() * chars.length))
-  return code
-}
+// Chave do modelo antigo (grupo por código compartilhado TF-XXXXXX). Continua sendo lida
+// uma única vez para migrar os dados daquele grupo para a conta Google — ver
+// `migrateLegacySyncCode`. Nenhum código novo é gerado.
+const LEGACY_SYNC_CODE_KEY = 'tf_sync_code'
+const LEGACY_MIGRATED_KEY  = 'tf_sync_code_migrated'
 
 let syncDebounceTimeout: any = null;
 function triggerSyncPush() {
@@ -230,7 +226,7 @@ function triggerSyncPush() {
   syncDebounceTimeout = setTimeout(() => {
     try {
       const store = useAppStore.getState();
-      if (store && store.syncCode) {
+      if (store && store.syncUid) {
         store.pushToCloud();
       }
     } catch (e) {
@@ -243,11 +239,11 @@ let unsubscribeCloud: (() => void) | null = null
 
 // Aplica um documento vindo do Firestore (de um onSnapshot ou de um getDoc avulso) ao
 // estado local — usado tanto pela assinatura em tempo real quanto por "vincular dispositivo".
-async function applyRemoteSnapshot(set: (partial: any) => void, get: () => AppState, code: string, data: any) {
+async function applyRemoteSnapshot(set: (partial: any) => void, get: () => AppState, groupId: string, data: any) {
   set({ cloudSyncStatus: 'syncing' });
   try {
     const projects = (data.projects ?? []).map(migrateProject);
-    const migratedTasks = await hydrateAttachments(code, (data.tasks ?? []).map(migrateTask));
+    const migratedTasks = await hydrateAttachments(groupId, (data.tasks ?? []).map(migrateTask));
 
     localProjects.set(projects as any);
     localTasks.set(migratedTasks as any);
@@ -280,6 +276,32 @@ async function applyRemoteSnapshot(set: (partial: any) => void, get: () => AppSt
   }
 }
 
+/**
+ * Migração única do modelo antigo (grupo por código compartilhado `TF-XXXXXX`) para o
+ * modelo por conta Google: se este navegador ainda tem um código salvo e aquele grupo
+ * existe na nuvem, o conteúdo dele é carregado e reenviado sob o uid da conta — incluindo
+ * os anexos, que são reidratados do grupo antigo e resubidos para o novo.
+ * Retorna true se trouxe dados do grupo antigo.
+ */
+async function migrateLegacySyncCode(set: (partial: any) => void, get: () => AppState, uid: string): Promise<boolean> {
+  if (!db) return false
+  if (localStorage.getItem(LEGACY_MIGRATED_KEY)) return false
+  const legacyCode = localStorage.getItem(LEGACY_SYNC_CODE_KEY)
+  if (!legacyCode) return false
+  try {
+    const snap = await getDoc(doc(db, 'syncGroups', legacyCode))
+    localStorage.setItem(LEGACY_MIGRATED_KEY, new Date().toISOString())
+    if (!snap.exists()) return false
+    await applyRemoteSnapshot(set, get, legacyCode, snap.data())
+    await get().pushToCloud()
+    console.info(`Dados do código de sincronização ${legacyCode} migrados para a conta ${uid}.`)
+    return true
+  } catch (e) {
+    console.error('Não foi possível migrar os dados do código de sincronização antigo:', e)
+    return false
+  }
+}
+
 function pProjects(p: Project[], t: Task[]) {
   localProjects.set(p as any); 
   localTasks.set(t as any);
@@ -298,7 +320,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   columnsModal:null, columnsModalScope:null, columnsVersion:0, newViewModal:null,
 
   // Sincronização
-  syncCode: null,
+  syncUid: null,
   cloudSyncStatus: 'idle',
   lastSyncedAt: null,
 
@@ -770,11 +792,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   pushToCloud: async () => {
-    const code = get().syncCode;
-    if (!code || !db) return;
+    const uid = get().syncUid;
+    if (!uid || !db) return;
     set({ cloudSyncStatus: 'syncing' });
     try {
-      const tasks = await stripAndUploadAttachments(code, get().tasks);
+      const tasks = await stripAndUploadAttachments(uid, get().tasks);
       const stateToSync = {
         projects: get().projects,
         tasks,
@@ -788,7 +810,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         customViewsByScope: get().customViewsByScope,
         updatedAt: Date.now(),
       };
-      await setDoc(doc(db, 'syncGroups', code), stateToSync);
+      await setDoc(doc(db, 'syncGroups', uid), stateToSync);
       set({ cloudSyncStatus: 'synced', lastSyncedAt: new Date().toLocaleTimeString('pt-BR') });
     } catch (e) {
       console.error('Erro ao sincronizar com a nuvem:', e);
@@ -796,27 +818,24 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
-  startCloudSync: () => {
-    if (!db) return;
-    let code = get().syncCode ?? localStorage.getItem(SYNC_CODE_KEY);
-    if (!code) {
-      code = randomSyncCode();
-      localStorage.setItem(SYNC_CODE_KEY, code);
-    }
-    if (unsubscribeCloud) unsubscribeCloud();
-    set({ syncCode: code });
+  startCloudSync: (uid: string) => {
+    if (!db || !uid) return;
+    if (unsubscribeCloud) { unsubscribeCloud(); unsubscribeCloud = null; }
+    set({ syncUid: uid });
 
-    unsubscribeCloud = onSnapshot(doc(db, 'syncGroups', code), async (snap) => {
+    unsubscribeCloud = onSnapshot(doc(db, 'syncGroups', uid), async (snap) => {
       // Ignora o "eco" da própria escrita local (evita loop push→pull→push)
       if (snap.metadata.hasPendingWrites) return;
 
       if (!snap.exists()) {
-        // Primeiro dispositivo neste código: semeia a nuvem com o estado local atual
-        get().pushToCloud();
+        // Primeira vez que esta conta sincroniza: traz o que existia no grupo antigo
+        // (modelo de código compartilhado) ou, se não houver, semeia com o estado local.
+        const migrated = await migrateLegacySyncCode(set, get, uid);
+        if (!migrated) get().pushToCloud();
         return;
       }
 
-      await applyRemoteSnapshot(set, get, code!, snap.data());
+      await applyRemoteSnapshot(set, get, uid, snap.data());
     }, (err) => {
       console.error('Erro na assinatura em tempo real:', err);
       set({ cloudSyncStatus: 'error' });
@@ -825,41 +844,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   stopCloudSync: () => {
     if (unsubscribeCloud) { unsubscribeCloud(); unsubscribeCloud = null; }
-    set({ cloudSyncStatus: 'idle' });
-  },
-
-  linkToCode: async (rawCode, mode) => {
-    if (!db) return false;
-    const code = rawCode.trim().toUpperCase();
-    set({ cloudSyncStatus: 'syncing' });
-    try {
-      if (unsubscribeCloud) { unsubscribeCloud(); unsubscribeCloud = null; }
-      localStorage.setItem(SYNC_CODE_KEY, code);
-      set({ syncCode: code });
-
-      if (mode === 'push') {
-        await get().pushToCloud();
-      } else {
-        const snap = await getDoc(doc(db, 'syncGroups', code));
-        if (!snap.exists()) { set({ cloudSyncStatus: 'error' }); return false; }
-        await applyRemoteSnapshot(set, get, code, snap.data());
-      }
-
-      get().startCloudSync();
-      return true;
-    } catch (e) {
-      console.error('Erro ao vincular código de sincronização:', e);
-      set({ cloudSyncStatus: 'error' });
-      return false;
-    }
-  },
-
-  generateNewCode: () => {
-    if (unsubscribeCloud) { unsubscribeCloud(); unsubscribeCloud = null; }
-    const code = randomSyncCode();
-    localStorage.setItem(SYNC_CODE_KEY, code);
-    set({ syncCode: code });
-    get().startCloudSync();
+    set({ cloudSyncStatus: 'idle', syncUid: null });
   },
 
   init: () => {

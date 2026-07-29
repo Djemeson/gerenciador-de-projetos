@@ -24,12 +24,14 @@ import { Notifications }            from './components/Notifications'
 import { SettingsModal }            from './components/SettingsModal'
 import { ColumnsModal }             from './components/ColumnsModal'
 import { NewViewModal }             from './components/tasks/NewViewModal'
+import { LoginView, AuthSplash }    from './components/auth/LoginView'
+import { USE_FIREBASE }             from './lib/firebase'
 
 export default function App() {
   const { activeView, tasks: allTasks, projects, init, undo, activeWorkspaceId, quickCaptureOpen, toggleQuickCapture, closeQuickCapture, toggleMobileSidebar, startCloudSync, stopCloudSync } = useAppStore()
   const { quickCaptureHotkey }  = useSettingsStore()
   const generate                = useNotificationStore(s => s.generate)
-  const { user, init: initAuth } = useAuthStore()
+  const { user, authLoading, init: initAuth } = useAuthStore()
 
   // useMemo (não recalcular a cada render): allTasks.filter cria uma referência nova toda
   // vez, e como esse array é dependência do useEffect abaixo, isso disparava o efeito em
@@ -40,12 +42,12 @@ export default function App() {
 
   useEffect(() => { init(); initAuth() }, [])
 
-  // Liga a sincronização em tempo real com o Firestore assim que o login anônimo (silencioso,
-  // sem tela) resolve — o Firestore exige *algum* usuário autenticado pelas regras de
-  // segurança, mesmo sem conta visível.
+  // Liga a sincronização em tempo real com o Firestore assim que a conta Google entra: o
+  // documento do grupo é o uid do usuário, então cada dispositivo logado na mesma conta
+  // enxerga os mesmos dados (ver DIRETRIZES.md, seção 15).
   useEffect(() => {
     if (user) {
-      startCloudSync()
+      startCloudSync(user.uid)
       return () => stopCloudSync()
     }
   }, [user])
@@ -55,8 +57,13 @@ export default function App() {
   // dos `return` condicionais abaixo (regra dos Hooks do React); colocá-los depois faz o
   // número de hooks mudar entre a tela de login e o app principal, e o React trava com
   // tela branca (sem erro visível) assim que o login termina.
+  // Sem Firebase configurado (build local/ambiente de dev sem .env) o app roda só com o
+  // armazenamento do navegador, sem login e sem nuvem.
+  const localOnly = !USE_FIREBASE
+  const authed    = !!user || localOnly
+
   useEffect(() => {
-    if (!user || tasks.length === 0) return
+    if (!authed || tasks.length === 0) return
     const enriched = tasks.map(t => ({
       id: t.id, title: t.title, dueDate: t.dueDate, status: t.status,
       projectName: projects.find(p => p.id===t.projectId)?.name ?? '',
@@ -64,7 +71,7 @@ export default function App() {
     generate(enriched)
     const interval = setInterval(() => generate(enriched), 60_000)
     return () => clearInterval(interval)
-  }, [user, tasks, projects])
+  }, [authed, tasks, projects])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -86,6 +93,12 @@ export default function App() {
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [undo])
+
+  // Portão de entrada — só depois de todos os hooks (regra dos Hooks do React, ver
+  // comentário acima): splash enquanto o Firebase decide se há sessão salva, tela de
+  // login enquanto não houver conta.
+  if (authLoading) return <AuthSplash/>
+  if (!authed)     return <LoginView/>
 
   const view = () => {
     switch (activeView) {

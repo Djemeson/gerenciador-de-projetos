@@ -87,7 +87,6 @@ export const ICON_LABEL_PT: Record<string, string> = {
   'watch': 'relógio de pulso', 'waves': 'ondas', 'webcam': 'webcam', 'wheat': 'trigo',
   'wifi': 'wi-fi', 'wifi-off': 'wi-fi desligado', 'wind': 'vento', 'wine': 'vinho',
   'wrench': 'chave inglesa', 'x-circle': 'cancelar', 'zap': 'raio', 'zap-off': 'raio desligado',
-  'grid-3x3': 'grade',
 }
 
 /** Rótulo em português do ícone (kebab-case) — cai no próprio nome se não houver tradução. */
