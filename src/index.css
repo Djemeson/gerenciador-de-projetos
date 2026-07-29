@@ -274,6 +274,56 @@
   animation: overlay-in 0.18s ease-out;
 }
 
+/* ── Tela de login (components/auth/LoginView.tsx) ─────────────────────────
+   Fundo grafite com halos de cor desfocados e malha fina. Vive aqui, e não
+   solto no JSX, porque são efeitos de várias camadas (blur pesado, máscara,
+   keyframes) que ficariam ilegíveis como classes utilitárias empilhadas. */
+
+/* Malha fina, apagando nas bordas — dá profundidade sem virar "papel quadriculado" */
+.login-grid {
+  background-image:
+    linear-gradient(to right,  rgba(255,255,255,.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,.045) 1px, transparent 1px);
+  background-size: 56px 56px;
+  -webkit-mask-image: radial-gradient(ellipse 90% 70% at 50% 40%, #000 25%, transparent 78%);
+          mask-image: radial-gradient(ellipse 90% 70% at 50% 40%, #000 25%, transparent 78%);
+}
+
+/* Halos de cor. O blur alto é o efeito em si — sem ele viram bolas chapadas. */
+.login-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(90px);
+  opacity: .55;
+  will-change: transform;
+}
+@keyframes login-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(0, -26px, 0) scale(1.07); }
+}
+.login-orb-a { animation: login-drift 13s ease-in-out infinite; }
+.login-orb-b { animation: login-drift 17s ease-in-out infinite reverse; }
+
+/* Entrada escalonada dos blocos do cartão */
+@keyframes login-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.login-rise {
+  opacity: 0;
+  animation: login-rise .55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Fio de luz no topo do cartão (borda superior em degradê) */
+.login-hairline {
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.5), transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-orb-a, .login-orb-b { animation: none; }
+  .login-rise { opacity: 1; animation: none; }
+}
+
 /* Chevron suave ao colapsar */
 .tf-chevron { transition: transform 0.15s ease; }
 .tf-chevron-open { transform: rotate(0deg); }

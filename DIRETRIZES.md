@@ -790,6 +790,16 @@ tarefa (corrige o bug do "trecho até dar Enter"). Não recriar um textarea/tipt
   portão de entrada renderizado por `App.tsx` **depois de todos os hooks** (regra dos Hooks
   — colocar o `return` antes deles trava o app com tela branca; já foi bug real). Fluxo:
   `authLoading` → `AuthSplash`; sem usuário → `LoginView`; com usuário → o app.
+- **Visual da tela de login** (única tela do app com fundo escuro por padrão — o resto
+  continua claro, seção 8): fundo grafite `#08090C` com **halos de cor desfocados**
+  (índigo/violeta/azul), **malha fina** com máscara radial e vinheta; no centro, um cartão
+  de vidro (`bg-white/[.045]` + `backdrop-blur-xl` + borda `white/10`) com fio de luz na
+  borda superior, logo em degradê com glow, nome do produto em maiúsculas espaçadas,
+  botão branco do Google e três recursos no rodapé do cartão. `Backdrop` é compartilhado
+  pelo `LoginView` e pelo `AuthSplash` — **não** duplicar o fundo. Os efeitos vivem em
+  `index.css` (`.login-grid`, `.login-orb`, `.login-orb-a/b`, `.login-rise`,
+  `.login-hairline`, com `prefers-reduced-motion` respeitado), não soltos no JSX: são
+  camadas de blur/máscara/keyframes que viram sopa de utilitários se ficarem inline.
 - **Login com Google** (`src/lib/firebase.ts`): `signInWithGoogle()` tenta **popup** e cai
   para **redirecionamento** quando o navegador bloqueia o popup (comum no celular); o
   retorno do redirect é lido por `consumeRedirectResult()` no `init()` do
