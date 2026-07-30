@@ -199,7 +199,7 @@ export function TaskList({ tasks, projectId, scopeKey, columns=[], showProject=f
           </button>
           <div className="flex-1 h-px bg-gray-100"/>
           {status!=='done'&&(
-            <button onClick={()=>setQuickAdd({key,status})} className="opacity-0 group-hover:opacity-100 text-[11px] text-gray-300 hover:text-brand-600 flex items-center gap-1 transition-all font-medium">
+            <button onClick={()=>setQuickAdd({key,status})} className="md:opacity-0 md:group-hover:opacity-100 text-[11px] text-gray-300 hover:text-brand-600 flex items-center gap-1 transition-all font-medium">
               <Plus size={12}/> adicionar
             </button>
           )}

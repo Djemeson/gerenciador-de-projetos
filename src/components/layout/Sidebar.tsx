@@ -375,7 +375,7 @@ export function Sidebar() {
                 {count}
               </span>
             )}
-            <div className="absolute inset-0 opacity-0 group-hover/proj:opacity-100 flex items-center justify-end gap-1 transition-all duration-200 pointer-events-none group-hover/proj:pointer-events-auto">
+            <div className="absolute inset-0 md:opacity-0 md:group-hover/proj:opacity-100 flex items-center justify-end gap-1 transition-all duration-200 pointer-events-none group-hover/proj:pointer-events-auto">
               <button
                 onClick={e => {
                   e.stopPropagation()
@@ -570,21 +570,20 @@ export function Sidebar() {
       {/* ── Navigation ── */}
       <div className="flex-1 overflow-y-auto px-2.5 pb-4 sidebar-scroll">
 
-        {/* Sempre visíveis no topo, acima de Espaços */}
-        {navMode==='spaces' && (
-          <>
-            <div className="space-y-px mt-2 mb-1.5">
-              {navItem('inbox',       'Caixa de entrada', Inbox,      '#EAF1FF', '#2F6FE4', inboxCount)}
-              {navItem('my_tasks',    'Minhas tarefas',   CheckSquare,'#E9FBF2', '#16A34A')}
-              {navItem('all_tasks',   'Todas as tarefas', Layers,     '#EEF0FF', '#4F46E5')}
-            </div>
-            <div className={`h-px my-2 mx-1 ${dark ? 'bg-white/5' : 'bg-gray-100'}`} />
-          </>
-        )}
+        {/* Tarefas: os três destinos mais frequentes ficam no topo **nos dois modos**.
+            Antes eles existiam só no modo "espaços" e os outros cinco só no modo "nav" —
+            ou seja, em nenhum dos dois o usuário via a navegação completa: para abrir
+            "Minhas tarefas" a partir de Relatórios era preciso trocar o modo da sidebar. */}
+        <div className="space-y-px mt-2 mb-1.5">
+          {navItem('inbox',       'Caixa de entrada', Inbox,      '#EAF1FF', '#2F6FE4', inboxCount)}
+          {navItem('my_tasks',    'Minhas tarefas',   CheckSquare,'#E9FBF2', '#16A34A')}
+          {navItem('all_tasks',   'Todas as tarefas', Layers,     '#EEF0FF', '#4F46E5')}
+        </div>
+        <div className={`h-px my-2 mx-1 ${dark ? 'bg-white/5' : 'bg-gray-100'}`} />
 
-        {/* Primary nav (restantes) */}
+        {/* Demais destinos — o modo "espaços" troca este bloco pela árvore de espaços */}
         {navMode==='nav' && (
-        <div className="space-y-0.5 mt-3 mb-3">
+        <div className="space-y-0.5 mb-3">
           {navItem('calendar',    'Calendário',       Calendar,   '#FFF1E6', '#EA7317')}
           {navItem('goals',       'Metas',            Target,     '#E6F7F0', '#12A67B')}
           {navItem('projects',    'Projetos',         BarChart2,  '#F5EEFF', '#8B5CF6')}
@@ -689,7 +688,7 @@ export function Sidebar() {
                         {spaceTaskCount(s.id)}
                       </span>
                     )}
-                    <div className="absolute inset-0 opacity-0 group-hover/space:opacity-100 flex items-center justify-end gap-1 transition-all duration-200 pointer-events-none group-hover/space:pointer-events-auto">
+                    <div className="absolute inset-0 md:opacity-0 md:group-hover/space:opacity-100 flex items-center justify-end gap-1 transition-all duration-200 pointer-events-none group-hover/space:pointer-events-auto">
                       <button
                         onClick={e => { e.stopPropagation(); const anchor=e.currentTarget; setCreateMenu(m => m?.spaceId===s.id ? null : {spaceId:s.id,anchor}); setIconPicker(null) }}
                         className={`w-6 h-6 flex items-center justify-center rounded transition-all ${actionBtnCls}`}
@@ -776,7 +775,7 @@ export function Sidebar() {
                                 {fCount}
                               </span>
                             )}
-                            <div className="absolute inset-0 opacity-0 group-hover/folder:opacity-100 flex items-center justify-end gap-1 transition-all duration-200 pointer-events-none group-hover/folder:pointer-events-auto">
+                            <div className="absolute inset-0 md:opacity-0 md:group-hover/folder:opacity-100 flex items-center justify-end gap-1 transition-all duration-200 pointer-events-none group-hover/folder:pointer-events-auto">
                               <button
                                 onClick={e => { e.stopPropagation(); createProject(f.spaceId, f.id, f.color ?? DEFAULT_FOLDER_COLOR) }}
                                 className={`w-6 h-6 flex items-center justify-center rounded transition-all ${actionBtnCls}`}

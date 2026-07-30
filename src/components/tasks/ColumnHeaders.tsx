@@ -80,7 +80,7 @@ export function ColumnHeaders({
                 </button>
               )}
               {/* Grip flutuante (não desloca o rótulo) */}
-              <GripVertical size={12} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-300 opacity-0 group-hover/col:opacity-100 pointer-events-none"/>
+              <GripVertical size={12} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-300 md:opacity-0 md:group-hover/col:opacity-100 pointer-events-none"/>
               
               {/* Alça de redimensionamento de coluna */}
               {onResize && (

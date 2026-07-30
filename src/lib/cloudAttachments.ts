@@ -2,7 +2,7 @@
 // (armazenados como base64 inline em Task.comments/Task.blocks) precisam sair desse
 // documento e virar documentos próprios em syncGroups/{uid}/attachments — só assim o
 // app sincroniza tarefas com fotos/áudios sem estourar o limite do Firestore.
-import { db, doc, setDoc, getDoc } from './firebase'
+import { db, doc, setDoc, getDoc, deleteDoc } from './firebase'
 import type { Task } from '../types'
 
 const ATTACHMENT_LIMIT = 900_000 // ~900KB de string base64 (folga sob o limite de 1 MiB/doc)
@@ -30,6 +30,37 @@ async function downloadBlob(group: string, id: string): Promise<string | undefin
   const data = snap.exists() ? (snap.data() as any).data as string : undefined
   if (data) downloadCache.set(key, data)
   return data
+}
+
+/**
+ * Apaga os blobs das tarefas removidas. Sem isto cada foto ou áudio já excluído ficava
+ * para sempre em `syncGroups/{uid}/attachments`, consumindo a cota do plano gratuito do
+ * Firestore — o app subia anexos e nunca apagava nenhum.
+ *
+ * Falha de rede aqui não interrompe a exclusão local: o pior caso volta a ser um blob
+ * órfão, que é o comportamento antigo.
+ */
+export async function deleteAttachmentsOf(group: string, tasks: Task[]): Promise<void> {
+  if (!db || !group || !tasks.length) return
+  const ids = new Set<string>()
+  tasks.forEach(t => {
+    t.comments?.forEach(c => {
+      if (c.attachment) ids.add(refId(c.id, 'attachment'))
+      if (c.audio)      ids.add(refId(c.id, 'audio'))
+    })
+    t.blocks?.forEach(b => { if (b.data || (b as any).ref) ids.add(refId(b.id, 'block')) })
+  })
+  if (!ids.size) return
+
+  await Promise.all([...ids].map(async id => {
+    try {
+      await deleteDoc(doc(db!, 'syncGroups', group, 'attachments', id))
+      uploadedThisSession.delete(`${group}/${id}`)
+      downloadCache.delete(`${group}/${id}`)
+    } catch (e) {
+      console.warn('Não foi possível apagar o anexo na nuvem (ficará órfão):', id, e)
+    }
+  }))
 }
 
 /** Remove blobs pesados das tasks antes de mandar pro doc de sincronização, subindo cada um

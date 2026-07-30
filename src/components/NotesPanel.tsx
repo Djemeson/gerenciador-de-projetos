@@ -181,7 +181,7 @@ function Lista({ notes, total, busca, onBusca, menuId, onMenu, onAbrir, onNova, 
 
               <div className="absolute right-2 top-2.5">
                 <button onClick={() => onMenu(menuId === n.id ? null : n.id)}
-                  className="w-6 h-6 flex items-center justify-center rounded-lg text-gray-300 hover:text-gray-600 hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-all">
+                  className="w-6 h-6 flex items-center justify-center rounded-lg text-gray-300 hover:text-gray-600 hover:bg-gray-100 md:opacity-0 md:group-hover:opacity-100 transition-all">
                   <MoreHorizontal size={14} />
                 </button>
                 {menuId === n.id && (

@@ -221,7 +221,7 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
               <button
                 onClick={e=>{e.stopPropagation();setTypeSearch('');setTypeOpen(v=>!v)}}
                 title={`Tipo: ${typeMeta.label}`}
-                className="w-3 h-4 -ml-px flex items-center justify-center text-gray-300 hover:text-gray-500 opacity-0 group-hover:opacity-100 transition-all">
+                className="w-3 h-4 -ml-px flex items-center justify-center text-gray-300 hover:text-gray-500 md:opacity-0 md:group-hover:opacity-100 transition-all">
                 <ChevronDown size={12}/>
               </button>
 

@@ -300,7 +300,7 @@ export function AIPanel() {
                 <p className="text-[10px] text-gray-400">{formatRelativeDate(c.updatedAt)} · {c.messages.length} mensagens</p>
               </div>
               <button onClick={e => { e.stopPropagation(); removeConversation(c.id) }}
-                className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-danger-500 transition-all flex-shrink-0">
+                className="md:opacity-0 md:group-hover:opacity-100 text-gray-300 hover:text-danger-500 transition-all flex-shrink-0">
                 <Trash2 size={12}/>
               </button>
             </div>

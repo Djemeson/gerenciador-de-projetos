@@ -3,7 +3,7 @@ import { nanoid } from '../lib/nanoid'
 import { localProjects, localTasks } from '../lib/localStore'
 import { SEED_PROJECTS, SEED_TASKS } from '../lib/seed'
 import { db, doc, setDoc, getDoc, onSnapshot } from '../lib/firebase'
-import { stripAndUploadAttachments, hydrateAttachments } from '../lib/cloudAttachments'
+import { stripAndUploadAttachments, hydrateAttachments, deleteAttachmentsOf } from '../lib/cloudAttachments'
 import type {
   Project, Task, Space, Folder, ColumnDef, Automation, AutomationRun, ViewType,
   View, TaskStatus, Priority, Checklist, ChecklistItem, ContentBlock, TriggerType,
@@ -30,6 +30,13 @@ const AUTOMATION_RUNS_KEY = 'tf_automation_runs'
 const MAX_AUTOMATION_RUNS  = 200   // histórico recente; o doc de sincronização tem limite de 1 MiB
 const MAX_AUTOMATION_DEPTH = 5     // profundidade da cadeia automação → tarefa → automação
 let automationDepth = 0
+/**
+ * Só liberamos escrita na nuvem depois de saber o que existe lá. Sem isto, um navegador
+ * novo criava os projetos de exemplo no `init()`, o debounce disparava em 1,5s e o push
+ * levava o **seed** por cima dos dados reais da conta. Agora o push espera o primeiro
+ * snapshot (ou a decisão explícita de semear um grupo vazio).
+ */
+let cloudReady = false
 const GOALS_KEY       = 'tf_goals'
 const NOTES_KEY       = 'tf_notes'
 const INBOX_COLS_KEY  = 'tf_inbox_columns'
@@ -239,7 +246,7 @@ interface AppState {
 
   startCloudSync: (uid: string) => void
   stopCloudSync: () => void
-  pushToCloud: () => Promise<void>
+  pushToCloud: (opts?: { force?: boolean }) => Promise<void>
 }
 
 // Chave do modelo antigo (grupo por código compartilhado TF-XXXXXX). Continua sendo lida
@@ -273,8 +280,13 @@ async function applyRemoteSnapshot(set: (partial: any) => void, get: () => AppSt
     const projects = (data.projects ?? []).map(migrateProject);
     const migratedTasks = await hydrateAttachments(groupId, (data.tasks ?? []).map(migrateTask));
 
+    // Um documento remoto sem tarefas NÃO apaga as tarefas locais. `projects` já tinha
+    // essa proteção e `tasks` não: bastava um snapshot com a lista vazia (dispositivo
+    // recém-aberto, escrita parcial, campo ausente) para o app zerar o trabalho todo.
+    const tarefasSeguras = migratedTasks.length ? migratedTasks : get().tasks;
+
     localProjects.set(projects as any);
-    localTasks.set(migratedTasks as any);
+    localTasks.set(tarefasSeguras as any);
     if (data.spaces) localStorage.setItem(SPACES_KEY, JSON.stringify(data.spaces));
     if (data.folders) localStorage.setItem(FOLDERS_KEY, JSON.stringify(data.folders));
     if (data.workspaces) localStorage.setItem(WORKSPACES_KEY, JSON.stringify(data.workspaces));
@@ -287,7 +299,7 @@ async function applyRemoteSnapshot(set: (partial: any) => void, get: () => AppSt
 
     set({
       projects: projects.length ? projects : get().projects,
-      tasks: migratedTasks,
+      tasks: tarefasSeguras,
       spaces: data.spaces ?? get().spaces,
       folders: data.folders ?? get().folders,
       workspaces: data.workspaces ?? get().workspaces,
@@ -543,8 +555,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   deleteProject: (id) => {
     get().pushUndo()
     const projects = get().projects.filter(p => p.id !== id)
+    const removidas = get().tasks.filter(t => t.projectId === id)
     const tasks    = get().tasks.filter(t => t.projectId !== id)
     pProjects(projects, tasks); set({ projects, tasks })
+    const uid = get().syncUid
+    if (uid) deleteAttachmentsOf(uid, removidas)   // anexos das tarefas do projeto
   },
   duplicateProject: (id) => {
     const original = get().projects.find(p => p.id===id); if (!original) return
@@ -684,9 +699,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     const toDelete = new Set<string>()
     const collect = (tid: string) => { toDelete.add(tid); get().tasks.filter(t => t.parentId===tid).forEach(t => collect(t.id)) }
     collect(id)
+    const removidas = get().tasks.filter(t => toDelete.has(t.id))
     const tasks = get().tasks.filter(t => !toDelete.has(t.id))
     pProjects(get().projects, tasks)
     set({ tasks, selectedTaskId: toDelete.has(get().selectedTaskId??'') ? null : get().selectedTaskId })
+    // Limpa os anexos na nuvem — antes eles ficavam órfãos para sempre.
+    const uid = get().syncUid
+    if (uid) deleteAttachmentsOf(uid, removidas)
   },
   updateBlocks: (taskId, blocks) => {
     const tasks = get().tasks.map(t => t.id===taskId ? {...t,blocks,updatedAt:new Date().toISOString()} : t)
@@ -1029,9 +1048,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     })
   },
 
-  pushToCloud: async () => {
+  pushToCloud: async ({ force = false } = {}) => {
     const uid = get().syncUid;
     if (!uid || !db) return;
+    if (!cloudReady && !force) return;   // ver `cloudReady`: nada sobe antes de ler a nuvem
     set({ cloudSyncStatus: 'syncing' });
     try {
       const tasks = await stripAndUploadAttachments(uid, get().tasks);
@@ -1067,14 +1087,16 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (snap.metadata.hasPendingWrites) return;
 
       if (!snap.exists()) {
-        // Primeira vez que esta conta sincroniza: traz o que existia no grupo antigo
-        // (modelo de código compartilhado) ou, se não houver, semeia com o estado local.
+        // Conta sem documento: aqui a decisão de semear é explícita, então o push é
+        // forçado (a trava existe para o caso oposto — sobrescrever dados que existem).
         const migrated = await migrateLegacySyncCode(set, get, uid);
-        if (!migrated) get().pushToCloud();
+        cloudReady = true;
+        if (!migrated) get().pushToCloud({ force: true });
         return;
       }
 
       await applyRemoteSnapshot(set, get, uid, snap.data());
+      cloudReady = true;   // a partir daqui o estado local já reflete a nuvem
     }, (err) => {
       console.error('Erro na assinatura em tempo real:', err);
       set({ cloudSyncStatus: 'error' });
@@ -1083,6 +1105,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   stopCloudSync: () => {
     if (unsubscribeCloud) { unsubscribeCloud(); unsubscribeCloud = null; }
+    cloudReady = false;
     set({ cloudSyncStatus: 'idle', syncUid: null });
   },
 

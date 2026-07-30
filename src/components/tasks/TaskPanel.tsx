@@ -173,7 +173,7 @@ export function TaskPanel({
                   {cv.name}
                 </button>
                 <button onClick={() => { deleteCustomView(scopeKey, cv.id); if (activeCustomId===cv.id) setActiveCustomId(null) }}
-                  className="opacity-0 group-hover/cv:opacity-100 px-1 py-1.5 md:py-2.5 text-gray-300 hover:text-danger-500 transition-all text-xs">
+                  className="md:opacity-0 md:group-hover/cv:opacity-100 px-1 py-1.5 md:py-2.5 text-gray-300 hover:text-danger-500 transition-all text-xs">
                   <X size={12}/>
                 </button>
               </div>
@@ -498,7 +498,7 @@ function BoardView({ tasks }: { tasks: Task[] }) {
                       className={`relative bg-white border rounded-xl p-4 cursor-pointer hover:shadow-md transition-all duration-200 group ${selected?'border-brand-500 ring-2 ring-brand-100 shadow-sm':'border-gray-200/80 hover:border-brand-400 hover:scale-[1.01]'}`}>
                       {/* Checkbox de seleção */}
                       <button onClick={e=>{e.stopPropagation();toggle(t.id)}}
-                        className={`absolute top-3 right-3 w-4.5 h-4.5 rounded-md border flex items-center justify-center transition-all ${selected?'bg-brand-500 border-brand-500 opacity-100':'border-gray-300 bg-white opacity-0 group-hover:opacity-100 hover:border-brand-400'}`}>
+                        className={`absolute top-3 right-3 w-4.5 h-4.5 rounded-md border flex items-center justify-center transition-all ${selected?'bg-brand-500 border-brand-500 opacity-100':'border-gray-300 bg-white md:opacity-0 md:group-hover:opacity-100 hover:border-brand-400'}`}>
                         {selected && <Check size={12} className="text-white" strokeWidth={3.5}/>}
                       </button>
                       <p className="text-[13px] font-semibold text-gray-800 mb-3 leading-snug pr-6">{t.title}</p>

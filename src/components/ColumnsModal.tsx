@@ -302,7 +302,7 @@ export function ColumnsModal() {
                           <input value={opt.label} onChange={e => updateOpt(opt.id, { label: e.target.value })}
                             className="flex-1 text-xs px-2 py-1 border border-gray-200 rounded-lg outline-none focus:border-brand-300 transition-all min-w-0"
                             placeholder={`Opção ${idx+1}`}/>
-                          <button onClick={() => removeOpt(opt.id)} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-danger-500 transition-all flex-shrink-0">
+                          <button onClick={() => removeOpt(opt.id)} className="md:opacity-0 md:group-hover:opacity-100 text-gray-300 hover:text-danger-500 transition-all flex-shrink-0">
                             <X size={12}/>
                           </button>
                         </div>
@@ -386,11 +386,11 @@ export function ColumnsModal() {
                             className="text-xs text-gray-700 flex-1 truncate cursor-text">{c.name} <span className="text-gray-400">({tc?.label})</span></span>
                         )}
                         <button onClick={() => startEditField(c)}
-                          className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-brand-500 transition-all flex-shrink-0" title="Editar campo">
+                          className="md:opacity-0 md:group-hover:opacity-100 text-gray-300 hover:text-brand-500 transition-all flex-shrink-0" title="Editar campo">
                           <SlidersHorizontal size={12}/>
                         </button>
                         <button onClick={() => deleteColumn(targetId, c.id)}
-                          className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-danger-500 transition-all flex-shrink-0" title="Excluir campo">
+                          className="md:opacity-0 md:group-hover:opacity-100 text-gray-300 hover:text-danger-500 transition-all flex-shrink-0" title="Excluir campo">
                           <Trash2 size={12}/>
                         </button>
                         <button onClick={() => toggleHiddenAndRefresh(c.id)}

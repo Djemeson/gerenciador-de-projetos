@@ -194,7 +194,7 @@ export function ProjectDetailView() {
                 <span>{cv.icon}</span>{cv.name}
               </button>
               <button onClick={() => { deleteCustomView(scopeKey, cv.id); if(activeCustomId===cv.id) setActiveCustomId(null) }}
-                className="opacity-0 group-hover/cv:opacity-100 px-1 py-2.5 text-gray-300 hover:text-danger-500 transition-all text-xs">
+                className="md:opacity-0 md:group-hover/cv:opacity-100 px-1 py-2.5 text-gray-300 hover:text-danger-500 transition-all text-xs">
                 <X size={12}/>
               </button>
             </div>

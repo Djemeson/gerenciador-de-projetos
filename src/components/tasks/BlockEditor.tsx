@@ -734,7 +734,7 @@ function AttachmentRow({ b, editMode, onRename, onToggleDisplay, onExpand, onOpe
       className="min-w-0 flex-1 bg-transparent outline-none truncate text-[12px] text-gray-700 font-medium focus:text-gray-900" />
   )
   const controls = (
-    <div className={`flex items-center gap-0.5 transition-opacity flex-shrink-0 ${editMode ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+    <div className={`flex items-center gap-0.5 transition-opacity flex-shrink-0 ${editMode ? 'opacity-100' : 'md:opacity-0 md:group-hover:opacity-100'}`}>
       {b.type === 'image' && ctrl(onToggleDisplay, (b.display ?? 'full') === 'full' ? 'Mostrar só o título' : 'Mostrar a imagem', (b.display ?? 'full') === 'full' ? <Type size={12} /> : <Eye size={12} />)}
       {b.type === 'image' && (b.display ?? 'full') === 'full' && ctrl(onExpand, 'Expandir', <Maximize2 size={12} />)}
       {b.type === 'file' && ctrl(onOpen, 'Abrir', <ExternalLink size={12} />)}

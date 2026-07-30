@@ -135,7 +135,7 @@ export function AutomationsView() {
                         <p className="text-[12px] font-bold text-gray-800">{r.name}</p>
                         <p className="text-[11px] text-gray-500 leading-relaxed mt-0.5">{r.purpose}</p>
                       </div>
-                      <span className="text-[10px] font-bold text-brand-600 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5">Usar</span>
+                      <span className="text-[10px] font-bold text-brand-600 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5">Usar</span>
                     </button>
                   ))}
                 </div>
@@ -287,15 +287,15 @@ function AutomationCard({ automation: a, projects, stats, risky, onToggle, onEdi
 
         <div className="flex items-center gap-0.5 flex-shrink-0">
           <button onClick={onEdit} title="Editar"
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-gray-600 hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-all">
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-gray-600 hover:bg-gray-100 md:opacity-0 md:group-hover:opacity-100 transition-all">
             <Pencil size={12} />
           </button>
           <button onClick={onDuplicate} title="Duplicar"
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-gray-600 hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-all">
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-gray-600 hover:bg-gray-100 md:opacity-0 md:group-hover:opacity-100 transition-all">
             <Copy size={12} />
           </button>
           <button onClick={onDelete} title="Excluir"
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-[#E24B4A] hover:bg-danger-50 opacity-0 group-hover:opacity-100 transition-all">
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-[#E24B4A] hover:bg-danger-50 md:opacity-0 md:group-hover:opacity-100 transition-all">
             <Trash2 size={12} />
           </button>
           <button onClick={onToggle} title={a.enabled ? 'Pausar' : 'Ativar'}
