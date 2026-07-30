@@ -25,6 +25,7 @@ import { SettingsModal }            from './components/SettingsModal'
 import { ColumnsModal }             from './components/ColumnsModal'
 import { NewViewModal }             from './components/tasks/NewViewModal'
 import { LoginView, AuthSplash }    from './components/auth/LoginView'
+import { SyncIndicator }            from './components/SyncIndicator'
 import { USE_FIREBASE }             from './lib/firebase'
 
 export default function App() {
@@ -159,6 +160,8 @@ export default function App() {
       <NewViewModal/>
       <QuickCapture open={quickCaptureOpen} onClose={closeQuickCapture}/>
       <Notifications/>
+      {/* Falha de sincronização precisa ser vista fora do modal de Configurações */}
+      <SyncIndicator/>
     </div>
   )
 }

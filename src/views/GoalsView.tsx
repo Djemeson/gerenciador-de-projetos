@@ -237,7 +237,7 @@ function CardMeta({ goal: g, tasks, projects, now, menuAberto, onMenu, onFecharM
       </div>
 
       {/* ── Alvos, editáveis no lugar ── */}
-      {g.targets.length > 0 && (
+      {Array.isArray(g.targets) && g.targets.length > 0 && (
         <div className="mt-3 pt-3 border-t border-gray-100 space-y-2.5">
           {g.targets.map(t => (
             <LinhaAlvo key={t.id} target={t} tasks={tasks} projects={projects} color={g.color}
@@ -352,7 +352,7 @@ function GoalEditor({ goal, projects, tags, onClose, onSave }: {
   const [description, setDescription] = useState(goal?.description ?? '')
   const [color, setColor] = useState(goal?.color ?? PROJECT_COLORS[0])
   const [targetDate, setTargetDate] = useState<string | null>(goal?.targetDate ?? null)
-  const [targets, setTargets] = useState<GoalTarget[]>(goal?.targets ?? [])
+  const [targets, setTargets] = useState<GoalTarget[]>(Array.isArray(goal?.targets) ? goal!.targets : [])
 
   const addTarget = () => setTargets(p => [...p, {
     id: nanoid(), name: '', type: 'tasks', start: 0, current: 0, target: 10,

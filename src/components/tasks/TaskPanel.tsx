@@ -38,8 +38,13 @@ const ALL_VIEWS: { key: ViewType; label: string; Icon: React.ElementType }[] = [
   { key:'dashboard',  label:'Painéis',       Icon: LayoutDashboard },
 ]
 
-const vGet = (k: string, d: string) => { try { return localStorage.getItem('tf_v_'+k) || d } catch { return d } }
-const vSet = (k: string, v: string) => { try { localStorage.setItem('tf_v_'+k, v) } catch {} }
+/**
+ * Visualização e agrupamento por escopo. Ficavam em chaves `tf_v_*` soltas no navegador e
+ * não sincronizavam: arrumar a lista no computador não refletia no celular. Agora vivem no
+ * estado do app (`viewPrefs`), com leitura de fallback nas chaves antigas — assim quem já
+ * tinha preferências não as perde na primeira abertura.
+ */
+const vLegacy = (k: string) => { try { return localStorage.getItem('tf_v_'+k) || '' } catch { return '' } }
 
 export interface TaskPanelProps {
   scopeKey:          string
@@ -66,7 +71,11 @@ export function TaskPanel({
   groupOptions = ['status','priority','dueDate','assignee'],
   defaultGroup = 'status', views, defaultView = 'list', gut,
 }: TaskPanelProps) {
-  const { selectedTaskId, getCustomViews, deleteCustomView, openNewViewModal, toggleNotesPanel } = useAppStore()
+  const { selectedTaskId, getCustomViews, deleteCustomView, openNewViewModal, toggleNotesPanel, viewPrefs, setViewPref } = useAppStore()
+  // `||` e não `??`: a chave antiga devolve string vazia quando não existe, e `'' ?? d`
+  // resultaria em vazio em vez do padrão.
+  const vGet = (k: string, d: string) => viewPrefs[k] || vLegacy(k) || d
+  const vSet = (k: string, v: string) => setViewPref(k, v)
   const [searchQuery, setSearchQuery] = useState('')
   const tabs = (views ? ALL_VIEWS.filter(v => views.includes(v.key)) : ALL_VIEWS)
 

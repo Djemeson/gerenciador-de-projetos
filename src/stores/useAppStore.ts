@@ -39,6 +39,7 @@ let automationDepth = 0
 let cloudReady = false
 const GOALS_KEY       = 'tf_goals'
 const NOTES_KEY       = 'tf_notes'
+const VIEW_PREFS_KEY  = 'tf_view_prefs'   // visualização/agrupamento por escopo (era 'tf_v_*' solto)
 const INBOX_COLS_KEY  = 'tf_inbox_columns'
 const CUSTOM_VIEWS_KEY= 'tf_custom_views'   // Record<scopeKey, CustomProjectView[]> — todas as visualizações personalizadas, de qualquer escopo (projeto, espaço, pasta, minhas/todas tarefas)
 export const scopeKeyForProject = (id: string) => `project:${id}`
@@ -216,6 +217,15 @@ interface AppState {
   logAutomationRun:    (automation: Automation, task: Task, result: AutomationRun['result'], detail: string) => void
   clearAutomationRuns: () => void
 
+  /**
+   * Visualização e agrupamento escolhidos por escopo (`project:<id>_view`, `_group`…).
+   * Vivia em chaves `tf_v_*` soltas no navegador, então arrumar a lista no computador não
+   * refletia no celular. Largura de painel continua local (é do dispositivo, não do
+   * trabalho).
+   */
+  viewPrefs:    Record<string, string>
+  setViewPref:  (key: string, value: string) => void
+
   // Notas (bloco de notas) — sincronizadas junto com o resto do estado
   notes:        Note[]
   addNote:      (patch?: Partial<Note>) => Note
@@ -294,6 +304,8 @@ async function applyRemoteSnapshot(set: (partial: any) => void, get: () => AppSt
     if (data.automations) localStorage.setItem(AUTOMATIONS_KEY, JSON.stringify(data.automations));
     if (data.goals) localStorage.setItem(GOALS_KEY, JSON.stringify(data.goals));
     if (data.notes) localStorage.setItem(NOTES_KEY, JSON.stringify(data.notes));
+    if (data.viewPrefs) localStorage.setItem(VIEW_PREFS_KEY, JSON.stringify(data.viewPrefs));
+    if (data.automationRuns) localStorage.setItem(AUTOMATION_RUNS_KEY, JSON.stringify(data.automationRuns));
     if (data.inboxColumns) localStorage.setItem(INBOX_COLS_KEY, JSON.stringify(data.inboxColumns));
     if (data.customViewsByScope) localStorage.setItem(CUSTOM_VIEWS_KEY, JSON.stringify(data.customViewsByScope));
 
@@ -307,6 +319,8 @@ async function applyRemoteSnapshot(set: (partial: any) => void, get: () => AppSt
       automations: (data.automations ?? []).map(migrateAutomation),
       goals: data.goals ?? get().goals,
       notes: (data.notes ?? get().notes).map(migrateNote),
+      viewPrefs: data.viewPrefs ?? get().viewPrefs,
+      automationRuns: data.automationRuns ?? get().automationRuns,
       inboxColumns: data.inboxColumns ?? get().inboxColumns,
       customViewsByScope: data.customViewsByScope ?? get().customViewsByScope,
       cloudSyncStatus: 'synced',
@@ -353,7 +367,7 @@ function pProjects(p: Project[], t: Task[]) {
 export const useAppStore = create<AppState>((set, get) => ({
   projects: [], tasks: [], spaces: [], folders: [],
   workspaces: [], activeWorkspaceId: DEFAULT_WORKSPACE_ID,
-  automations: [], automationRuns: [], goals: [], notes: [], inboxColumns: [], undoStack: [],
+  automations: [], automationRuns: [], goals: [], notes: [], viewPrefs: {}, inboxColumns: [], undoStack: [],
   customViewsByScope: {},
   aiGeneratingKeys: [],
   activeView:'my_tasks', activeProjectId:null, activeSpaceId:null, activeFolderId:null, selectedTaskId:null,
@@ -966,6 +980,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     })
   },
 
+  setViewPref: (key, value) => {
+    const viewPrefs = { ...get().viewPrefs, [key]: value }
+    saveJSON(VIEW_PREFS_KEY, viewPrefs); set({ viewPrefs })
+  },
+
   // ── Notas ─────────────────────────────────────────────────────────────
   addNote: (patch) => {
     const agora = new Date().toISOString()
@@ -1065,6 +1084,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         automations: get().automations,
         goals: get().goals,
         notes: get().notes,
+        viewPrefs: get().viewPrefs,
+        automationRuns: get().automationRuns,
         inboxColumns: get().inboxColumns,
         customViewsByScope: get().customViewsByScope,
         updatedAt: Date.now(),
@@ -1125,6 +1146,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const folders     = loadJSON<Record<string,unknown>[]>(FOLDERS_KEY, []).map(migrateFolder)
     const automations = loadJSON<Record<string,unknown>[]>(AUTOMATIONS_KEY, []).map(migrateAutomation)
     const automationRuns = loadJSON<AutomationRun[]>(AUTOMATION_RUNS_KEY, [])
+    const viewPrefs   = loadJSON<Record<string,string>>(VIEW_PREFS_KEY, {})
     const goals       = loadJSON<Goal[]>(GOALS_KEY, [])
     // Notas do formato antigo (só id/title/body/updatedAt) ganham workspace, pinned e
     // projectId aqui; a partir de agora elas viajam no documento de sincronização.
@@ -1156,11 +1178,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       const seededTasks = SEED_TASKS.map(t => ({ ...t, taskType:'task' as const }))
       pProjects(seeded as any, seededTasks as any)
       set({
-        projects: seeded as any, tasks: seededTasks as any, spaces, folders, workspaces, activeWorkspaceId, automations, automationRuns, goals, notes, inboxColumns, customViewsByScope,
+        projects: seeded as any, tasks: seededTasks as any, spaces, folders, workspaces, activeWorkspaceId, automations, automationRuns, goals, notes, viewPrefs, inboxColumns, customViewsByScope,
       })
     } else {
       set({
-        projects, tasks, spaces, folders, workspaces, activeWorkspaceId, automations, automationRuns, goals, notes, inboxColumns, customViewsByScope,
+        projects, tasks, spaces, folders, workspaces, activeWorkspaceId, automations, automationRuns, goals, notes, viewPrefs, inboxColumns, customViewsByScope,
       })
     }
   },

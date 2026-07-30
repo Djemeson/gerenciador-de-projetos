@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import { useAppStore } from '../stores/useAppStore'
 import { useSettingsStore } from '../stores/useSettingsStore'
+import { AiKeyNotice } from './ui/AiKeyNotice'
 import { AI_TOOLS, executeTool, type ToolName } from '../lib/aiTools'
 import {
   type ChatMessage, type ChatConversation, type ChatToolCall,
@@ -345,12 +346,7 @@ export function AIPanel() {
                   <Bot size={14} className="text-brand-500"/>
                   Olá! Posso consultar e organizar suas tarefas — peça e eu executo.
                 </div>
-                {mode === 'none' && (
-                  <button onClick={openSettings} className="w-full flex items-start gap-2 bg-warning-50 border border-warning-100 rounded-lg p-3 text-left hover:bg-warning-100/60 transition-colors">
-                    <SettingsIcon size={14} className="text-warning-600 mt-0.5 flex-shrink-0"/>
-                    <span className="text-xs text-warning-700">Configure uma chave de IA em Configurações para conversar livremente. Por enquanto, reconheço só alguns comandos diretos.</span>
-                  </button>
-                )}
+                {mode === 'none' && <AiKeyNotice/>}
                 <div className="space-y-1.5">
                   <p className="text-[10px] text-gray-400 uppercase tracking-wider">Sugestões</p>
                   {SUGGESTIONS.map(s => (

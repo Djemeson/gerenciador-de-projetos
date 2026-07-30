@@ -4,6 +4,7 @@ import { Modal } from '../ui/Modal'
 import { Button } from '../ui'
 import { Select } from '../ui/Select'
 import { useAppStore } from '../../stores/useAppStore'
+import { AiKeyNotice } from '../ui/AiKeyNotice'
 import { useSettingsStore } from '../../stores/useSettingsStore'
 import { generateProjectPlan, generateProjectEnrichment, flattenGeneratedTasks, type AIGeneratedProject, type AIGeneratedTask } from '../../lib/aiProjectGen'
 import { createTaskTree, countTaskTree } from '../../lib/aiTaskCreate'
@@ -152,6 +153,10 @@ export function AIProjectModal() {
 
   return (
     <Modal open={aiProjectModal} onClose={handleClose} title="" width="max-w-xl">
+      {/* Sem chave neste dispositivo a geração cai no modo simplificado — dizer
+          isso antes de o usuário pedir evita a impressão de que a IA falhou. */}
+      <div className="mb-3"><AiKeyNotice compact/></div>
+
       {/* Header */}
       <div className="flex items-center gap-2.5 mb-4">
         <div className="w-9 h-9 rounded-lg ai-gradient-bg text-white flex items-center justify-center flex-shrink-0">

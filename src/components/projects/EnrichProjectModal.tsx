@@ -3,6 +3,7 @@ import { Sparkles, Mic, Square, Loader2, X, Plus, Info, Wand2 } from 'lucide-rea
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui'
 import { useAppStore } from '../../stores/useAppStore'
+import { AiKeyNotice } from '../ui/AiKeyNotice'
 import { useSettingsStore } from '../../stores/useSettingsStore'
 import { generateProjectEnrichment, flattenGeneratedTasks, type AIGeneratedTask, type ExistingTaskSummary } from '../../lib/aiProjectGen'
 import { createTaskTree, countTaskTree } from '../../lib/aiTaskCreate'
@@ -155,6 +156,10 @@ export function EnrichProjectModal() {
 
   return (
     <Modal open={!!enrichProjectModal} onClose={handleClose} title="" width="max-w-xl">
+      {/* Sem chave neste dispositivo a geração cai no modo simplificado — dizer isso antes
+          de o usuário pedir evita a impressão de que a IA falhou. */}
+      <div className="mb-3"><AiKeyNotice compact/></div>
+
       <div className="flex items-center gap-2.5 mb-4">
         <div className="w-9 h-9 rounded-lg ai-gradient-bg text-white flex items-center justify-center flex-shrink-0">
           <Wand2 size={16}/>

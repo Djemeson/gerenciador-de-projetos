@@ -26,11 +26,19 @@ export function targetProgress(t: GoalTarget, tasks: Task[]): number {
   return goalTargetProgress({ ...t, current: targetCurrent(t, tasks) })
 }
 
+/**
+ * Lista de alvos à prova de dado velho. Metas gravadas antes de `targets` existir (ou por
+ * uma escrita parcial da nuvem) chegam com `null`, e `null.length` derrubava a tela inteira
+ * — descoberto testando o ErrorBoundary com um registro corrompido.
+ */
+const alvosDe = (goal: Goal): GoalTarget[] => Array.isArray(goal.targets) ? goal.targets : []
+
 /** Progresso da meta = média dos alvos. Sem alvos, cai no status (0 ou 100). */
 export function goalProgressOf(goal: Goal, tasks: Task[]): number {
-  if (!goal.targets.length) return goal.status === 'done' ? 100 : 0
-  const soma = goal.targets.reduce((s, t) => s + targetProgress(t, tasks), 0)
-  return Math.round(soma / goal.targets.length)
+  const alvos = alvosDe(goal)
+  if (!alvos.length) return goal.status === 'done' ? 100 : 0
+  const soma = alvos.reduce((s, t) => s + targetProgress(t, tasks), 0)
+  return Math.round(soma / alvos.length)
 }
 
 export interface GoalHealth {
@@ -59,7 +67,7 @@ export function goalHealth(goal: Goal, tasks: Task[], now: Date = new Date()): G
   const criacao  = new Date(goal.createdAt)
   const prazo    = goal.targetDate ? new Date(goal.targetDate + 'T23:59:59') : null
 
-  const ultimaMexida = goal.targets.reduce<string>(
+  const ultimaMexida = alvosDe(goal).reduce<string>(
     (max, t) => (t.updatedAt && t.updatedAt > max ? t.updatedAt : max), goal.updatedAt)
   const idleDays = Math.max(0, dias(new Date(ultimaMexida), now))
 
