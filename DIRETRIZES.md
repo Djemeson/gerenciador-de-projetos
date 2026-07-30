@@ -598,6 +598,47 @@ Regras:
 
 ---
 
+## 9.1. Regras que saíram da auditoria de 29/07/2026
+
+> Auditoria do projeto inteiro (88 arquivos). O que segue são **defeitos corrigidos** cuja
+> causa era estrutural — cada linha aqui existe para não voltar.
+
+- **Nada sobe para a nuvem antes do primeiro snapshot** (`cloudReady`, `useAppStore`). Em
+  navegador novo o `init()` cria os projetos de exemplo, e o push levava esse **seed** por
+  cima dos dados reais da conta. Semear grupo vazio é explícito (`pushToCloud({force:true})`).
+- **Snapshot remoto vazio não apaga o local.** `tasks` ganhou a mesma guarda que `projects`
+  já tinha; sem ela um campo ausente zerava o trabalho todo.
+- **Excluir tarefa ou projeto apaga os anexos na nuvem** (`deleteAttachmentsOf`). Antes o
+  app só subia blobs, nunca apagava — cada foto excluída ficava consumindo cota para sempre.
+- **Ação nunca pode existir só no hover.** Celular não tem hover: a variante correta é
+  `md:opacity-0 md:group-hover:opacity-100` (visível no toque, discreta no mouse). A ação
+  principal da caixa de entrada estava inacessível no telefone por causa disso.
+- **A navegação mostra todos os destinos.** Caixa de entrada, Minhas tarefas e Todas as
+  tarefas ficam no topo nos dois modos da sidebar; antes cada modo esconde metade dos
+  destinos e trocar de tela exigia trocar o modo.
+- **Preferência de trabalho sincroniza; preferência de dispositivo, não.** Visualização e
+  agrupamento por escopo vivem em `viewPrefs` (sincronizado); largura de painel, tema e
+  recolhimento da sidebar continuam locais. **Chaves de IA nunca vão para a nuvem** — e por
+  isso existe o `AiKeyNotice`, que explica o modo simplificado em vez de falhar em silêncio.
+- **`ErrorBoundary` no `main.tsx`**: exceção de render dava tela branca. A tela de erro diz
+  que os dados estão salvos, mostra a mensagem e permite copiar os detalhes.
+- **`SyncIndicator`**: falha de sincronização é visível fora das Configurações; sucesso
+  aparece por segundos e sai.
+- **Cálculo derivado precisa resistir a dado velho.** `goalHealth` quebrava a tela com
+  `targets: null` (registro antigo ou escrita parcial). Toda função que lê lista vinda do
+  armazenamento deve tolerar ausência.
+- **Container de tela é `flex-col`.** O Calendário era `flex` sem direção, então o cabeçalho
+  ficava *ao lado* da grade e comprimia o mês a 14px de célula no telefone.
+- **Grade não sobrevive a tela estreita**: abaixo de `md` o Calendário vira agenda (só os
+  dias com tarefa, com o título legível).
+- **Índice não é chave** quando o item tem identidade e a lista muda; em grade de calendário
+  e barras de gráfico, onde a posição é fixa, o índice é correto.
+- **Testes e CI**: `lib/__tests__` cobre as regras derivadas (metas, projetos, automações,
+  relatórios) e o workflow roda tipos + testes + build em cada push. Regra nova em `lib/`
+  entra com teste.
+
+---
+
 ## 10. Fluxo de trabalho
 
 - **Publicar é nos dois lugares** (29/07/2026 — substitui a regra anterior de push manual):
