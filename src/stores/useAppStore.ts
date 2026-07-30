@@ -8,11 +8,12 @@ import type {
   Project, Task, Space, Folder, ColumnDef, Automation, AutomationRun, ViewType,
   View, TaskStatus, Priority, Checklist, ChecklistItem, ContentBlock, TriggerType,
   TaskType, TaskOpenMode, CustomProjectView, DateFieldKey, DateFilterValue,
-  Workspace, TaskComment, Goal, GoalTarget,
+  Workspace, TaskComment, Goal, GoalTarget, Note,
 } from '../types'
 import {
   calcGUT, migrateTask, migrateProject, migrateSpace, migrateFolder, migrateAutomation,
   INBOX_PROJECT_ID, DEFAULT_WORKSPACE_ID, ANY, STATUS_LABEL, PRIORITY_LABEL,
+  migrateNote,
 } from '../types'
 import { matchesTrigger } from '../lib/automationEngine'
 import { useNotificationStore } from './useNotificationStore'
@@ -30,6 +31,7 @@ const MAX_AUTOMATION_RUNS  = 200   // histórico recente; o doc de sincronizaç�
 const MAX_AUTOMATION_DEPTH = 5     // profundidade da cadeia automação → tarefa → automação
 let automationDepth = 0
 const GOALS_KEY       = 'tf_goals'
+const NOTES_KEY       = 'tf_notes'
 const INBOX_COLS_KEY  = 'tf_inbox_columns'
 const CUSTOM_VIEWS_KEY= 'tf_custom_views'   // Record<scopeKey, CustomProjectView[]> — todas as visualizações personalizadas, de qualquer escopo (projeto, espaço, pasta, minhas/todas tarefas)
 export const scopeKeyForProject = (id: string) => `project:${id}`
@@ -207,6 +209,15 @@ interface AppState {
   logAutomationRun:    (automation: Automation, task: Task, result: AutomationRun['result'], detail: string) => void
   clearAutomationRuns: () => void
 
+  // Notas (bloco de notas) — sincronizadas junto com o resto do estado
+  notes:        Note[]
+  addNote:      (patch?: Partial<Note>) => Note
+  updateNote:   (id: string, patch: Partial<Note>) => void
+  deleteNote:   (id: string) => void
+  toggleNotePin:(id: string) => void
+  /** Converte a nota numa tarefa (primeira linha = título, resto = descrição). */
+  noteToTask:   (id: string, projectId: string) => Task | null
+
   // Metas / Objetivos
   addGoal:      (g: Omit<Goal,'id'|'workspaceId'|'createdAt'|'updatedAt'>) => Goal
   updateGoal:   (id: string, patch: Partial<Goal>) => void
@@ -268,6 +279,7 @@ async function applyRemoteSnapshot(set: (partial: any) => void, get: () => AppSt
     if (data.activeWorkspaceId) localStorage.setItem(ACTIVE_WS_KEY, data.activeWorkspaceId);
     if (data.automations) localStorage.setItem(AUTOMATIONS_KEY, JSON.stringify(data.automations));
     if (data.goals) localStorage.setItem(GOALS_KEY, JSON.stringify(data.goals));
+    if (data.notes) localStorage.setItem(NOTES_KEY, JSON.stringify(data.notes));
     if (data.inboxColumns) localStorage.setItem(INBOX_COLS_KEY, JSON.stringify(data.inboxColumns));
     if (data.customViewsByScope) localStorage.setItem(CUSTOM_VIEWS_KEY, JSON.stringify(data.customViewsByScope));
 
@@ -280,6 +292,7 @@ async function applyRemoteSnapshot(set: (partial: any) => void, get: () => AppSt
       activeWorkspaceId: data.activeWorkspaceId ?? get().activeWorkspaceId,
       automations: (data.automations ?? []).map(migrateAutomation),
       goals: data.goals ?? get().goals,
+      notes: (data.notes ?? get().notes).map(migrateNote),
       inboxColumns: data.inboxColumns ?? get().inboxColumns,
       customViewsByScope: data.customViewsByScope ?? get().customViewsByScope,
       cloudSyncStatus: 'synced',
@@ -326,7 +339,7 @@ function pProjects(p: Project[], t: Task[]) {
 export const useAppStore = create<AppState>((set, get) => ({
   projects: [], tasks: [], spaces: [], folders: [],
   workspaces: [], activeWorkspaceId: DEFAULT_WORKSPACE_ID,
-  automations: [], automationRuns: [], goals: [], inboxColumns: [], undoStack: [],
+  automations: [], automationRuns: [], goals: [], notes: [], inboxColumns: [], undoStack: [],
   customViewsByScope: {},
   aiGeneratingKeys: [],
   activeView:'my_tasks', activeProjectId:null, activeSpaceId:null, activeFolderId:null, selectedTaskId:null,
@@ -932,6 +945,48 @@ export const useAppStore = create<AppState>((set, get) => ({
     })
   },
 
+  // ── Notas ─────────────────────────────────────────────────────────────
+  addNote: (patch) => {
+    const agora = new Date().toISOString()
+    const note: Note = {
+      id: nanoid(), workspaceId: get().activeWorkspaceId,
+      title: '', body: '', pinned: false, projectId: null,
+      createdAt: agora, updatedAt: agora, ...patch,
+    }
+    const notes = [note, ...get().notes]
+    saveJSON(NOTES_KEY, notes); set({ notes })
+    return note
+  },
+  updateNote: (id, patch) => {
+    const notes = get().notes.map(n => n.id===id ? {...n,...patch,updatedAt:new Date().toISOString()} : n)
+    saveJSON(NOTES_KEY, notes); set({ notes })
+  },
+  deleteNote: (id) => {
+    const notes = get().notes.filter(n => n.id!==id)
+    saveJSON(NOTES_KEY, notes); set({ notes })
+  },
+  toggleNotePin: (id) => {
+    const notes = get().notes.map(n => n.id===id ? {...n,pinned:!n.pinned} : n)
+    saveJSON(NOTES_KEY, notes); set({ notes })
+  },
+  noteToTask: (id, projectId) => {
+    const note = get().notes.find(n => n.id===id)
+    if (!note) return null
+    // Primeira linha vira título; o resto do texto vai para a descrição. É o caminho que
+    // faltava: anotação sem destino não vira trabalho.
+    const linhas = note.body.split('\n')
+    const titulo = (note.title.trim() || linhas[0]?.trim() || 'Nota').slice(0, 120)
+    const corpo  = note.title.trim() ? note.body : linhas.slice(1).join('\n')
+    const tarefa = get().addTask({
+      projectId, parentId: null, title: titulo, description: corpo.trim(),
+      blocks: corpo.trim() ? [{ id: nanoid(), type: 'text', text: corpo.trim(), region: 'body' }] : [],
+      status: 'todo', priority: 'medium', taskType: 'task',
+      dueDate: null, assignee: '', tags: [], checklists: [], customFields: {}, comments: [],
+    } as any)
+    get().deleteNote(id)
+    return tarefa
+  },
+
   // ── Metas / Objetivos ─────────────────────────────────────────────────
   addGoal: (g) => {
     const goal: Goal = { ...g, id:nanoid(), workspaceId:get().activeWorkspaceId, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString() }
@@ -978,6 +1033,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         activeWorkspaceId: get().activeWorkspaceId,
         automations: get().automations,
         goals: get().goals,
+        notes: get().notes,
         inboxColumns: get().inboxColumns,
         customViewsByScope: get().customViewsByScope,
         updatedAt: Date.now(),
@@ -1036,6 +1092,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     const automations = loadJSON<Record<string,unknown>[]>(AUTOMATIONS_KEY, []).map(migrateAutomation)
     const automationRuns = loadJSON<AutomationRun[]>(AUTOMATION_RUNS_KEY, [])
     const goals       = loadJSON<Goal[]>(GOALS_KEY, [])
+    // Notas do formato antigo (só id/title/body/updatedAt) ganham workspace, pinned e
+    // projectId aqui; a partir de agora elas viajam no documento de sincronização.
+    const notes       = loadJSON<Record<string,unknown>[]>(NOTES_KEY, []).map(migrateNote)
     const inboxColumns= loadJSON<ColumnDef[]>(INBOX_COLS_KEY, [])
 
     let workspaces = loadJSON<Workspace[]>(WORKSPACES_KEY, [])
@@ -1063,11 +1122,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       const seededTasks = SEED_TASKS.map(t => ({ ...t, taskType:'task' as const }))
       pProjects(seeded as any, seededTasks as any)
       set({
-        projects: seeded as any, tasks: seededTasks as any, spaces, folders, workspaces, activeWorkspaceId, automations, automationRuns, goals, inboxColumns, customViewsByScope,
+        projects: seeded as any, tasks: seededTasks as any, spaces, folders, workspaces, activeWorkspaceId, automations, automationRuns, goals, notes, inboxColumns, customViewsByScope,
       })
     } else {
       set({
-        projects, tasks, spaces, folders, workspaces, activeWorkspaceId, automations, automationRuns, goals, inboxColumns, customViewsByScope,
+        projects, tasks, spaces, folders, workspaces, activeWorkspaceId, automations, automationRuns, goals, notes, inboxColumns, customViewsByScope,
       })
     }
   },

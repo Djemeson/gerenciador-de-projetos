@@ -844,6 +844,39 @@ Regras:
 
 ---
 
+## 13.5. Bloco de notas (reformulado em 29/07/2026)
+
+> A versão anterior era um Notepad embutido: as notas ficavam soltas no `localStorage`
+> (gravadas com `localStorage.setItem` direto, **fora** do `saveJSON` — então **não
+> sincronizavam**: escrever no computador e não achar no celular), viviam em **abas** (que
+> não escalam numa coluna de 320px), nasciam chamadas "Nota 1" e não tinham como virar
+> nada. Nenhuma dessas três coisas pode voltar.
+
+- **Nota é dado do app** (`Note` em `types/index.ts`, ações no `useAppStore`): entra no
+  documento de sincronização junto com tarefas e metas. `migrateNote` converte as notas
+  antigas (só `id/title/body/updatedAt`) na primeira carga.
+- **Toda nota tem destino**: `noteToTask(id, projectId)` cria a tarefa (primeira linha =
+  título, resto = descrição), abre a tarefa nova e apaga a nota. É a ponte entre anotar e
+  fazer — sem ela, o bloco de notas é um app à parte dentro do app.
+- **Lista com busca, não abas**: a busca aparece a partir de 5 notas; fixadas primeiro,
+  depois as mais recentes. Uma aba por nota não sobrevive a 10 notas em 360px.
+- **Título derivado da primeira linha** (`noteDisplayTitle`) — nomear é opcional. Nomes
+  automáticos ("Nota 1", "Nota 2") obrigavam a renomear tudo para achar depois.
+- **Mestre-detalhe, nunca os dois juntos**: em painel estreito a lista ocupa a área toda e
+  o editor a substitui, com volta explícita. Cada ação tem **um** caminho (o painel antigo
+  tinha dois para renomear e dois para excluir, na mesma coluna).
+- **Grava numa pausa da digitação** (500ms). Antes cada tecla escrevia no armazenamento;
+  agora que a nota sincroniza, isso viraria uma rajada de escritas na nuvem.
+- **Cor**: neutro com brand nos destaques. A versão anterior usava âmbar (`warning-*`)
+  como identidade — depois da consolidação (seção 8.2), `warning` significa **aviso** e não
+  pode ser cor decorativa de um recurso.
+- **Painel redimensionável** (300–560px, lembrado em `tf_notes_width`) e **tela cheia no
+  celular** (`fixed inset-0` até `md`). Era fixo em 320px, ao contrário do resto do app.
+- **Estado vazio de verdade**, explicando para que serve o recurso: antes existia sempre
+  uma "Nota 1" vazia, então nunca havia primeiro contato.
+
+---
+
 ## 14. Painel da tarefa (TaskDetail) — layout estilo Todoist
 
 - **Duas colunas** (`components/tasks/TaskDetail.tsx`): à **esquerda** a área de escrita

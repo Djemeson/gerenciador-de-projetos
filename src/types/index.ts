@@ -165,6 +165,45 @@ export interface CustomProjectView {
 // ── Task open mode ────────────────────────────────────────────────────────
 export type TaskOpenMode = 'side' | 'center' | 'full'
 
+// ── Notas ─────────────────────────────────────────────────────────────────
+/**
+ * Nota do bloco de notas. Vive no estado do app (e não solta no `localStorage`, como
+ * antes) por dois motivos: **sincronizar** entre dispositivos — escrever no computador e
+ * não achar no celular quebrava a promessa do produto — e poder **virar tarefa**, que é o
+ * destino natural de uma anotação dentro de um gerenciador de projetos.
+ */
+export interface Note {
+  id:          string
+  workspaceId: string
+  title:       string      // derivado da primeira linha quando o usuário não nomeia
+  body:        string
+  pinned:      boolean
+  /** Projeto ao qual a nota se refere (opcional) — dá contexto e destino à conversão. */
+  projectId:   string | null
+  createdAt:   string
+  updatedAt:   string
+}
+
+/** Título de exibição: o nome dado pelo usuário ou a primeira linha do texto. */
+export function noteDisplayTitle(n: Note): string {
+  if (n.title.trim()) return n.title.trim()
+  const primeira = n.body.split('\n').map(l => l.trim()).find(Boolean)
+  return primeira ? primeira.slice(0, 60) : 'Nota sem título'
+}
+
+export function migrateNote(raw: Record<string, unknown>): Note {
+  return {
+    id: String(raw.id ?? ''),
+    workspaceId: String(raw.workspaceId ?? DEFAULT_WORKSPACE_ID),
+    title: String(raw.title ?? ''),
+    body: String(raw.body ?? ''),
+    pinned: (raw.pinned as boolean) ?? false,
+    projectId: (raw.projectId as string | null) ?? null,
+    createdAt: String(raw.createdAt ?? raw.updatedAt ?? new Date().toISOString()),
+    updatedAt: String(raw.updatedAt ?? new Date().toISOString()),
+  }
+}
+
 // ── Automations ───────────────────────────────────────────────────────────
 export type TriggerType = 'status_changed' | 'priority_changed' | 'task_created' | 'due_date_reached' | 'assignee_changed'
 export type ActionType  =
