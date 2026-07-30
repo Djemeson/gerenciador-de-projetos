@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import {
   Search, Eye, List, LayoutGrid, Table2, Calendar, PenTool, Activity, LayoutDashboard, Trash2, Check, Plus, X, Circle,
-  ChevronDown, StickyNote,
+  ChevronDown,
 } from 'lucide-react'
 import { useAppStore } from '../../stores/useAppStore'
 import { TaskList } from './TaskList'
@@ -12,7 +12,7 @@ import { TaskDetail } from './TaskDetail'
 import { WhiteboardView } from './WhiteboardView'
 import { FilterPanel } from '../FilterPanel'
 import { AIPanel } from '../AIPanel'
-import { NotesPanel } from '../NotesPanel'
+import { NotesPanel, NotesButton } from '../NotesPanel'
 import { applyCustomViewFilter } from '../../lib/customViews'
 import { VIEW_ICON } from '../../lib/viewIcons'
 import { Select, PRIORITY_OPTIONS, STATUS_OPTIONS } from '../ui/Select'
@@ -71,7 +71,7 @@ export function TaskPanel({
   groupOptions = ['status','priority','dueDate','assignee'],
   defaultGroup = 'status', views, defaultView = 'list', gut,
 }: TaskPanelProps) {
-  const { selectedTaskId, getCustomViews, deleteCustomView, openNewViewModal, toggleNotesPanel, viewPrefs, setViewPref } = useAppStore()
+  const { selectedTaskId, getCustomViews, deleteCustomView, openNewViewModal, viewPrefs, setViewPref } = useAppStore()
   // `||` e não `??`: a chave antiga devolve string vazia quando não existe, e `'' ?? d`
   // resultaria em vazio em vez do padrão.
   const vGet = (k: string, d: string) => viewPrefs[k] || vLegacy(k) || d
@@ -146,10 +146,7 @@ export function TaskPanel({
                   <input type="text" placeholder="Buscar..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-7 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-400 transition-all w-40" />
                 </div>
                 <SortControl value={multiSort} onChange={updateMultiSort}/>
-                <button onClick={toggleNotesPanel} title="Bloco de notas"
-                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:text-warning-600 hover:border-warning-100 hover:bg-warning-50/50 transition-colors flex-shrink-0">
-                  <StickyNote size={16}/>
-                </button>
+                <NotesButton/>
                 {headerRight && <div className="flex items-center gap-1.5 flex-shrink-0 scale-95 origin-right">{headerRight}</div>}
             </div>
           </div>

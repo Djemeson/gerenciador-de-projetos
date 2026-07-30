@@ -269,6 +269,18 @@
   transform-origin: top;
 }
 
+/* Janela flutuante ancorada no canto inferior direito (bloco de notas). Precisa de
+   keyframes próprio porque `scale-in` cresce a partir do topo — numa janela ancorada
+   embaixo isso parece que ela "desceu" em vez de abrir do canto. */
+@keyframes window-in {
+  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.animate-window-in {
+  animation: window-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: bottom right;
+}
+
 /* Fundo do overlay de modal com leve fade */
 @keyframes overlay-in {
   from { opacity: 0; }

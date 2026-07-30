@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  X, Plus, StickyNote, Trash2, Search, Pin, PinOff, ChevronLeft,
+  X, Plus, NotebookPen, Trash2, Search, Pin, PinOff, ChevronLeft,
   ListChecks, MoreHorizontal, Check, Copy,
 } from 'lucide-react'
 import { useAppStore } from '../stores/useAppStore'
@@ -22,6 +22,15 @@ import type { Note } from '../types'
  *
  * Em painel estreito o padrão é mestre-detalhe: a lista ocupa tudo; ao abrir uma nota o
  * editor toma a área e a volta é explícita. Não empilhar lista e editor ao mesmo tempo.
+ *
+ * **Janela flutuante desde 30/07/2026.** Antes era `md:relative`, ou seja, participava do
+ * flex e *empurrava* a lista de tarefas para o lado — abrir uma nota reorganizava a tela
+ * inteira e mudava a largura das colunas. Agora é uma janela `fixed` ancorada no canto
+ * inferior direito, por cima do conteúdo, como um app à parte.
+ *
+ * Decisão consciente: **não há fundo escurecido bloqueando o resto**. Nota se escreve
+ * *olhando* para a tarefa; um scrim que capturasse o clique tornaria isso impossível.
+ * Fecha no X ou no Esc.
  */
 
 const LARGURA_KEY = 'tf_notes_width'
@@ -66,13 +75,29 @@ export function NotesPanel() {
     document.body.style.cursor = 'col-resize'
   }
 
+  // Esc fecha — primeiro o menu de contexto aberto, depois a janela. Sem isto, uma janela
+  // flutuante sem scrim não tem como ser fechada pelo teclado.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      if (menuId) { setMenuId(null); return }
+      toggleNotesPanel()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [menuId, toggleNotesPanel])
+
   return (
     <aside
+      role="dialog" aria-label="Bloco de notas"
       style={{ width }}
-      className="fixed inset-0 z-40 md:relative md:inset-auto md:z-auto border-l border-gray-200 bg-white flex flex-col h-full flex-shrink-0 max-md:!w-full">
+      className="fixed z-[55] bg-white flex flex-col animate-window-in
+                 inset-0 max-md:!w-full
+                 md:inset-auto md:right-5 md:bottom-5 md:h-[min(680px,calc(100vh-7rem))]
+                 md:rounded-2xl md:border md:border-gray-200 md:shadow-2xl md:ring-1 md:ring-black/5 md:overflow-hidden">
       {/* Alça de redimensionar — o painel era fixo em 320px, ao contrário do resto do app */}
       <div onMouseDown={startResize} title="Arraste para redimensionar"
-        className="hidden md:block absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-brand-200 transition-colors" />
+        className="hidden md:block absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-brand-200 transition-colors z-10" />
 
       {/* ── Cabeçalho ── */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200 flex-shrink-0">
@@ -83,7 +108,9 @@ export function NotesPanel() {
           </button>
         ) : (
           <>
-            <StickyNote size={16} className="text-gray-400" />
+            <span className="w-6 h-6 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center flex-shrink-0">
+              <NotebookPen size={14} />
+            </span>
             <span className="text-[14px] font-extrabold tracking-tight text-gray-900 flex-1">Notas</span>
             <span className="text-[10px] text-gray-500 tabnum">{notes.length}</span>
           </>
@@ -123,6 +150,36 @@ export function NotesPanel() {
   )
 }
 
+/**
+ * Botão que abre o bloco de notas.
+ *
+ * Mora aqui, junto do painel, porque as duas coisas mudam pelo mesmo motivo. O anterior era
+ * um quadrado cinza com um post-it e hover âmbar — a cor não vinha de lugar nenhum do
+ * sistema (âmbar é `warning`, e nota não é aviso) e o botão não mostrava se o painel estava
+ * aberto.
+ *
+ * O ponto vermelho aparece quando existe nota escrita e a janela está fechada: é a única
+ * pista de que há conteúdo ali dentro. Um contador seria pior — viraria "9+" e deixaria de
+ * informar; a contagem exata já está no cabeçalho da janela.
+ */
+export function NotesButton() {
+  const { toggleNotesPanel, notesPanelOpen, notes, activeWorkspaceId } = useAppStore()
+  const temNota = notes.some(n => n.workspaceId === activeWorkspaceId)
+
+  return (
+    <button onClick={toggleNotesPanel} title="Bloco de notas" aria-pressed={notesPanelOpen}
+      className={`relative w-8 h-8 flex items-center justify-center rounded-lg border transition-colors flex-shrink-0 ${
+        notesPanelOpen
+          ? 'bg-brand-50 border-brand-200 text-brand-600'
+          : 'border-gray-200 text-gray-500 hover:text-brand-600 hover:border-brand-200 hover:bg-brand-50/60'}`}>
+      <NotebookPen size={16} />
+      {temNota && !notesPanelOpen && (
+        <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-brand-500" />
+      )}
+    </button>
+  )
+}
+
 // ── Lista ────────────────────────────────────────────────────────────────────
 
 function Lista({ notes, total, busca, onBusca, menuId, onMenu, onAbrir, onNova, onPin, onDelete }: {
@@ -134,8 +191,8 @@ function Lista({ notes, total, busca, onBusca, menuId, onMenu, onAbrir, onNova, 
   if (total === 0) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center px-8 text-center">
-        <div className="w-11 h-11 rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-center mb-3">
-          <StickyNote size={18} className="text-gray-400" />
+        <div className="w-12 h-12 rounded-2xl bg-brand-50 border border-brand-100 flex items-center justify-center mb-3">
+          <NotebookPen size={20} className="text-brand-500" />
         </div>
         <p className="text-[13px] font-bold text-gray-800">Nenhuma nota ainda</p>
         <p className="text-[11px] text-gray-500 mt-1 leading-relaxed">

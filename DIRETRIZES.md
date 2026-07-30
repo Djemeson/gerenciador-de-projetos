@@ -978,6 +978,29 @@ Regras:
 - **Estado vazio de verdade**, explicando para que serve o recurso: antes existia sempre
   uma "Nota 1" vazia, então nunca havia primeiro contato.
 
+### Janela flutuante (30/07/2026)
+
+- **O painel não ocupa espaço no layout.** Era `md:relative`, participava do flex e
+  *empurrava* a lista de tarefas: abrir uma nota reorganizava a tela e mudava a largura das
+  colunas. Agora é `fixed` ancorado no canto inferior direito (`md:right-5 md:bottom-5`,
+  altura `min(680px, 100vh - 7rem)`), por cima do conteúdo. **Medido**: a área de conteúdo
+  fica em 1008px com a janela aberta e fechada.
+- **Sem scrim.** Nota se escreve *olhando* para a tarefa; um fundo que capturasse o clique
+  impediria exatamente o uso principal. Em troca, **Esc fecha** (primeiro um menu de
+  contexto aberto, depois a janela) — sem isso a janela não teria saída pelo teclado.
+- **`z-[55]`**, explicitamente entre o painel da tarefa (`z-50`) e o modo tela cheia
+  (`z-[60]`): a janela recém-invocada fica por cima, e a ordem não depende de quem aparece
+  antes no DOM.
+- **Animação própria** (`animate-window-in`, em `index.css`): `scale-in` cresce a partir do
+  topo, o que numa janela ancorada embaixo parece que ela desceu.
+- **Ícone `NotebookPen`**, no botão da barra, no cabeçalho e no estado vazio. O anterior era
+  `StickyNote` num quadrado cinza com hover **âmbar** — âmbar é `warning` (seção 8.2) e nota
+  não é aviso. O botão agora tem **estado ativo** (`aria-pressed` + fundo brand) e um
+  **ponto** quando existe nota e a janela está fechada. Ponto, não contador: um número
+  viraria "9+" e deixaria de informar — a contagem exata já está no cabeçalho da janela.
+- O botão vive em `NotesPanel.tsx` (exportado como `NotesButton`), não solto no `TaskPanel`:
+  botão e painel mudam pelo mesmo motivo.
+
 ---
 
 ## 14. Painel da tarefa (TaskDetail) — layout estilo Todoist
