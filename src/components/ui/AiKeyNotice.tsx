@@ -32,7 +32,7 @@ export function AiKeyNotice({ compact = false }: { compact?: boolean }) {
       <div className="flex items-start gap-2.5">
         <Sparkles size={16} className="text-warning-700 flex-shrink-0 mt-0.5"/>
         <div className="min-w-0">
-          <p className="text-[12.5px] font-bold text-warning-700">Nenhuma chave de IA configurada</p>
+          <p className="text-[13px] font-bold text-warning-700">Nenhuma chave de IA configurada</p>
           <p className="text-[11px] text-gray-700 mt-1 leading-relaxed">
             Sem ela, os recursos de IA usam um modo local simplificado, sem chamada externa.
             Basta configurar uma vez: a chave passa a valer em todos os seus dispositivos.

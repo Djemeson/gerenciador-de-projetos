@@ -11,6 +11,7 @@ import { Select, PRIORITY_OPTIONS } from '../components/ui/Select'
 import { Section, KpiCard, MiniBar, EmptyState, DeltaBadge } from '../components/reports/ReportPrimitives'
 import { ActivityChart } from '../components/reports/ActivityChart'
 import { TaskListModal } from '../components/reports/TaskListModal'
+import { MeetingReviewCard } from '../components/reports/MeetingReviewCard'
 import { downloadCsv, csvFilename } from '../lib/exportCsv'
 import {
   matchesDateFilter, taskDateValue, parseISO, periodDisplayLabel, DATE_FIELD_LABEL,
@@ -165,6 +166,13 @@ export function ReportsView() {
     () => currentTasks.filter(t => t.priority === 'urgent' && t.status !== 'done' && !t.parentId),
     [currentTasks],
   )
+  // Abertas com prazo nos próximos 7 dias — entram no "Próximos passos" do resumo da reunião.
+  const dueSoonTasks = useMemo(() => {
+    const limite = new Date(now); limite.setDate(limite.getDate() + 7)
+    return currentTasks
+      .filter(t => t.dueDate && t.status !== 'done' && !t.parentId && parseISO(t.dueDate) >= now && parseISO(t.dueDate) <= limite)
+      .sort((a, b) => parseISO(a.dueDate!).getTime() - parseISO(b.dueDate!).getTime())
+  }, [currentTasks, now])
 
   // Metas em risco entram no resumo executivo.
   // Saúde derivada (progresso × prazo), a mesma da tela de Metas — o campo `status`
@@ -274,6 +282,14 @@ export function ReportsView() {
             </p>
           )}
         </div>
+
+        {/* ── Resumo para a reunião (IA híbrida) ── */}
+        <MeetingReviewCard
+          periodLabel={rangeLabel}
+          doneNow={doneNow} donePrevCount={donePrev.length} createdCount={createdNow.length}
+          overdue={overdueTasks} urgentOpen={urgentTasks} dueSoon={dueSoonTasks}
+          projects={projects}
+        />
 
         {/* ── KPIs ── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { X, Zap, CalendarDays, Check } from 'lucide-react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
+import { X, Zap, CalendarDays, Check, Sparkles } from 'lucide-react'
 import { useAppStore } from '../stores/useAppStore'
 import { Select, PRIORITY_OPTIONS } from './ui/Select'
 import { isoDate } from '../lib/dateFilter'
+import { parseSmartCapture } from '../lib/smartCapture'
 import { INBOX_PROJECT_ID } from '../types'
 import type { Priority } from '../types'
 
@@ -35,17 +36,24 @@ export function QuickCapture({ open, onClose }: QuickCaptureProps) {
     }
   }, [open])
 
+  // Captura inteligente: entende "amanhã", "sexta", "15/08", "urgente"… no próprio texto.
+  // Escolha manual (prioridade/chip de prazo) sempre vence o que foi detectado.
+  const parsed = useMemo(() => parseSmartCapture(title), [title])
+
   if (!open) return null
 
   const save = () => {
     if (!title.trim()) { onClose(); return }
     const pid = projectId || INBOX_PROJECT_ID
-    const t = quickAddTask(title.trim(), pid, 'todo')
-    // quickAddTask nasce com prioridade média e sem prazo — aplica o que foi escolhido.
+    const effTitle = (parsed.title || title).trim()
+    const t = quickAddTask(effTitle, pid, 'todo')
+    // quickAddTask nasce com prioridade média e sem prazo — aplica escolha manual ou detecção.
     const chip = DUE_CHIPS.find(c => c.key === dueChip)
     const patch: { priority?: Priority; dueDate?: string } = {}
     if (priority !== 'medium') patch.priority = priority
+    else if (parsed.priority && parsed.priority !== 'medium') patch.priority = parsed.priority
     if (chip) { const d = new Date(); d.setDate(d.getDate() + chip.days); patch.dueDate = isoDate(d) }
+    else if (parsed.dueDate) patch.dueDate = parsed.dueDate
     if (Object.keys(patch).length) updateTask(t.id, patch)
     setTitle('')
     setSavedCount(n => n + 1)
@@ -85,9 +93,22 @@ export function QuickCapture({ open, onClose }: QuickCaptureProps) {
             value={title}
             onChange={e => setTitle(e.target.value)}
             onKeyDown={onKey}
-            placeholder="O que você está pensando?"
+            placeholder="O que você está pensando? (entende &quot;amanhã&quot;, &quot;sexta&quot;, &quot;urgente&quot;…)"
             className="w-full text-base text-gray-800 outline-none bg-transparent placeholder:text-gray-300"
           />
+          {parsed.matched.length > 0 && (
+            <div className="flex items-center gap-1.5 mt-2 flex-wrap animate-fade-in">
+              <Sparkles size={12} className="ai-gradient-text flex-shrink-0"/>
+              <span className="text-[11px] text-gray-500">Entendi:</span>
+              {parsed.matched.map((m, i) => (
+                <span key={i} className="inline-flex items-center gap-1 text-[11px] font-medium text-brand-700 bg-brand-50 border border-brand-100 px-2 py-0.5 rounded-full">
+                  {m.kind === 'date' ? <CalendarDays size={12}/> : <Zap size={12}/>}
+                  {m.kind === 'date' ? `prazo ${m.label}` : `prioridade ${m.label}`}
+                </span>
+              ))}
+              <span className="text-[11px] text-gray-400">— sai do título ao salvar</span>
+            </div>
+          )}
         </div>
 
         {/* Prioridade + prazo rápido */}

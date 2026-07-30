@@ -76,7 +76,9 @@ ${desc ? `Descrição: ${desc}\n` : ''}${subtasks.length ? `Subtarefas:\n${subta
 Escreva agora o resumo de conclusão:`
 }
 
-async function callGemini(prompt: string, apiKey: string): Promise<string | null> {
+/** Chamada crua ao Gemini — reutilizada por todos os recursos de IA "híbridos"
+ *  (resumo de conclusão, resumo de reunião). Nunca lança: devolve null em falha. */
+export async function callGemini(prompt: string, apiKey: string): Promise<string | null> {
   try {
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,

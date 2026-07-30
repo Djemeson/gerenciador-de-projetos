@@ -573,6 +573,14 @@ Regras:
   (bug corrigido em 30/07/2026: prioridade e prazo rápido agora entram via
   `updateTask` após o `quickAddTask`).
 - `NewTaskModal.tsx` (morto desde o `QuickAddRow`) foi removido.
+- **Captura inteligente** (30/07/2026): o QuickCapture entende prazo e prioridade em
+  português natural no próprio texto — "amanhã", "sexta", "15/08", "urgente",
+  "importante", "sem pressa" — via `lib/smartCapture.ts` (`parseSmartCapture`,
+  determinístico, sem chamada externa, testado em `lib/__tests__/smartCapture.test.ts`).
+  A prévia "Entendi: …" aparece sob o campo; o trecho reconhecido **sai do título** ao
+  salvar; escolha manual (chips/prioridade) sempre vence a detecção. Atenção de regex:
+  `\b` não funciona após letra acentuada ("amanhã") — a borda final é lookahead
+  `(?=[\s,.;:!?]|$)`.
 
 ### 8.1. Densidade e escala da lista de tarefas (redesign 15/07/2026)
 
@@ -856,6 +864,21 @@ Regras:
   (sem ele as barras e selos saem brancos), sidebar oculta, scroll liberado e
   `print:break-inside-avoid` nos cartões. **As abas inativas usam `hidden print:block`** —
   na tela aparece uma, no papel sai o relatório completo.
+
+### 13.3.2. Resumo para a reunião (IA híbrida, 30/07/2026)
+
+- Card **"Resumo para a reunião"** logo abaixo do resumo executivo
+  (`components/reports/MeetingReviewCard.tsx`): um clique transforma o recorte atual do
+  painel no **texto de abertura da reunião de resultados**, com Copiar e Regenerar.
+- A lógica vive em `lib/aiMeetingReview.ts`, no **padrão híbrido do app** (o mesmo do
+  resumo de conclusão em `aiSummary.ts`): `buildLocalMeetingReview` é a narrativa local
+  determinística — sempre disponível, testada em `lib/__tests__/aiMeetingReview.test.ts`
+  — e `generateMeetingReview` usa o Gemini quando há chave (via `callGemini`, exportado
+  de `aiSummary.ts` como fonte única da chamada). **Todo recurso de IA novo segue esse
+  padrão**: funciona sem chave (modo local honesto), melhora com chave, nunca lança.
+- Estrutura do texto: abertura (entregas × período anterior × entrada de trabalho),
+  "Principais entregas" agrupadas por projeto, "Pontos de atenção" (atrasadas/urgentes)
+  e "Próximos 7 dias" (`dueSoonTasks` na `ReportsView`).
 
 ### 13.3.1. Recorte e filtros
 
