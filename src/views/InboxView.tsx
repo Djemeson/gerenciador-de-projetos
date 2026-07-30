@@ -1,6 +1,7 @@
-import React, { useState } from 'react'
-import { Inbox, Plus, ArrowRight } from 'lucide-react'
+import React, { useState, useMemo } from 'react'
+import { Inbox, Plus, ArrowRight, Sparkles, Loader2 } from 'lucide-react'
 import { useAppStore } from '../stores/useAppStore'
+import { suggestProjectLocal, suggestProjectsAI } from '../lib/aiInboxTriage'
 import { TaskDetail } from '../components/tasks/TaskDetail'
 import { TaskRow } from '../components/tasks/TaskRow'
 import { QuickAddRow } from '../components/tasks/QuickAddRow'
@@ -28,6 +29,31 @@ export function InboxView() {
     updateTask(taskId, { projectId, status: 'todo' })
   }
 
+  // ── Triagem inteligente ──────────────────────────────────────────────────
+  // Sugestão local (afinidade de texto) sai de graça para toda captura; o botão
+  // "Triar com IA" refina em lote via Gemini quando há chave (aiInboxTriage).
+  const geminiApiKey = useSettingsStore(s => s.geminiApiKey)
+  const [aiMap, setAiMap] = useState<Map<string, string>>(new Map())
+  const [aiLoading, setAiLoading] = useState(false)
+
+  const localSuggestions = useMemo(() => {
+    const tasksByProject = new Map<string, { title: string }[]>()
+    for (const t of tasks) {
+      if (t.workspaceId !== activeWorkspaceId || t.projectId === INBOX_PROJECT_ID || t.parentId) continue
+      tasksByProject.set(t.projectId, [...(tasksByProject.get(t.projectId) ?? []), t])
+    }
+    return new Map(pending.map(t => [t.id, suggestProjectLocal(t, activeProjects, tasksByProject)] as const))
+  }, [tasks, pending, activeProjects, activeWorkspaceId])
+
+  const triarComIA = async () => {
+    setAiLoading(true)
+    try { setAiMap(await suggestProjectsAI(pending, activeProjects, geminiApiKey)) }
+    finally { setAiLoading(false) }
+  }
+
+  const suggestionFor = (taskId: string): string | null =>
+    aiMap.get(taskId) ?? localSuggestions.get(taskId)?.projectId ?? null
+
   // Colunas personalizadas da caixa de entrada (persistidas no store)
   const columns = inboxColumns
 
@@ -39,6 +65,13 @@ export function InboxView() {
           <Inbox size={16} className="text-gray-400" />
           <h1 className="text-[20px] font-extrabold tracking-tight text-gray-900 flex-1">Caixa de entrada</h1>
           <span className="text-[11px] text-gray-500 tabnum hidden sm:inline">{pending.length} para processar</span>
+          {geminiApiKey && pending.length > 0 && activeProjects.length > 0 && (
+            <button onClick={triarComIA} disabled={aiLoading} title="A IA sugere o projeto de cada captura"
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 ai-gradient-bg text-white rounded-lg hover:opacity-90 disabled:opacity-60 transition-opacity">
+              {aiLoading ? <Loader2 size={12} className="animate-spin"/> : <Sparkles size={12}/>}
+              {aiLoading ? 'Triando…' : 'Triar com IA'}
+            </button>
+          )}
           <button onClick={() => setAdding(true)}
             className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors">
             <Plus size={12} /> Capturar ideia
@@ -81,6 +114,19 @@ export function InboxView() {
                   <span className="text-[10px] text-gray-500 italic">Nenhum projeto disponível — crie um projeto primeiro.</span>
                 ) : (
                   <>
+                    {/* Sugestão da triagem (IA em lote ou afinidade local) — aceitar = mover */}
+                    {(() => {
+                      const sug = suggestionFor(t.id)
+                      const p = sug ? activeProjects.find(x => x.id === sug) : null
+                      return p ? (
+                        <button onClick={() => processTask(t.id, p.id)} title="Sugestão da triagem — clique para mover"
+                          className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100 transition-colors">
+                          <Sparkles size={12}/>
+                          <ProjectIcon project={p} size={12}/>
+                          {p.name}
+                        </button>
+                      ) : null
+                    })()}
                     <div className="min-w-[168px]">
                       <Select value="" ariaLabel="Mover para o projeto" searchable
                         placeholder="Escolher projeto…"

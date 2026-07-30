@@ -1,23 +1,39 @@
 import React, { useState, useEffect } from 'react'
-import { Info, Target } from 'lucide-react'
+import { Info, Target, Sparkles, Loader2 } from 'lucide-react'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui'
 import { useAppStore } from '../../stores/useAppStore'
+import { useSettingsStore } from '../../stores/useSettingsStore'
+import { suggestGut } from '../../lib/aiGut'
 import { GUT_LABEL_G, GUT_LABEL_U, GUT_LABEL_T, gutTier } from '../../types'
 
 export function GUTModal() {
-  const { gutModal, closeGUT, projects, saveGUT } = useAppStore()
+  const { gutModal, closeGUT, projects, tasks, saveGUT } = useAppStore()
+  const { geminiApiKey } = useSettingsStore()
   const project = projects.find(p => p.id === gutModal.projectId)
 
   const [g, setG] = useState(1)
   const [u, setU] = useState(1)
   const [t, setT] = useState(1)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiReason,  setAiReason]  = useState<string | null>(null)
 
   useEffect(() => {
-    if (project) { setG(project.gut.g); setU(project.gut.u); setT(project.gut.t) }
+    if (project) { setG(project.gut.g); setU(project.gut.u); setT(project.gut.t); setAiReason(null) }
   }, [project])
 
   if (!gutModal.open || !project) return null
+
+  // Sugestão híbrida (aiGut): heurística local sobre prazos/prioridades/paradas;
+  // com chave Gemini, o modelo pondera também nome e descrição do projeto.
+  const sugerir = async () => {
+    setAiLoading(true)
+    try {
+      const projTasks = tasks.filter(tk => tk.projectId === project.id)
+      const s = await suggestGut(project, projTasks, geminiApiKey)
+      setG(s.g); setU(s.u); setT(s.t); setAiReason(s.reason)
+    } finally { setAiLoading(false) }
+  }
 
   const score = g * u * t
   const tier  = gutTier(score)
@@ -56,6 +72,18 @@ export function GUTModal() {
             style={{ background: tier.color, color: '#fff' }}>
             {tier.label}
           </span>
+        </div>
+
+        {/* Sugestão por IA — preenche os três sliders e explica o porquê */}
+        <div className="flex items-start gap-2">
+          <button onClick={sugerir} disabled={aiLoading}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 ai-gradient-bg text-white text-[11px] font-semibold rounded-lg hover:opacity-90 disabled:opacity-60 transition-opacity flex-shrink-0">
+            {aiLoading ? <Loader2 size={12} className="animate-spin"/> : <Sparkles size={12}/>}
+            {aiLoading ? 'Analisando…' : 'Sugerir com IA'}
+          </button>
+          {aiReason && (
+            <p className="text-[11px] text-gray-500 leading-snug flex-1 animate-fade-in">{aiReason}</p>
+          )}
         </div>
 
         {/* Sliders em formato de cartões suaves */}

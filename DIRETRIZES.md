@@ -1292,6 +1292,30 @@ chave ali não amplia o acesso de forma relevante.
 
 ---
 
+## 15.3. Mapa da IA no app (30/07/2026)
+
+> Toda superfície de IA segue o **padrão híbrido** (regra em 13.3.2): funciona sem chave
+> (modo local determinístico e honesto), melhora com chave Gemini, nunca lança exceção.
+> `callGemini` (`lib/aiSummary.ts`) é a fonte única da chamada. Recurso novo em `lib/`
+> entra com teste. Superfícies atuais:
+
+| Superfície | Onde | Lib |
+|---|---|---|
+| Pergunte à IA (function-calling real) | `AIPanel` | `lib/aiTools.ts` |
+| Criar/enriquecer projeto | `AIProjectModal`/`EnrichProjectModal` | `lib/aiProjectGen.ts` |
+| Sugerir subtarefas/checklist da tarefa | `TaskDetail` (menu Wand2) | `lib/aiProjectGen.ts` |
+| Resumo de conclusão (coluna `ai_summary`) | lista/painel | `lib/aiSummary.ts` |
+| Resumo para a reunião | Relatórios (`MeetingReviewCard`) | `lib/aiMeetingReview.ts` |
+| Captura inteligente (prazo/prioridade em PT) | `QuickCapture` | `lib/smartCapture.ts` (100% local) |
+| Briefing "Começar o dia" (dispensável por dia, `tf_briefing_hidden`) | Minhas tarefas (`DailyBriefingCard`) | `lib/aiDailyBriefing.ts` |
+| GUT sugerido (heurística prazos/prioridades/paradas) | `GUTModal` | `lib/aiGut.ts` |
+| Triagem da inbox (afinidade local sempre; lote Gemini no botão "Triar com IA") | `InboxView` | `lib/aiInboxTriage.ts` |
+
+- Botões de IA usam `ai-gradient-bg` (mesmo selo visual em todo o app).
+- A triagem local usa afinidade de texto (nome do projeto ×3, descrição ×2, títulos de
+  tarefas ×1, limiar 2, sem acento e com singular/plural leve) — sugestão aparece como
+  chip "✨ projeto" na linha "Mover para"; aceitar = mover.
+
 ## 16. Trabalhar no projeto pelo Claude Code do celular (sessões na nuvem)
 
 O repositório está preparado para ser aberto em **claude.ai/code** (navegador ou app do
