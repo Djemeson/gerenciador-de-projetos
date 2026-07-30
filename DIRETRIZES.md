@@ -844,6 +844,37 @@ Regras:
 
 ---
 
+## 13.7. Lista de projetos (reformulada em 29/07/2026)
+
+> Dois furos, os dois de produto: a tela **ignorava a hierarquia** (grade plana, apesar de
+> Espaço → Pasta → Projeto ser o princípio "inquebrável" da seção 2) e **não dizia se o
+> projeto ia bem** — mostrava GUT, porcentagem e contagens soltas, então 3 atrasadas em 5
+> tarefas parecia igual a 3 em 50.
+
+- **Agrupa por Espaço › Pasta** (`groupBySpace` em `lib/projectMetrics.ts`), com alternância
+  para lista corrida. O cabeçalho de grupo mostra o caminho e a contagem. Tela nova que
+  liste projetos deve respeitar essa hierarquia.
+- **Saúde derivada** (`projectHealth`): `critical` quando um terço ou mais do trabalho aberto
+  está atrasado (ou GUT ≥ 80 com qualquer atraso), `idle` a partir de
+  `PROJECT_IDLE_DAYS` (21) sem movimento, `attention` com atraso/urgência pontual,
+  `healthy`, `done` e `empty`. **Fração, não contagem** — é o que diferencia 3 em 5 de 3 em
+  50. O motivo vai escrito no card, como nas metas (seção 13.6).
+- **Progresso real** vem de `averageProgress` (subtarefas e checklists), não da contagem de
+  status da raiz.
+- **Prazo do projeto é derivado** (`nextDue`/`lastDue` das tarefas abertas): o modelo
+  `Project` não tem campo de prazo, e inventar um exigiria manutenção manual.
+- **Busca, filtro por estado e ordenação** (risco por padrão, GUT, prazo, progresso, nome).
+  A ordem era fixa por GUT, sem busca — impossível achar algo com 30 projetos.
+- **Excluir vive no menu `⋯`, em dois passos**, e o segundo diz o que será perdido
+  ("Excluir e apagar 4 tarefas"). Antes era duplo-clique na lixeira do cartão com um
+  "Confirmar?" genérico — a ação mais destrutiva do app na affordance mais frágil.
+- **`CardProjeto` mora fora do componente de tela.** Estava declarado dentro do
+  `ProjectsListView`, então o React recriava o tipo a cada render e remontava os cartões.
+- A **legenda GUT** fixa no topo saiu (quatro pílulas com cores cravadas, duplicando
+  `gutTier`); o rótulo do tier agora vive no `title` do badge.
+
+---
+
 ## 13.6. Metas (reformuladas em 29/07/2026)
 
 > O problema não era visual: **o status era um campo escolhido à mão que nunca se
