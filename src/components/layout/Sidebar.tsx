@@ -180,7 +180,7 @@ export function Sidebar() {
     const p = addProject('Novo Projeto', color ?? '#6366F1', '', spaceId, folderId, 'circle')
     startRename({ kind:'project', id: p.id }, p.name)
   }
-  const WS_COLORS = ['#EF4444','#F59E0B','#10B981','#378ADD','#8B5CF6','#EC4899']
+  const WS_COLORS = ['#EF4444','#D89A18','#10B981','#378ADD','#8B5CF6','#EC4899']
   const saveWorkspace = () => {
     if (wsName.trim()) { addWorkspace(wsName.trim(), WS_COLORS[Math.floor(Math.random()*WS_COLORS.length)]); setWsName(''); setAddingWs(false) }
   }

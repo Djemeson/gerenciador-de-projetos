@@ -23,7 +23,7 @@ export const ICON_CATEGORIES: IconCategory[] = [
 
 // Cores predefinidas do seletor (mesma paleta usada em espaços/pastas/projetos).
 export const SWATCH_COLORS: string[] = [
-  '#EF4444','#F97316','#F59E0B','#EAB308','#22C55E','#10B981',
+  '#EF4444','#F97316','#D89A18','#EAB308','#22C55E','#10B981',
   '#14B8A6','#06B6D4','#378ADD','#6366F1','#8B5CF6','#EC4899',
 ]
 

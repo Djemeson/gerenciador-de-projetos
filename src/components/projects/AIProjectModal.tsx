@@ -256,7 +256,7 @@ export function AIProjectModal() {
             </div>
             <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
               {plan.tasks.map((t, i) => (
-                <TaskNode key={i} item={t} path={[i]} depth={0} onUpdate={updateTaskAt} onRemove={removeTaskAt}/>
+                <TaskNode key={`${i}-${t.title}`} item={t} path={[i]} depth={0} onUpdate={updateTaskAt} onRemove={removeTaskAt}/>
               ))}
             </div>
             <button type="button" onClick={handleGenerateMore} disabled={generatingMore}

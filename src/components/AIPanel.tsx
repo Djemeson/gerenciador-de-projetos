@@ -359,7 +359,7 @@ export function AIPanel() {
             )}
 
             {conv.messages.map((m, i) => (
-              <div key={i} className={`flex gap-2 ${m.role === 'user' ? 'justify-end' : ''}`}>
+              <div key={`${m.role}-${i}-${m.content.slice(0,12)}`} className={`flex gap-2 ${m.role === 'user' ? 'justify-end' : ''}`}>
                 {m.role === 'assistant' && <div className="w-6 h-6 rounded-full bg-brand-100 flex items-center justify-center flex-shrink-0"><Sparkles size={12} className="text-brand-600"/></div>}
                 <div className={`max-w-[85%] space-y-1.5 ${m.role === 'user' ? '' : 'flex-1 min-w-0'}`}>
                   {!!m.toolCalls?.length && (

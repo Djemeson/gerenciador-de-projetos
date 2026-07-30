@@ -10,7 +10,7 @@ import { useSettingsStore } from '../../stores/useSettingsStore'
 import type { Priority, TaskStatus, TaskOpenMode, ContentBlock } from '../../types'
 import { TYPE_ICON } from '../../lib/taskTypeIcons'
 import { Button } from '../ui'
-import { Select, PRIORITY_OPTIONS, STATUS_OPTIONS } from '../ui/Select'
+import { Select, PRIORITY_OPTIONS, STATUS_OPTIONS, STATUS_COLOR } from '../ui/Select'
 import { TagInput } from '../ui/TagInput'
 import { DueDatePicker } from '../ui/DueDatePicker'
 import { AssigneePicker } from '../ui/AssigneePicker'
@@ -250,7 +250,7 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
 
   if (!task) return null
 
-  const statusColorOf = (s: TaskStatus) => s==='done' ? '#1D9E75' : s==='in_progress' ? '#378ADD' : '#888780'
+  const statusColorOf = (s: TaskStatus) => STATUS_COLOR[s]
 
   const handleCreateChecklist = () => {
     const nextNum = task.checklists.length + 1

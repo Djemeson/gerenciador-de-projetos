@@ -47,7 +47,7 @@ const COLUMN_CATEGORIES: { label: string; types: TypeCard[] }[] = [
       { type:'dropdown', label:'Lista suspensa', desc:'Opções com cores personalizadas',  color:'#6366F1' },
       { type:'labels',   label:'Rótulos',        desc:'Seleção múltipla com cores',        color:'#EC4899' },
       { type:'checkbox', label:'Caixa',          desc:'Sim / Não, marcado / desmarcado',  color:'#10B981' },
-      { type:'date',     label:'Data',           desc:'Calendário com seletor',            color:'#F59E0B' },
+      { type:'date',     label:'Data',           desc:'Calendário com seletor',            color:'#D89A18' },
       { type:'rating',   label:'Avaliação',      desc:'Nota de 1 a 5 estrelas',             color:'#EAB308' },
     ],
   },

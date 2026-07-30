@@ -227,7 +227,7 @@ export function EnrichProjectModal() {
           </div>
           <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
             {suggestions.map((t, i) => (
-              <EnrichNode key={i} item={t} path={[i]} depth={0} onUpdate={updateAt} onRemove={removeAt}/>
+              <EnrichNode key={`${i}-${t.title}`} item={t} path={[i]} depth={0} onUpdate={updateAt} onRemove={removeAt}/>
             ))}
           </div>
           <button type="button" onClick={handleGenerateMore} disabled={generatingMore}
