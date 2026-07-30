@@ -116,7 +116,7 @@ export function GoalsView() {
         ) : (
           <>
             {/* ── Resumo ── o painel não dizia como o conjunto estava indo */}
-            <div className="bg-gradient-to-br from-[#F7F8FF] to-white border border-brand-100 rounded-xl px-5 py-4">
+            <div className="hero-card px-5 py-4">
               <p className="text-[10px] font-bold uppercase tracking-wider text-brand-600 mb-1.5">Como estão as metas</p>
               <p className="text-[14px] text-gray-800 leading-relaxed">
                 <strong className="font-extrabold">{resumo.avgProgress}%</strong> de progresso médio em{' '}

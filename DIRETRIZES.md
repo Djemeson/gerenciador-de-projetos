@@ -170,9 +170,9 @@ Regras:
   fino (48px) com logo + botão de **expandir** (`PanelLeftOpen`); estado salvo em
   `tf_sidebar_collapsed`. A `<aside>` usa `width` inline + `flex-shrink-0` (nunca
   cravar `w-52`).
-- **Tema claro/escuro só da sidebar**: botão sol/lua no rodapé alterna `tf_sidebar_theme`
-  (`dark`/`light`, padrão `dark`). É **cosmético e local à sidebar** — o resto do app
-  não tem dark mode; não propagar esse estado para outras telas.
+- **Tema claro/escuro é global** (atualizado 30/07/2026 — antes era só da sidebar): o
+  botão sol/lua no rodapé da sidebar alterna `tf_sidebar_theme` **e** aplica/remove a
+  classe `.dark` no `<html>`; o app inteiro tematiza a partir dela (ver seção 8.4).
 
 ### 3.1. Workspaces (multi-workspace)
 
@@ -581,6 +581,25 @@ Regras:
   salvar; escolha manual (chips/prioridade) sempre vence a detecção. Atenção de regex:
   `\b` não funciona após letra acentuada ("amanhã") — a borda final é lookahead
   `(?=[\s,.;:!?]|$)`.
+
+### 8.4. Modo escuro global (consolidado 30/07/2026)
+
+> O toggle da sidebar aplica `.dark` no `<html>`. A tematização é por **camadas no
+> `index.css`**, não por `dark:` espalhado nos componentes.
+
+- **O que flipa sozinho**: `gray-*` e `slate-*` (variáveis CSS no `tailwind.config.js`),
+  `bg-white` e as bordas/sombras (overrides `.dark .bg-white` etc. no `index.css`).
+- **Tintas semânticas** (`bg/border` de `brand/success/warning/danger/info` em 50/100 e
+  os textos 600/700): flipam pelo bloco **"Tintas semânticas no modo escuro"** do
+  `index.css` — fundo vira tinta escura da mesma cor, texto vira tom claro legível.
+  Ficam de fora de propósito: `bg-*-200`, `text-*-800` e os gradientes de avatar
+  (`from-brand-200 to-brand-400`), que pareiam com texto escuro nos dois temas.
+- **Card de destaque usa `.hero-card`** (utilitário com variante `.dark` própria) — o
+  gradiente `from-[#F7F8FF] to-white` cravado na mão foi o que deixou o briefing do dia
+  com **título branco sobre fundo branco** no escuro (bug de 30/07). Nunca recriar.
+- **Regra para tela nova**: cor clara cravada (`#F7F8FF`, `to-white`, tinta hex) só com
+  contrapartida `.dark` no `index.css`; alfa de branco/cinza (`bg-white/70` etc.) precisa
+  constar na lista de overrides de alfa. Na dúvida, teste com a classe `.dark` aplicada.
 
 ### 8.1. Densidade e escala da lista de tarefas (redesign 15/07/2026)
 

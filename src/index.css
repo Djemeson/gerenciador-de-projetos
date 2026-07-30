@@ -144,9 +144,54 @@
 
   .dark .bg-white\/50,
   .dark .bg-white\/60,
-  .dark .bg-gray-50\/50 {
+  .dark .bg-white\/70,
+  .dark .bg-white\/80,
+  .dark .bg-gray-50\/50,
+  .dark .bg-gray-50\/80 {
     background-color: rgba(22, 23, 30, 0.5) !important;
   }
+
+  /* ── Tintas semânticas no modo escuro ─────────────────────────────────────
+     brand/success/warning/danger/info são hex fixos no tailwind.config — as
+     tintas claras (bg *-50/*-100, bordas *-100) e os tons escuros de texto
+     (*-600/*-700) não flipam sozinhos como o `gray-*` (que é variável CSS).
+     Este bloco converte TODOS os usos de uma vez: fundo vira tinta escura da
+     mesma cor, texto vira tom claro legível. `bg-*-200`, `text-*-800` e os
+     gradientes de avatar ficam de fora de propósito (pareiam com texto escuro
+     e continuam claros nos dois temas). */
+
+  .dark .bg-brand-50, .dark .bg-brand-50\/20, .dark .bg-brand-50\/30,
+  .dark .bg-brand-50\/40, .dark .bg-brand-50\/50, .dark .bg-brand-50\/60,
+  .dark .bg-brand-50\/70, .dark .hover\:bg-brand-50:hover, .dark .hover\:bg-brand-100:hover {
+    background-color: rgba(99, 102, 241, 0.16) !important;
+  }
+  .dark .bg-brand-100, .dark .bg-brand-100\/80 { background-color: rgba(99, 102, 241, 0.26) !important; }
+  .dark .bg-success-50, .dark .bg-success-50\/40, .dark .hover\:bg-success-50:hover,
+  .dark .bg-success-100, .dark .bg-success-100\/60 { background-color: rgba(29, 158, 117, 0.16) !important; }
+  .dark .bg-warning-50, .dark .bg-warning-100 { background-color: rgba(216, 154, 24, 0.14) !important; }
+  .dark .bg-danger-50, .dark .bg-danger-50\/50, .dark .bg-danger-50\/70,
+  .dark .hover\:bg-danger-50:hover, .dark .bg-danger-100 { background-color: rgba(226, 75, 74, 0.16) !important; }
+  .dark .bg-info-50, .dark .bg-info-100 { background-color: rgba(55, 138, 221, 0.16) !important; }
+
+  .dark .border-brand-50, .dark .border-brand-100, .dark .border-brand-100\/40,
+  .dark .border-brand-100\/50, .dark .border-brand-100\/60, .dark .border-brand-100\/70,
+  .dark .border-brand-200 { border-color: rgba(99, 102, 241, 0.38) !important; }
+  .dark .border-success-50, .dark .border-success-100, .dark .border-success-100\/50,
+  .dark .border-success-100\/70 { border-color: rgba(29, 158, 117, 0.38) !important; }
+  .dark .border-warning-50, .dark .border-warning-100 { border-color: rgba(216, 154, 24, 0.38) !important; }
+  .dark .border-danger-50, .dark .border-danger-100, .dark .border-danger-100\/60 { border-color: rgba(226, 75, 74, 0.38) !important; }
+  .dark .border-info-100 { border-color: rgba(55, 138, 221, 0.38) !important; }
+
+  .dark .text-brand-600 { color: #A6ADFB !important; }
+  .dark .text-brand-700, .dark .hover\:text-brand-700:hover { color: #C7CCFE !important; }
+  .dark .text-success-600 { color: #3FBF92 !important; }
+  .dark .text-success-700 { color: #6ED7B5 !important; }
+  .dark .text-warning-600 { color: #E5B65C !important; }
+  .dark .text-warning-700 { color: #F0CC8A !important; }
+  .dark .text-danger-600, .dark .hover\:text-danger-600:hover { color: #F08483 !important; }
+  .dark .text-danger-700 { color: #F5A9A8 !important; }
+  .dark .text-info-600 { color: #6FAEE8 !important; }
+  .dark .text-info-700 { color: #9CC7F0 !important; }
 
   /* Rich text editor placeholder color */
   .dark .rich-text:empty::before,
@@ -230,6 +275,19 @@
   }
   .card-hover {
     @apply transition-all duration-150 hover:shadow-md hover:border-gray-300;
+  }
+
+  /* Card de destaque (resumo executivo, briefing do dia, "como estão as metas"):
+     gradiente índigo-claríssimo no tema claro, painel escuro tingido no escuro.
+     Fonte única — não recriar o gradiente `from-[#F7F8FF] to-white` na mão. */
+  .hero-card {
+    background: linear-gradient(135deg, #F7F8FF, #FFFFFF);
+    border: 1px solid #E0E4FF; /* brand-100 */
+    border-radius: 14px;
+  }
+  .dark .hero-card {
+    background: linear-gradient(135deg, #171927, var(--white));
+    border-color: rgba(99, 102, 241, 0.32);
   }
 
   /* Divisor em hairline (1px real, não some em telas retina) */

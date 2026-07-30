@@ -138,7 +138,7 @@ export function ProjectsListView() {
         ) : (
           <>
             {/* ── Resumo ── */}
-            <div className="bg-gradient-to-br from-[#F7F8FF] to-white border border-brand-100 rounded-xl px-5 py-4">
+            <div className="hero-card px-5 py-4">
               <p className="text-[10px] font-bold uppercase tracking-wider text-brand-600 mb-1.5">Panorama dos projetos</p>
               <p className="text-[14px] text-gray-800 leading-relaxed">
                 <strong className="font-extrabold">{resumo.total}</strong> {resumo.total === 1 ? 'projeto ativo' : 'projetos ativos'} com{' '}

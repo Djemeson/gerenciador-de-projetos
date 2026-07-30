@@ -58,7 +58,7 @@ export function DailyBriefingCard({ tasks }: { tasks: Task[] }) {
   if (input.goalsAtRisk.length) chips.push({ icon: Target,        label: `${input.goalsAtRisk.length} meta${input.goalsAtRisk.length > 1 ? 's' : ''} em risco`, tone: 'bg-warning-50 text-warning-700 border-warning-100' })
 
   return (
-    <div className="mx-6 mt-4 bg-gradient-to-br from-[#F7F8FF] to-white border border-brand-100 rounded-xl px-5 py-3.5 flex-shrink-0">
+    <div className="mx-6 mt-4 hero-card px-5 py-3.5 flex-shrink-0">
       <div className="flex items-center gap-2.5 flex-wrap">
         <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-brand-500 to-brand-600 text-white flex items-center justify-center flex-shrink-0 shadow-sm shadow-brand-600/30">
           <Sunrise size={14}/>
@@ -75,7 +75,7 @@ export function DailyBriefingCard({ tasks }: { tasks: Task[] }) {
           </button>
         )}
         <button onClick={dispensar} title="Dispensar por hoje" aria-label="Dispensar por hoje"
-          className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-white/70 transition-colors flex-shrink-0">
+          className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors flex-shrink-0">
           <X size={14}/>
         </button>
       </div>

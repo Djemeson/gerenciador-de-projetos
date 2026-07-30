@@ -259,7 +259,7 @@ export function ReportsView() {
       <div className="flex-1 overflow-y-auto p-5 space-y-5 print:p-0 print:overflow-visible">
 
         {/* ── Resumo executivo ── */}
-        <div className="bg-gradient-to-br from-[#F7F8FF] to-white border border-brand-100 rounded-xl px-5 py-4 print:break-inside-avoid">
+        <div className="hero-card px-5 py-4 print:break-inside-avoid">
           <p className="text-[10px] font-bold uppercase tracking-wider text-brand-600 mb-1.5">Resumo do período</p>
           <p className="text-[14px] text-gray-800 leading-relaxed">
             <strong className="font-extrabold">{doneNow.length}</strong> tarefas concluídas
