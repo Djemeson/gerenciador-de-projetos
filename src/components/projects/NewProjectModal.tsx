@@ -45,8 +45,12 @@ export function NewProjectModal() {
     handleClose()
   }
 
+  const HeaderIcon = (icon && getIconComponent(icon)) || undefined
+
   return (
-    <Modal open={newProjectModal} onClose={handleClose} title="Novo projeto">
+    <Modal open={newProjectModal} onClose={handleClose} title="Novo projeto"
+      icon={HeaderIcon} accent={color}
+      subtitle="Uma lista de tarefas com identidade própria — ícone, cor e lugar na hierarquia.">
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Identidade: ícone + nome, em um cartão único */}
         <div className="flex gap-2.5 items-center p-2.5 bg-gray-50 border border-gray-100 rounded-xl relative">

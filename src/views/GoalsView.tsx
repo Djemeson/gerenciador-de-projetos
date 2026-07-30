@@ -374,7 +374,15 @@ function GoalEditor({ goal, projects, tags, onClose, onSave }: {
   }
 
   return (
-    <Modal open onClose={onClose} title={goal ? 'Editar meta' : 'Nova meta'} width="max-w-lg">
+    <Modal open onClose={onClose} title={goal ? 'Editar meta' : 'Nova meta'} width="max-w-lg"
+      icon={Target} accent={color}
+      subtitle="O resultado que você quer alcançar — com medidas que atualizam o progresso sozinhas."
+      footer={
+        <div className="flex gap-2">
+          <Button variant="default" onClick={onClose} className="flex-1">Cancelar</Button>
+          <Button variant="primary" onClick={save} className="flex-1" disabled={!name.trim()}>{goal ? 'Salvar' : 'Criar meta'}</Button>
+        </div>
+      }>
       <div className="space-y-4">
         <input autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="O que você quer alcançar?"
           className="w-full text-[13px] px-3 py-2.5 border border-gray-200 rounded-xl outline-none focus:ring-1 focus:ring-brand-400"/>
@@ -447,11 +455,11 @@ function GoalEditor({ goal, projects, tags, onClose, onSave }: {
                       <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Alvo</label>
                       <input type="number" value={t.target} onChange={e => updTarget(t.id, { target: Number(e.target.value) })}
                         className="w-20 text-[12px] px-2 py-1 border border-gray-200 rounded-lg outline-none tabnum bg-white"/>
-                      <span className="text-[10.5px] text-gray-500">tarefas concluídas</span>
+                      <span className="text-[11px] text-gray-500">tarefas concluídas</span>
                     </div>
                   </div>
                 ) : t.type === 'boolean' ? (
-                  <p className="text-[10.5px] text-gray-500">Marcada como feita ou não feita, direto no card.</p>
+                  <p className="text-[11px] text-gray-500">Marcada como feita ou não feita, direto no card.</p>
                 ) : (
                   <div className="grid grid-cols-3 gap-2">
                     {(['start','current','target'] as const).map(campo => (
@@ -470,15 +478,10 @@ function GoalEditor({ goal, projects, tags, onClose, onSave }: {
           </div>
         </div>
 
-        <p className="text-[10.5px] text-gray-500 leading-relaxed">
+        <p className="text-[11px] text-gray-500 leading-relaxed">
           O andamento (no caminho, em risco, atrasada) é calculado a partir do progresso e
           do prazo — não precisa manter à mão.
         </p>
-
-        <div className="flex gap-2 pt-1">
-          <Button variant="default" onClick={onClose} className="flex-1">Cancelar</Button>
-          <Button variant="primary" onClick={save} className="flex-1" disabled={!name.trim()}>{goal ? 'Salvar' : 'Criar meta'}</Button>
-        </div>
       </div>
     </Modal>
   )

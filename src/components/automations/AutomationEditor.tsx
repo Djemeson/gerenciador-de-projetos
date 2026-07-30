@@ -25,6 +25,15 @@ export function AutomationEditor({ draft, onClose }: { draft: EditorDraft | null
 
   const [form, setForm] = useState<EditorDraft | null>(draft)
   useEffect(() => setForm(draft), [draft])
+
+  // Esc fecha o editor, como nos demais modais.
+  useEffect(() => {
+    if (!draft) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [draft, onClose])
+
   if (!form) return null
 
   const setTrigger = (patch: Partial<AutomationTrigger>) => setForm(f => f && ({ ...f, trigger: { ...f.trigger, ...patch } }))
@@ -45,15 +54,21 @@ export function AutomationEditor({ draft, onClose }: { draft: EditorDraft | null
   : []
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm animate-overlay-in p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-[560px] max-w-full max-h-[88vh] flex flex-col overflow-hidden animate-scale-in"
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/30 backdrop-blur-[3px] animate-overlay-in p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl border border-gray-200/80 w-[560px] max-w-full max-h-[90vh] flex flex-col overflow-hidden animate-scale-in"
            onClick={e => e.stopPropagation()}>
-        <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2.5">
-          <Zap size={16} className="text-brand-500" />
-          <h2 className="text-[14px] font-extrabold tracking-tight text-gray-900 flex-1">
-            {form.id ? 'Editar automação' : 'Nova automação'}
-          </h2>
-          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100">
+        <div className="px-5 pt-5 pb-4 border-b border-gray-100 flex items-start gap-3">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 text-white flex items-center justify-center flex-shrink-0 shadow-sm shadow-brand-600/30">
+            <Zap size={16}/>
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-sm font-bold tracking-tight text-gray-900">
+              {form.id ? 'Editar automação' : 'Nova automação'}
+            </h2>
+            <p className="text-[11px] text-gray-400 mt-0.5">Quando algo acontecer, o app age sozinho — a frase final mostra a regra em português.</p>
+          </div>
+          <button onClick={onClose} aria-label="Fechar"
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors flex-shrink-0">
             <X size={14} />
           </button>
         </div>

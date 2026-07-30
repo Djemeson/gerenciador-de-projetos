@@ -151,18 +151,9 @@ export function ColumnsModal() {
   const typeCardOf = (t: ColumnType) => COLUMN_TYPES.find(c => c.type === t) ?? AI_COLUMN_TYPES.find(c => c.type === t)
 
   return (
-    <Modal open={!!columnsModal} onClose={() => { reset(); closeColumnsModal() }} title="" width="max-w-lg">
-      {/* Cabeçalho */}
-      <div className="flex items-center gap-2.5 mb-4">
-        <div className="w-9 h-9 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center flex-shrink-0">
-          <SlidersHorizontal size={16}/>
-        </div>
-        <div className="min-w-0">
-          <h2 className="text-sm font-bold text-gray-900">Campos personalizados</h2>
-          <p className="text-[11px] text-gray-400">Crie novos campos ou reative campos já existentes nesta lista.</p>
-        </div>
-      </div>
-
+    <Modal open={!!columnsModal} onClose={() => { reset(); closeColumnsModal() }} width="max-w-lg"
+      title="Campos personalizados" icon={SlidersHorizontal}
+      subtitle="Crie novos campos ou reative campos já existentes nesta lista.">
       {/* Abas */}
       <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5 mb-4">
         <button onClick={() => setTab('create')}
@@ -175,7 +166,7 @@ export function ColumnsModal() {
         </button>
       </div>
 
-      <div className="max-h-[65vh] overflow-y-auto pr-1">
+      <div>
         {tab === 'create' ? (
           step === 'pick' ? (
             /* ── Passo 1: escolher tipo ────────────────────────────────── */

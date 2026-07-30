@@ -28,7 +28,15 @@ export function GUTModal() {
   }
 
   return (
-    <Modal open={gutModal.open} onClose={closeGUT} title={`Matriz GUT — ${project.name}`} width="max-w-sm">
+    <Modal open={gutModal.open} onClose={closeGUT} title="Matriz GUT" width="max-w-sm"
+      icon={Target} accent={tier.color}
+      subtitle={`${project.name} — Gravidade × Urgência × Tendência`}
+      footer={
+        <div className="flex gap-2">
+          <Button variant="default" onClick={closeGUT} className="flex-1">Cancelar</Button>
+          <Button variant="primary" onClick={handleSave} className="flex-1">Salvar</Button>
+        </div>
+      }>
       <div className="space-y-3">
         {/* Score display (Hero Card) */}
         <div className="flex items-center gap-2.5 p-2.5 rounded-lg border transition-colors duration-300"
@@ -81,11 +89,6 @@ export function GUTModal() {
           <p className="text-[10px] text-gray-500 leading-relaxed">
             1 a 125 — quanto maior, mais prioritário. <span className="text-gray-400">≥80 crítico · 40–79 alto · 15–39 médio · &lt;15 baixo.</span>
           </p>
-        </div>
-
-        <div className="flex gap-2">
-          <Button variant="default" onClick={closeGUT} className="flex-1">Cancelar</Button>
-          <Button variant="primary" onClick={handleSave} className="flex-1">Salvar</Button>
         </div>
       </div>
     </Modal>

@@ -549,6 +549,31 @@ Regras:
 - **Cabeçalho de colunas não usa ícones** em nenhum dos dois modos (o dinâmico nunca teve,
   e a caixa de entrada tinha — a mesma coluna "Prazo" mudava de cara entre telas).
 
+### 8.3. Padrão único de modal (redesign 30/07/2026)
+
+> Depois do redesign do "Nova visualização", o mesmo acabamento comercial foi aplicado a
+> **todos** os modais do app. A fonte única do shell é `components/ui/Modal.tsx`.
+
+- **Todo modal novo usa o `Modal`** (`open/onClose/title` + `icon` lucide, `accent`,
+  `subtitle`, `footer`): cabeçalho com **caixa de ícone em degradê** gerado da cor
+  `accent` (padrão índigo), subtítulo de apoio, corpo rolável (`max-h-[90vh]`) e
+  **rodapé fixo** para os botões de ação (prop `footer`, fora da área de scroll).
+  Esc e clique-fora fecham (o shell cuida disso). Modais de IA passam
+  `iconClassName="ai-gradient-bg"` no lugar do degradê da cor.
+- **Overlay padronizado**: `bg-gray-900/30 backdrop-blur-[3px] animate-overlay-in` +
+  container `rounded-2xl border border-gray-200/80 shadow-2xl animate-scale-in`.
+  Os poucos overlays fora do shell (`NewViewModal`, `QuickCapture`,
+  `AutomationEditor`, `TaskListModal`) replicam exatamente esses tokens — e fecham
+  com Esc. Exceção consciente: os overlays de tela cheia do `TaskDetail`
+  (escurecimento mais forte, proposital).
+- O `accent` pode ser **vivo**: `NewProjectModal` passa a cor/ícone escolhidos do
+  projeto; `GUTModal` passa a cor do tier atual; `GoalEditor` a cor da meta.
+- **QuickCapture** usa `PRIORITY_OPTIONS` (fonte única) — a paleta própria que existia
+  ali mostrava cores erradas, e a prioridade escolhida **não era aplicada** à tarefa
+  (bug corrigido em 30/07/2026: prioridade e prazo rápido agora entram via
+  `updateTask` após o `quickAddTask`).
+- `NewTaskModal.tsx` (morto desde o `QuickAddRow`) foi removido.
+
 ### 8.1. Densidade e escala da lista de tarefas (redesign 15/07/2026)
 
 > A partir do redesign de "Todas as tarefas" (importado de protótipo Claude Design), a

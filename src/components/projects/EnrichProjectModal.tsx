@@ -155,20 +155,12 @@ export function EnrichProjectModal() {
   const totalNew = countTaskTree(suggestions)
 
   return (
-    <Modal open={!!enrichProjectModal} onClose={handleClose} title="" width="max-w-xl">
+    <Modal open={!!enrichProjectModal} onClose={handleClose} width="max-w-xl"
+      title="Enriquecer com IA" icon={Wand2} iconClassName="ai-gradient-bg"
+      subtitle={`Sugere mais tarefas, subtarefas e marcos para "${project.name}".`}>
       {/* Sem chave neste dispositivo a geração cai no modo simplificado — dizer isso antes
           de o usuário pedir evita a impressão de que a IA falhou. */}
       <div className="mb-3"><AiKeyNotice compact/></div>
-
-      <div className="flex items-center gap-2.5 mb-4">
-        <div className="w-9 h-9 rounded-lg ai-gradient-bg text-white flex items-center justify-center flex-shrink-0">
-          <Wand2 size={16}/>
-        </div>
-        <div className="min-w-0">
-          <h2 className="text-sm font-bold text-gray-900">Enriquecer com IA</h2>
-          <p className="text-[11px] text-gray-400 truncate">Sugere mais tarefas, subtarefas e marcos para "{project.name}".</p>
-        </div>
-      </div>
 
       {step === 'input' && (
         <div className="space-y-4">

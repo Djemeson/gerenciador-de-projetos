@@ -3,7 +3,7 @@ import { Modal } from './ui/Modal'
 import { useSettingsStore } from '../stores/useSettingsStore'
 import { useAppStore } from '../stores/useAppStore'
 import { useAuthStore } from '../stores/useAuthStore'
-import { RefreshCw, Check, AlertCircle, Wifi, LogOut, Sparkles, Eye, EyeOff, User as UserIcon, Smartphone } from 'lucide-react'
+import { RefreshCw, Check, AlertCircle, Wifi, LogOut, Sparkles, Eye, EyeOff, User as UserIcon, Smartphone, Settings } from 'lucide-react'
 import { InstallAppCard } from './InstallAppCard'
 
 export function SettingsModal() {
@@ -37,8 +37,10 @@ export function SettingsModal() {
   }
 
   return (
-    <Modal open={settingsOpen} onClose={closeSettings} title="Configurações">
-      <div className="space-y-6 max-h-[80vh] overflow-y-auto pr-1">
+    <Modal open={settingsOpen} onClose={closeSettings} title="Configurações"
+      icon={Settings}
+      subtitle="Aplicativo, atalhos, IA e a conta que sincroniza tudo.">
+      <div className="space-y-6">
 
         {/* Aplicativo */}
         <div className="border-b border-gray-100 pb-5">

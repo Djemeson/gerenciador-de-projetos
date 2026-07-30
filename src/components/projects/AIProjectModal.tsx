@@ -152,21 +152,12 @@ export function AIProjectModal() {
   const totalTasks = plan ? countTaskTree(plan.tasks) : 0
 
   return (
-    <Modal open={aiProjectModal} onClose={handleClose} title="" width="max-w-xl">
+    <Modal open={aiProjectModal} onClose={handleClose} width="max-w-xl"
+      title="Criar projeto com IA" icon={Wand2} iconClassName="ai-gradient-bg"
+      subtitle="Dê o contexto por texto ou voz — a IA sugere o projeto, as tarefas e subtarefas.">
       {/* Sem chave neste dispositivo a geração cai no modo simplificado — dizer
           isso antes de o usuário pedir evita a impressão de que a IA falhou. */}
       <div className="mb-3"><AiKeyNotice compact/></div>
-
-      {/* Header */}
-      <div className="flex items-center gap-2.5 mb-4">
-        <div className="w-9 h-9 rounded-lg ai-gradient-bg text-white flex items-center justify-center flex-shrink-0">
-          <Wand2 size={16}/>
-        </div>
-        <div>
-          <h2 className="text-sm font-bold text-gray-900">Criar projeto com IA</h2>
-          <p className="text-[11px] text-gray-400">Dê o contexto por texto ou voz — a IA sugere o projeto, as tarefas e subtarefas.</p>
-        </div>
-      </div>
 
       {step === 'input' && (
         <div className="space-y-4">

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { X, Download } from 'lucide-react'
 import type { Task, Project } from '../../types'
 import { PRIORITY_LABEL, STATUS_LABEL } from '../../types'
@@ -22,6 +22,15 @@ export function TaskListModal({ open, title, subtitle, tasks, projects, onClose 
 }) {
   const setView         = useAppStore(s => s.setView)
   const setSelectedTask = useAppStore(s => s.setSelectedTask)
+
+  // Esc fecha, como nos demais modais.
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open, onClose])
+
   if (!open) return null
 
   // `setView` zera a seleção, então a ordem importa: navega para o projeto e só depois
@@ -47,15 +56,15 @@ export function TaskListModal({ open, title, subtitle, tasks, projects, onClose 
   )
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm animate-overlay-in" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-[620px] max-w-[92vw] max-h-[80vh] flex flex-col overflow-hidden animate-scale-in"
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/30 backdrop-blur-[3px] animate-overlay-in p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl border border-gray-200/80 w-[620px] max-w-[92vw] max-h-[80vh] flex flex-col overflow-hidden animate-scale-in"
            onClick={e => e.stopPropagation()}>
         <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2">
           <div className="flex-1 min-w-0">
             <h2 className="text-[14px] font-extrabold tracking-tight text-gray-900 truncate">{title}</h2>
             {subtitle && <p className="text-[11px] text-gray-400 truncate">{subtitle}</p>}
           </div>
-          <span className="text-[11px] font-bold text-gray-500 tabnum flex-shrink-0">{tasks.length}</span>
+          <span className="text-[11px] font-bold text-brand-700 bg-brand-50 px-2 py-0.5 rounded-full tabnum flex-shrink-0">{tasks.length}</span>
           {tasks.length > 0 && (
             <button onClick={exportar} title="Exportar esta lista"
               className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
