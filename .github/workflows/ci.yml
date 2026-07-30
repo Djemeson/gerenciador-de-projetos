@@ -1,0 +1,36 @@
+# Verificação automática de cada push e pull request.
+#
+# Existe porque o projeto não tinha nenhuma: `lint` e `build` só rodavam quando alguém
+# lembrava, e a Vercel só reclama quando o build quebra — depois de já estar publicado.
+# Aqui a checagem acontece antes, e o resultado aparece no commit.
+name: Verificação
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Checagem de tipos
+        run: npm run lint
+
+      - name: Testes
+        run: npm run test
+
+      # O build roda sem `.env`: o app cai no modo local (sem login), que é o esperado
+      # nesse ambiente. Serve para pegar erro de compilação, não para validar o Firebase.
+      - name: Build
+        run: npm run build
