@@ -3,7 +3,8 @@ import { Modal } from './ui/Modal'
 import { useSettingsStore } from '../stores/useSettingsStore'
 import { useAppStore } from '../stores/useAppStore'
 import { useAuthStore } from '../stores/useAuthStore'
-import { RefreshCw, Check, AlertCircle, Wifi, LogOut, Sparkles, Eye, EyeOff, User as UserIcon } from 'lucide-react'
+import { RefreshCw, Check, AlertCircle, Wifi, LogOut, Sparkles, Eye, EyeOff, User as UserIcon, Smartphone } from 'lucide-react'
+import { InstallAppCard } from './InstallAppCard'
 
 export function SettingsModal() {
   const { settingsOpen, closeSettings, quickCaptureHotkey, updateSetting, openAIKey, geminiApiKey } = useSettingsStore()
@@ -38,7 +39,19 @@ export function SettingsModal() {
   return (
     <Modal open={settingsOpen} onClose={closeSettings} title="Configurações">
       <div className="space-y-6 max-h-[80vh] overflow-y-auto pr-1">
-        
+
+        {/* Aplicativo */}
+        <div className="border-b border-gray-100 pb-5">
+          <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <Smartphone size={12} className="text-brand-500"/> Aplicativo
+          </label>
+          <p className="text-[11px] text-gray-400 mb-3">
+            Instalado, o app abre direto do ícone e continua funcionando sem internet — com os
+            dados já baixados neste dispositivo.
+          </p>
+          <InstallAppCard />
+        </div>
+
         {/* Hotkey Config */}
         <div className="border-b border-gray-100 pb-5">
           <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Atalho — Captura rápida</label>
@@ -80,7 +93,8 @@ export function SettingsModal() {
             <Sparkles size={12} className="text-brand-500"/> Inteligência Artificial
           </label>
           <p className="text-[11px] text-gray-400 mb-3">
-            Chaves usadas por "Pergunte à IA", os Insights de tarefas e a criação de projetos por IA. Ficam salvas somente neste navegador.
+            Chaves usadas por "Pergunte à IA" e pela criação de projetos por IA. Salvas aqui,
+            valem também no celular — elas sincronizam junto com o resto da sua conta.
           </p>
 
           <div className="space-y-3">

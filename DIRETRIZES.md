@@ -1147,6 +1147,62 @@ tarefa (corrige o bug do "trecho até dar Enter"). Não recriar um textarea/tipt
 - **IA (`/api/insights`)**: lógica compartilhada em `api/_lib/insights.ts`, usada tanto pelo
   `server.ts` (dev local, Express) quanto por `api/insights.ts` (função serverless da Vercel
   em produção) — não duplicar essa lógica entre os dois.
+  > ⚠️ **Auditoria de 30/07/2026**: nenhum arquivo em `src/` chama esse endpoint — os
+  > recursos de IA usam as chaves do navegador. Ele está público (sem checagem de
+  > autenticação) e sem uso. Enquanto não for removido ou protegido, **não** colocar
+  > `GEMINI_API_KEY` nas variáveis de ambiente da Vercel: qualquer pessoa na internet pode
+  > invocá-lo e a conta é sua.
+
+---
+
+## 15.1. Configuração sincronizada (chaves de IA e atalho)
+
+**Mudança de decisão em 30/07/2026.** Antes, as chaves de API ficavam propositalmente só no
+navegador e não subiam para a nuvem. Na prática isso significava configurar de novo em cada
+aparelho, e o celular caía no modo simplificado sem motivo aparente. A decisão foi revista:
+o documento é lido apenas pelo dono do `uid` (regra do Firestore, seção 15), então guardar a
+chave ali não amplia o acesso de forma relevante.
+
+- `tf_settings` (chave OpenAI, chave Gemini, atalho da captura rápida) entra no payload do
+  `pushToCloud` sob a chave `settings` e é aplicado no `applyRemoteSnapshot`.
+- `useSettingsStore` **não importa** `useAppStore` — este é que injeta o gatilho via
+  `registrarObservadorDeSettings`. O import direto fecharia um ciclo de módulos.
+- **Valor vazio vindo da nuvem não apaga o valor local** (`lib/settingsMerge.ts`, com teste).
+  Sem essa regra, um aparelho ainda sem chave que sincronizasse antes de receber zerava a
+  chave do outro. O preço aceito: limpar uma chave de propósito precisa ser feito em cada
+  aparelho.
+- Continuam **locais** (são preferências do dispositivo, não do trabalho): tema, largura de
+  painéis e recolhimento da sidebar.
+- Qualquer texto da interface que afirme "fica só neste navegador" está desatualizado —
+  `SettingsModal` e `AiKeyNotice` foram reescritos junto com a mudança.
+
+---
+
+## 15.2. App instalável (PWA)
+
+- **Arquivos**: `public/manifest.webmanifest`, `public/sw.js`, ícones `icon-192`,
+  `icon-512`, `icon-maskable-512`, `apple-touch-icon` e `favicon.svg` (este último era
+  referenciado pelo `index.html` e **não existia**). Os PNGs são gerados por código, sem
+  dependência nova — se precisar refazê-los, o script está no histórico desta entrega.
+- **Três regras do service worker**, cada uma evitando um desastre conhecido:
+  1. **Navegação é rede primeiro.** HTML servido do cache prende uma versão velha no
+     telefone para sempre, e ela aponta para `/assets/<hash>.js` que já não existe — tela
+     branca. O cache do HTML só entra quando a rede falha.
+  2. **Só GET do mesmo domínio.** Firestore, login do Google e as APIs de IA passam sem
+     interceptação; cachear POST ou streaming quebra a sincronização de formas difíceis de
+     diagnosticar.
+  3. **`/assets/*` é cache primeiro** — o Vite põe hash no nome, o conteúdo nunca muda.
+- **Registro só em produção** (`import.meta.env.PROD`): em desenvolvimento o service worker
+  briga com o recarregamento a quente do Vite e serve módulo velho, o que parece bug do
+  código.
+- **`theme-color` acompanha o tema** via `MutationObserver` na classe do `<html>`
+  (`lib/pwa.ts`). Instalado, o app não tem barra do navegador — sem isso fica uma faixa
+  clara em cima do app escuro.
+- **iOS não lê o manifesto**: nome, ícone e barra de status vêm das metas `apple-*` no
+  `index.html`, e a instalação é manual (Compartilhar → Adicionar à Tela de Início). O
+  `InstallAppCard` detecta e ensina o caminho, em vez de mostrar um botão que não funciona.
+- **Sem atalhos (`shortcuts`) no manifesto**: eles exigem URLs próprias, e o app não tem
+  rotas — todos cairiam na mesma tela. Isso volta à mesa quando houver roteamento.
 
 ---
 

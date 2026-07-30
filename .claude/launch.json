@@ -7,6 +7,12 @@
       "runtimeArgs": ["/c", "set PATH=C:\\Program Files\\nodejs;%PATH% && npm run dev"],
       "port": 3000,
       "autoPort": true
+    },
+    {
+      "name": "gerenciador-de-projetos-prod",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "set PATH=C:\\Program Files\\nodejs;%PATH% && npm run preview -- --port 4173"],
+      "port": 4173
     }
   ]
 }

@@ -19,7 +19,7 @@ import { matchesTrigger } from '../lib/automationEngine'
 import { useNotificationStore } from './useNotificationStore'
 import { matchesDateFilter } from '../lib/dateFilter'
 import { generateCompletionSummary } from '../lib/aiSummary'
-import { useSettingsStore } from './useSettingsStore'
+import { useSettingsStore, lerSettings, registrarObservadorDeSettings } from './useSettingsStore'
 
 const SPACES_KEY      = 'tf_spaces'
 const FOLDERS_KEY     = 'tf_folders'
@@ -308,6 +308,9 @@ async function applyRemoteSnapshot(set: (partial: any) => void, get: () => AppSt
     if (data.automationRuns) localStorage.setItem(AUTOMATION_RUNS_KEY, JSON.stringify(data.automationRuns));
     if (data.inboxColumns) localStorage.setItem(INBOX_COLS_KEY, JSON.stringify(data.inboxColumns));
     if (data.customViewsByScope) localStorage.setItem(CUSTOM_VIEWS_KEY, JSON.stringify(data.customViewsByScope));
+    // Documento antigo (gravado antes de a configuração sincronizar) não tem `settings` —
+    // nesse caso o aparelho mantém a sua e o próximo push é que semeia a nuvem.
+    if (data.settings) useSettingsStore.getState().aplicarSettingsRemotas(data.settings);
 
     set({
       projects: projects.length ? projects : get().projects,
@@ -357,6 +360,9 @@ async function migrateLegacySyncCode(set: (partial: any) => void, get: () => App
     return false
   }
 }
+
+// Mudou a configuração (chave de IA, atalho) → entra na mesma fila de push das tarefas.
+registrarObservadorDeSettings(triggerSyncPush)
 
 function pProjects(p: Project[], t: Task[]) {
   localProjects.set(p as any); 
@@ -1088,6 +1094,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         automationRuns: get().automationRuns,
         inboxColumns: get().inboxColumns,
         customViewsByScope: get().customViewsByScope,
+        // Chaves de IA e atalho viajam junto (ver DIRETRIZES, seção 13.8). Ficam sob o uid
+        // do dono, que é o único a ler o documento pelas regras do Firestore.
+        settings: lerSettings(),
         updatedAt: Date.now(),
       };
       await setDoc(doc(db, 'syncGroups', uid), stateToSync);
