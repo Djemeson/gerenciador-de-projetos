@@ -291,10 +291,10 @@ function TaskNode({ item, path, depth, onUpdate, onRemove }: {
   return (
     <div className={depth === 0 ? `p-2.5 rounded-xl border ${isMilestone ? 'bg-brand-50/50 border-brand-200' : 'bg-gray-50 border-gray-100'}` : 'mt-1.5 pl-3 border-l border-gray-200'}>
       <div className="flex items-center gap-1.5">
-        <Icon size={depth === 0 ? 13 : 11} style={{ color: isMilestone ? '#4F46E5' : TYPE_ICON_COLOR }} className="flex-shrink-0"/>
+        <Icon size={depth === 0 ? 14 : 12} style={{ color: isMilestone ? '#4F46E5' : TYPE_ICON_COLOR }} className="flex-shrink-0"/>
         <input value={item.title} onChange={e => onUpdate(path, { title: e.target.value })}
           className={`flex-1 min-w-0 bg-transparent outline-none ${depth === 0 ? 'text-xs font-semibold text-gray-800' : 'text-[11px] text-gray-600'}`}/>
-        <button onClick={() => onRemove(path)} className="text-gray-300 hover:text-danger-500 transition-colors flex-shrink-0"><X size={depth === 0 ? 13 : 11}/></button>
+        <button onClick={() => onRemove(path)} className="text-gray-300 hover:text-danger-500 transition-colors flex-shrink-0"><X size={depth === 0 ? 14 : 12}/></button>
       </div>
       {(item.subtasks ?? []).length > 0 && (
         <div className="space-y-1">

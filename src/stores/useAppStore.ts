@@ -222,6 +222,8 @@ interface AppState {
   addGoal:      (g: Omit<Goal,'id'|'workspaceId'|'createdAt'|'updatedAt'>) => Goal
   updateGoal:   (id: string, patch: Partial<Goal>) => void
   deleteGoal:   (id: string) => void
+  /** Atualiza um alvo direto do card — o gesto mais frequente exigia abrir o editor todo. */
+  updateGoalTarget: (goalId: string, targetId: string, patch: Partial<GoalTarget>) => void
 
   getAllTags:   () => string[]
   getAllAssignees: () => string[]
@@ -996,6 +998,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   updateGoal: (id, patch) => {
     const goals = get().goals.map(g => g.id===id ? {...g,...patch,updatedAt:new Date().toISOString()} : g)
+    saveJSON(GOALS_KEY, goals); set({ goals })
+  },
+  updateGoalTarget: (goalId, targetId, patch) => {
+    const agora = new Date().toISOString()
+    const goals = get().goals.map(g => g.id!==goalId ? g : {
+      ...g,
+      targets: g.targets.map(t => t.id===targetId ? { ...t, ...patch, updatedAt: agora } : t),
+      updatedAt: agora,
+    })
     saveJSON(GOALS_KEY, goals); set({ goals })
   },
   deleteGoal: (id) => {

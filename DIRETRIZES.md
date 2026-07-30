@@ -844,6 +844,37 @@ Regras:
 
 ---
 
+## 13.6. Metas (reformuladas em 29/07/2026)
+
+> O problema não era visual: **o status era um campo escolhido à mão que nunca se
+> atualizava**. Meta com prazo vencido e 20% de progresso seguia exibindo "No caminho" até
+> alguém lembrar de editar — pior que não ter status, porque parecia medido. Não voltar a
+> tratar `status` como entrada do usuário.
+
+- **Status é derivado** (`lib/goalMetrics.ts` → `goalHealth`): compara progresso com o
+  percentual do prazo já decorrido (folga de 10 pontos para "no caminho", 25 para "em
+  risco"; prazo vencido = atrasada). Só `status === 'done'` é respeitado como decisão do
+  usuário — o editor não tem mais seletor de status, tem "Marcar como concluída" no menu.
+- **O card mostra o motivo**, não só a cor: "75% feito, mas 88% do prazo já passou". Cor
+  sem explicação obriga o usuário a confiar sem entender.
+- **Alvo do tipo `tasks`** conta as **tarefas concluídas** de um projeto/etiqueta
+  (`targetCurrent`): progresso que se atualiza sozinho, fechando o ciclo trabalho → meta —
+  o mesmo princípio da nota que vira tarefa (seção 13.5). Alvo automático não é editável no
+  card, e o ícone `ListChecks` sinaliza isso.
+- **Atualizar valor acontece no card** (`updateGoalTarget`), clicando no número. Era o
+  gesto mais frequente e o mais caro: abrir modal, achar o alvo, salvar.
+- **Meta parada** é sinalizada a partir de `GOAL_IDLE_DAYS` (21) sem alteração na meta nem
+  nos alvos — `GoalTarget.updatedAt` existe para isso.
+- **Resumo no topo** com progresso médio, quantas precisam de atenção e quantas estão
+  paradas; **ordenação** por risco (padrão), prazo, progresso ou nome.
+- **O relatório usa o mesmo `goalHealth`** — as duas telas não podem divergir. A função
+  `goalProgress` de `types` está **deprecada** (não resolve alvos `tasks`).
+- **Cores vêm de `PROJECT_COLORS`**; a lista antiga tinha paleta própria (`#22C55E`,
+  `#F59E0B`, `#06B6D4`) fora do sistema. Prazo usa o `DueDatePicker`, não `input[type=date]`
+  (seção 4.3). Ações no menu `⋯`, como no resto do app.
+
+---
+
 ## 13.5. Bloco de notas (reformulado em 29/07/2026)
 
 > A versão anterior era um Notepad embutido: as notas ficavam soltas no `localStorage`

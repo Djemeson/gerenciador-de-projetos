@@ -18,7 +18,7 @@ export const DEFAULT_WORKSPACE_ID = 'default'
 // ── Metas / Objetivos (OKR-like) ────────────────────────────────────────────
 // Uma Meta agrupa alvos mensuráveis (targets). O progresso da meta é a média do
 // progresso de seus alvos (ou manual, se não houver alvos).
-export type GoalTargetType = 'number' | 'currency' | 'percent' | 'boolean'
+export type GoalTargetType = 'number' | 'currency' | 'percent' | 'boolean' | 'tasks'
 export interface GoalTarget {
   id: string
   name: string
@@ -26,6 +26,15 @@ export interface GoalTarget {
   start: number      // valor inicial
   current: number    // valor atual
   target: number     // valor-alvo
+  /**
+   * Alvo do tipo `tasks`: o valor atual é **contado das tarefas concluídas**, não digitado.
+   * É o que liga meta a trabalho — sem isso a meta era uma ilha, atualizada à mão até o
+   * dia em que o dono esquece. `projectId` vazio conta o workspace inteiro; `tag` filtra.
+   */
+  projectId?: string | null
+  tag?: string | null
+  /** Última vez que o valor mudou — base para o aviso de meta parada. */
+  updatedAt?: string
 }
 export type GoalStatus = 'on_track' | 'at_risk' | 'off_track' | 'done'
 export interface Goal {
@@ -54,6 +63,11 @@ export function goalTargetProgress(t: GoalTarget): number {
   return Math.max(0, Math.min(100, Math.round(((t.current - t.start) / span) * 100)))
 }
 // Progresso da meta = média dos alvos (0 se não houver alvos).
+/**
+ * @deprecated Use `goalProgressOf(goal, tasks)` de `lib/goalMetrics.ts`. Esta versão não
+ * resolve alvos do tipo `tasks` (que contam tarefas concluídas), então subnotifica o
+ * progresso. Mantida só para não quebrar leitura de dados antigos.
+ */
 export function goalProgress(g: Goal): number {
   if (!g.targets.length) return g.status === 'done' ? 100 : 0
   return Math.round(g.targets.reduce((s, t) => s + goalTargetProgress(t), 0) / g.targets.length)

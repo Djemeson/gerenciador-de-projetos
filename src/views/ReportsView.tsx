@@ -4,7 +4,7 @@ import {
   Filter, Download, Target, Layers, Tag, Timer, Hourglass, PauseCircle, Flame,
 } from 'lucide-react'
 import { useAppStore } from '../stores/useAppStore'
-import { gutTier, GOAL_STATUS_META, goalProgress, PRIORITY_LABEL, STATUS_LABEL } from '../types'
+import { gutTier, GOAL_STATUS_META, PRIORITY_LABEL, STATUS_LABEL } from '../types'
 import type { DateFieldKey, DateFilterValue, Task } from '../types'
 import { DatePeriodPicker } from '../components/ui/DatePeriodPicker'
 import { Select, PRIORITY_OPTIONS } from '../components/ui/Select'
@@ -19,6 +19,7 @@ import {
   effectiveRange, previousRange, tasksInRange, computeKpis, delta, buildSeries,
   bySpace, byTag, byAssignee, topByGut, averageProgress, STALLED_DAYS,
 } from '../lib/reportMetrics'
+import { goalHealth } from '../lib/goalMetrics'
 
 // Preferências do painel, lembradas entre visitas — o relatório costuma ser aberto
 // sempre com o mesmo recorte.
@@ -166,7 +167,10 @@ export function ReportsView() {
   )
 
   // Metas em risco entram no resumo executivo.
-  const goalsAtRisk = useMemo(() => goals.filter(g => g.status === 'at_risk' || g.status === 'off_track'), [goals])
+  // Saúde derivada (progresso × prazo), a mesma da tela de Metas — o campo `status`
+  // sozinho podia estar velho.
+  const goalsHealth = useMemo(() => new Map(goals.map(g => [g.id, goalHealth(g, scopedTasks, now)])), [goals, scopedTasks, now])
+  const goalsAtRisk = useMemo(() => goals.filter(g => ['at_risk','off_track'].includes(goalsHealth.get(g.id)!.status)), [goals, goalsHealth])
 
   // ── Drill-down ─────────────────────────────────────────────────────────────
   const [drill, setDrill] = useState<{ title: string; subtitle?: string; tasks: Task[] } | null>(null)
@@ -349,12 +353,13 @@ export function ReportsView() {
         <div className={`space-y-5 ${tab === 'progresso' ? '' : 'hidden print:block'}`}>
         {goals.length > 0 && (
           <Section icon={<Target size={14} className="text-gray-400" />} title="Metas do workspace"
-            hint={`${goals.filter(g => g.status === 'done').length} de ${goals.length} concluídas`}>
+            hint={`${goals.filter(g => goalsHealth.get(g.id)!.status === 'done').length} de ${goals.length} concluídas`}>
             <div className="divide-y divide-gray-50">
               {goals.map(g => {
-                const pct  = goalProgress(g)
-                const meta = GOAL_STATUS_META[g.status]
-                const late = g.targetDate && parseISO(g.targetDate) < now && g.status !== 'done'
+                const saude = goalsHealth.get(g.id)!
+                const pct   = saude.progress
+                const meta  = GOAL_STATUS_META[saude.status]
+                const late = g.targetDate && parseISO(g.targetDate) < now && saude.status !== 'done'
                 return (
                   <div key={g.id} className="px-4 py-3">
                     <div className="flex items-center gap-3 mb-2">

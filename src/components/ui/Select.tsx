@@ -138,7 +138,9 @@ export function Select({
             {selected ? selected.label : placeholder}
           </span>
         </span>
-        {!pill && <ChevronDown size={variant === 'inline' ? 11 : 13} className={`flex-shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''} ${variant === 'inline' ? 'opacity-60' : ''}`} />}
+        {/* Escala de ícones (lib/iconScale.ts): 12 no denso, 14 no padrão. O 11/13 daqui
+            escapou da consolidação porque era condicional, não literal. */}
+        {!pill && <ChevronDown size={variant === 'inline' ? 12 : 14} className={`flex-shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''} ${variant === 'inline' ? 'opacity-60' : ''}`} />}
       </button>
 
       {open && createPortal(
