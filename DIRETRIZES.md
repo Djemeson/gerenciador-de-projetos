@@ -255,11 +255,26 @@ mesmo componente serve a escopos diferentes (ex.: espaços), para remontar e rec
 - Modal de criação é único e compartilhado: `components/tasks/NewViewModal.tsx`
   (renderizado uma vez em `App.tsx`, controlado por `newViewModal` = scopeKey no
   store). **Nunca duplicar esse modal por tela.**
-- O botão "+ Visualização" tem um atalho de um clique **"✅ Concluídas no período"**
-  que já pré-configura status = Concluída + campo de data = Data de conclusão — é o
-  caso de uso mais importante (reunião semanal de resultados).
+- O modal abre com **modelos prontos** (presets de um clique, redesign 30/07/2026):
+  "Concluídas no período" (status Concluído + Data de conclusão + Esta semana — o caso
+  mais importante, reunião semanal de resultados), "Entregas da semana", "Urgentes em
+  aberto" e "Novas do mês". O preset preenche nome/ícone/filtros de uma vez; qualquer
+  ajuste manual "solta" o destaque do preset (a configuração vira própria). O antigo
+  botão-atalho no cabeçalho foi substituído por essa grade de modelos.
+- Filtros da visualização (todos opcionais, combinados por **E**): status — incluindo o
+  pseudo-status **`'open'`** ("Em aberto" = tudo que não está Concluído) —, prioridade
+  (`filterPriority`), responsável (`filterAssignee`, nome exato) e tags (`filterTags`,
+  a tarefa entra se tiver **qualquer** uma das selecionadas). Fontes das opções:
+  `STATUS_OPTIONS`/`PRIORITY_OPTIONS` (`Select.tsx`), `getAllAssignees()`/`getAllTags()`
+  (store, já isolados por workspace).
 - Cada visualização personalizada guarda `dateField` (`dueDate`/`completedAt`/`createdAt`)
-  + `datePeriod` (ver 4.3), aplicados via `lib/customViews.ts` (`applyCustomViewFilter`).
+  + `datePeriod` (ver 4.3), aplicados via `lib/customViews.ts` (`applyCustomViewFilter` —
+  coberto por `lib/__tests__/customViews.test.ts`; filtro novo entra lá com teste).
+- O modal mostra uma **prévia ao vivo**: quantas tarefas do escopo correspondem à
+  configuração atual. Para isso ele resolve as tarefas do `scopeKey` espelhando o que
+  cada tela passa ao `TaskPanel` (`project:`/`space:`/`folder:`/`mytasks`/`alltasks`) —
+  se uma tela nova ganhar "+ Visualização" com outra regra de escopo, atualizar também o
+  `scopeTasks` do `NewViewModal`.
 
 ### 4.3. Filtro de período (estilo ClickUp)
 

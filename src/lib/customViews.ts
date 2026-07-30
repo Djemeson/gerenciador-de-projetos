@@ -1,11 +1,26 @@
 import type { CustomProjectView, Task } from '../types'
 import { matchesDateFilter } from './dateFilter'
 
-/** Aplica os filtros de uma visualização personalizada (status + período de data) a uma lista de tarefas. */
+/**
+ * Aplica os filtros de uma visualização personalizada a uma lista de tarefas:
+ * status (incluindo o pseudo-status 'open' = não concluídas), prioridade,
+ * responsável, tags (qualquer uma) e período de data.
+ */
 export function applyCustomViewFilter(tasks: Task[], view: CustomProjectView): Task[] {
   let result = tasks
   if (view.filterStatus && view.filterStatus !== 'all') {
-    result = result.filter(t => t.status === view.filterStatus)
+    result = view.filterStatus === 'open'
+      ? result.filter(t => t.status !== 'done')
+      : result.filter(t => t.status === view.filterStatus)
+  }
+  if (view.filterPriority && view.filterPriority !== 'all') {
+    result = result.filter(t => t.priority === view.filterPriority)
+  }
+  if (view.filterAssignee) {
+    result = result.filter(t => t.assignee === view.filterAssignee)
+  }
+  if (view.filterTags && view.filterTags.length > 0) {
+    result = result.filter(t => (t.tags ?? []).some(tag => view.filterTags!.includes(tag)))
   }
   if (view.datePeriod) {
     result = result.filter(t => matchesDateFilter(t, view.dateField ?? 'dueDate', view.datePeriod))

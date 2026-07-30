@@ -169,7 +169,12 @@ export interface CustomProjectView {
   name: string
   icon: string
   baseType: 'list' | 'board' | 'table' | 'calendar'
-  filterStatus?: TaskStatus | 'all'
+  /** 'open' = tudo que não está Concluído (A fazer + Em progresso). */
+  filterStatus?: TaskStatus | 'all' | 'open'
+  filterPriority?: Priority | 'all'
+  filterAssignee?: string
+  /** A tarefa entra se tiver QUALQUER uma das tags selecionadas. */
+  filterTags?: string[]
   dateField?:  DateFieldKey
   datePeriod?: DateFilterValue
   /** @deprecated mantido só para migrar visualizações antigas — usar datePeriod */

@@ -1,10 +1,16 @@
 import type React from 'react'
-import { List, BarChart2, Calendar, Target, CheckCircle2, Flag, Star, Pin } from 'lucide-react'
+import {
+  List, BarChart2, Calendar, Target, CheckCircle2, Flag, Star, Pin,
+  Clock, Zap, Users, Tag,
+} from 'lucide-react'
 
 // Ícones (lucide) para as visualizações personalizadas ("+ Visualização").
 // Substituem os emojis (📋📊📅🎯✅🔥⭐📌). O `icon` guardado passa a ser uma
 // CHAVE; renderização com fallback para dados antigos (que ainda são emojis).
-export const VIEW_ICON_KEYS = ['list','chart','calendar','target','check','flag','star','pin'] as const
+export const VIEW_ICON_KEYS = [
+  'list','chart','calendar','target','check','flag',
+  'star','pin','clock','zap','users','tag',
+] as const
 export type ViewIconKey = typeof VIEW_ICON_KEYS[number]
 
 export const VIEW_ICON: Record<string, React.ElementType> = {
@@ -16,4 +22,8 @@ export const VIEW_ICON: Record<string, React.ElementType> = {
   flag:     Flag,
   star:     Star,
   pin:      Pin,
+  clock:    Clock,
+  zap:      Zap,
+  users:    Users,
+  tag:      Tag,
 }
