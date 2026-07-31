@@ -14,6 +14,7 @@ import { CalendarView }             from './views/CalendarView'
 import { ReportsView }              from './views/ReportsView'
 import { InboxView }                from './views/InboxView'
 import { AutomationsView }          from './views/AutomationsView'
+import { AgentsView }               from './views/AgentsView'
 import { GoalsView }                from './views/GoalsView'
 import { NewProjectModal }          from './components/projects/NewProjectModal'
 import { AIProjectModal }           from './components/projects/AIProjectModal'
@@ -117,6 +118,7 @@ export default function App() {
       case 'calendar':       return <CalendarView/>
       case 'reports':        return <ReportsView/>
       case 'automations':    return <AutomationsView/>
+      case 'agents':         return <AgentsView/>
       case 'goals':          return <GoalsView/>
       default:               return <MyTasksView/>
     }

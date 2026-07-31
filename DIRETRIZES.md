@@ -1337,6 +1337,23 @@ chave ali não amplia o acesso de forma relevante.
 | GUT sugerido (heurística prazos/prioridades/paradas) | `GUTModal` | `lib/aiGut.ts` |
 | Triagem da inbox (afinidade local sempre; lote Gemini no botão "Triar com IA") | `InboxView` | `lib/aiInboxTriage.ts` |
 | Criar automação por frase ("quando X, então Y" → editor preenchido) | `AutomationsView` | `lib/aiAutomationBuilder.ts` |
+| Agentes de IA (instruções próprias + execução sob demanda) | `AgentsView` (nav "Agentes de IA") | `lib/agentEngine.ts` |
+
+### 15.3.1. Agentes de IA (30/07/2026, inspirados nos "superagentes")
+
+- Entidade `Agent` (`types/index.ts`): nome, ícone (`VIEW_ICON`), descrição e
+  **instruções** ("papel e objetivo") — o agente segue as instruções a cada execução
+  sobre um **retrato do workspace** montado localmente (`buildWorkspaceDigest` em
+  `lib/agentEngine.ts`: panorama, tarefas abertas por projeto com prazos/atrasos,
+  concluídas em 7 dias, metas com saúde derivada). Execução híbrida (`runAgent`):
+  Gemini segue as instruções; sem chave, devolve o retrato organizado (`source:
+  'ai'|'local'` fica gravado no `AgentRun`, mostrado na interface).
+- **Galeria de modelos** (`AGENT_TEMPLATES`, por categoria): ativar cria um agente SEU
+  com instruções editáveis (`templateId` marca a origem; card vira "Ativado"). Modelo
+  novo entra na galeria com teste (`agentEngine.test.ts` valida ícone/categoria/id).
+- Persistência **local ao dispositivo** nesta versão (`tf_agents`/`tf_agent_runs`,
+  máx. 50 execuções) — agentes **não** sincronizam com a nuvem ainda; se isso mudar,
+  seguir o padrão de `viewPrefs`. Tela: `views/AgentsView.tsx` (View `'agents'`).
 
 - Botões de IA usam `ai-gradient-bg` (mesmo selo visual em todo o app).
 - A triagem local usa afinidade de texto (nome do projeto ×3, descrição ×2, títulos de

@@ -4,7 +4,7 @@ import {
   BarChart2, FileText, Inbox, ChevronRight, ChevronDown, ChevronLeft,
   MoreHorizontal, Trash2, Copy, CornerUpRight, Archive, Check, List,
   PanelLeftClose, PanelLeftOpen, ChevronsUpDown, Sun, Moon, Ban, Square, Folder as FolderIcon,
-  LayoutGrid, GitFork, Target,
+  LayoutGrid, GitFork, Target, Bot,
 } from 'lucide-react'
 import { useAppStore } from '../../stores/useAppStore'
 import { useSettingsStore } from '../../stores/useSettingsStore'
@@ -589,6 +589,7 @@ export function Sidebar() {
           {navItem('projects',    'Projetos',         BarChart2,  '#F5EEFF', '#8B5CF6')}
           {navItem('reports',     'Relatórios',       FileText,   '#E9FBFC', '#0E9AA6')}
           {navItem('automations', 'Automações',       Zap,        '#FFEAF3', '#DB2777')}
+          {navItem('agents',      'Agentes de IA',    Bot,        '#F3E8FF', '#9333EA')}
         </div>
         )}
 

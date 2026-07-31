@@ -1,6 +1,28 @@
 export type Priority   = 'low' | 'medium' | 'high' | 'urgent'
 export type TaskStatus = 'todo' | 'in_progress' | 'done'
-export type View       = 'my_tasks' | 'all_tasks' | 'projects' | 'project_detail' | 'space_detail' | 'folder_detail' | 'calendar' | 'reports' | 'inbox' | 'automations' | 'goals'
+export type View       = 'my_tasks' | 'all_tasks' | 'projects' | 'project_detail' | 'space_detail' | 'folder_detail' | 'calendar' | 'reports' | 'inbox' | 'automations' | 'goals' | 'agents'
+
+// ── Agentes de IA (estilo "superagentes": instruções próprias + execução sob demanda) ──
+export interface Agent {
+  id: string
+  workspaceId: string
+  name: string
+  icon: string            // chave de VIEW_ICON (lucide)
+  description: string
+  /** O "Role and Objective" do agente — vai como instrução para a IA a cada execução. */
+  instructions: string
+  templateId?: string     // de qual modelo da galeria ele nasceu (se nasceu de um)
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AgentRun {
+  id: string
+  agentId: string
+  at: string
+  output: string
+  source: 'ai' | 'local'  // Gemini de verdade ou modo local simplificado
+}
 
 export const INBOX_PROJECT_ID = '__inbox__'
 

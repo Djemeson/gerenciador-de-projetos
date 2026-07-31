@@ -8,7 +8,7 @@ import type {
   Project, Task, Space, Folder, ColumnDef, Automation, AutomationRun, ViewType,
   View, TaskStatus, Priority, Checklist, ChecklistItem, ContentBlock, TriggerType,
   TaskType, TaskOpenMode, CustomProjectView, DateFieldKey, DateFilterValue,
-  Workspace, TaskComment, Goal, GoalTarget, Note,
+  Workspace, TaskComment, Goal, GoalTarget, Note, Agent, AgentRun,
 } from '../types'
 import {
   calcGUT, migrateTask, migrateProject, migrateSpace, migrateFolder, migrateAutomation,
@@ -26,6 +26,9 @@ const FOLDERS_KEY     = 'tf_folders'
 const WORKSPACES_KEY  = 'tf_workspaces'
 const ACTIVE_WS_KEY   = 'tf_active_workspace'
 const AUTOMATIONS_KEY = 'tf_automations'
+const AGENTS_KEY      = 'tf_agents'
+const AGENT_RUNS_KEY  = 'tf_agent_runs'
+const MAX_AGENT_RUNS  = 50
 const AUTOMATION_RUNS_KEY = 'tf_automation_runs'
 const MAX_AUTOMATION_RUNS  = 200   // histórico recente; o doc de sincronização tem limite de 1 MiB
 const MAX_AUTOMATION_DEPTH = 5     // profundidade da cadeia automação → tarefa → automação
@@ -75,6 +78,8 @@ interface AppState {
   workspaces:  Workspace[]
   activeWorkspaceId: string
   automations: Automation[]
+  agents:      Agent[]
+  agentRuns:   AgentRun[]
   goals:       Goal[]
   inboxColumns: ColumnDef[]
   undoStack:   Snapshot[]
@@ -216,6 +221,12 @@ interface AppState {
   automationRuns:      AutomationRun[]
   logAutomationRun:    (automation: Automation, task: Task, result: AutomationRun['result'], detail: string) => void
   clearAutomationRuns: () => void
+
+  // Agentes de IA (locais ao dispositivo nesta versão — não sincronizam)
+  addAgent:     (agent: Omit<Agent, 'id' | 'workspaceId' | 'createdAt' | 'updatedAt'>) => Agent
+  updateAgent:  (id: string, patch: Partial<Agent>) => void
+  deleteAgent:  (id: string) => void
+  saveAgentRun: (run: Omit<AgentRun, 'id' | 'at'>) => void
 
   /**
    * Visualização e agrupamento escolhidos por escopo (`project:<id>_view`, `_group`…).
@@ -374,6 +385,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   projects: [], tasks: [], spaces: [], folders: [],
   workspaces: [], activeWorkspaceId: DEFAULT_WORKSPACE_ID,
   automations: [], automationRuns: [], goals: [], notes: [], viewPrefs: {}, inboxColumns: [], undoStack: [],
+  agents: loadJSON<Agent[]>(AGENTS_KEY, []), agentRuns: loadJSON<AgentRun[]>(AGENT_RUNS_KEY, []),
   customViewsByScope: {},
   aiGeneratingKeys: [],
   activeView:'my_tasks', activeProjectId:null, activeSpaceId:null, activeFolderId:null, selectedTaskId:null,
@@ -955,6 +967,29 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   clearAutomationRuns: () => { saveJSON(AUTOMATION_RUNS_KEY, []); set({ automationRuns: [] }) },
+
+  // ── Agentes de IA ────────────────────────────────────────────────────
+  addAgent: (agent) => {
+    const now = new Date().toISOString()
+    const a: Agent = { ...agent, id: nanoid(), workspaceId: get().activeWorkspaceId, createdAt: now, updatedAt: now }
+    const agents = [...get().agents, a]
+    saveJSON(AGENTS_KEY, agents); set({ agents })
+    return a
+  },
+  updateAgent: (id, patch) => {
+    const agents = get().agents.map(a => a.id === id ? { ...a, ...patch, updatedAt: new Date().toISOString() } : a)
+    saveJSON(AGENTS_KEY, agents); set({ agents })
+  },
+  deleteAgent: (id) => {
+    const agents = get().agents.filter(a => a.id !== id)
+    const agentRuns = get().agentRuns.filter(r => r.agentId !== id)
+    saveJSON(AGENTS_KEY, agents); saveJSON(AGENT_RUNS_KEY, agentRuns); set({ agents, agentRuns })
+  },
+  saveAgentRun: (run) => {
+    const r: AgentRun = { ...run, id: nanoid(), at: new Date().toISOString() }
+    const agentRuns = [r, ...get().agentRuns].slice(0, MAX_AGENT_RUNS)
+    saveJSON(AGENT_RUNS_KEY, agentRuns); set({ agentRuns })
+  },
 
   /**
    * Gatilho de prazo. Não existia executor: quem criasse "Prazo chegou" via a regra na
