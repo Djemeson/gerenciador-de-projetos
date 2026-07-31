@@ -4,8 +4,10 @@ import {
   History, CheckCircle2, MinusCircle, AlertTriangle, Play, Filter,
 } from 'lucide-react'
 import { useAppStore } from '../stores/useAppStore'
+import { useSettingsStore } from '../stores/useSettingsStore'
 import { Select } from '../components/ui/Select'
 import { AutomationEditor, type EditorDraft } from '../components/automations/AutomationEditor'
+import { buildAutomation } from '../lib/aiAutomationBuilder'
 import { ANY } from '../types'
 import type { Automation, AutomationRun } from '../types'
 import {
@@ -46,6 +48,28 @@ export function AutomationsView() {
   const [busca, setBusca]   = useState('')
   const [draft, setDraft]   = useState<EditorDraft | null>(null)
   const [projeto, setProjeto] = useState(ANY)
+
+  // "Criar com IA": frase em português → rascunho no editor (nunca salva direto).
+  const geminiApiKey = useSettingsStore(s => s.geminiApiKey)
+  const [frase, setFrase]         = useState('')
+  const [iaLoading, setIaLoading] = useState(false)
+  const [iaErro, setIaErro]       = useState<string | null>(null)
+
+  const criarComIA = async () => {
+    if (!frase.trim()) return
+    setIaLoading(true); setIaErro(null)
+    try {
+      const guess = await buildAutomation(frase, projects.filter(p => !p.archived), geminiApiKey)
+      if (guess) {
+        setDraft({ name: guess.name, projectId: guess.projectId, trigger: guess.trigger, action: guess.action })
+        setFrase('')
+      } else {
+        setIaErro(geminiApiKey
+          ? 'Não consegui montar a regra — tente no formato "quando X, então Y" (ex.: "quando faltar 2 dias para o prazo, me avise").'
+          : 'Não entendi a frase. Tente "quando X, então Y" — ou configure a chave Gemini nas Configurações para frases mais livres.')
+      }
+    } finally { setIaLoading(false) }
+  }
 
   const visiveis = useMemo(() => automations.filter(a => {
     if (projeto !== ANY && a.projectId !== projeto && a.projectId !== ANY) return false
@@ -122,6 +146,31 @@ export function AutomationsView() {
       <div className="flex-1 overflow-y-auto p-5 space-y-5">
         {tab === 'regras' ? (
           <>
+            {/* ── Criar com IA: a regra escrita em português vira rascunho no editor ── */}
+            <div className="hero-card px-4 py-3.5">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <div className="w-7 h-7 rounded-lg ai-gradient-bg text-white flex items-center justify-center flex-shrink-0">
+                  <Sparkles size={14}/>
+                </div>
+                <input
+                  value={frase}
+                  onChange={e => { setFrase(e.target.value); setIaErro(null) }}
+                  onKeyDown={e => e.key === 'Enter' && criarComIA()}
+                  placeholder={'Descreva a regra: "quando faltar 2 dias para o prazo, me avise"'}
+                  className="flex-1 min-w-[220px] text-[13px] px-3 py-2 border border-gray-200 rounded-lg outline-none focus:ring-1 focus:ring-brand-400 bg-white"
+                />
+                <button onClick={criarComIA} disabled={iaLoading || !frase.trim()}
+                  className="flex items-center gap-1.5 px-3.5 py-2 ai-gradient-bg text-white text-xs font-semibold rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity flex-shrink-0">
+                  {iaLoading ? 'Montando…' : 'Criar com IA'}
+                </button>
+              </div>
+              <p className="text-[11px] text-gray-400 mt-2">
+                {iaErro
+                  ? <span className="text-warning-600 font-medium">{iaErro}</span>
+                  : 'A regra abre no editor para você revisar antes de salvar. Entende prazo, conclusão, prioridade, etiquetas, mover de projeto e mais.'}
+              </p>
+            </div>
+
             {/* ── Receitas ── */}
             {automations.length < 6 && (
               <div>

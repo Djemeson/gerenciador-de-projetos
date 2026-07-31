@@ -957,6 +957,13 @@ Regras:
 - **Histórico** (`AutomationRun`, `tf_automation_runs`, últimas 200): aba própria na tela,
   com resultado e o que mudou em cada tarefa; alimenta também o "N× · última ..." de cada
   card. É como se responde "essa automação chegou a rodar?".
+- **Criar com IA** (30/07/2026): barra no topo da aba Regras — a frase em português
+  ("quando faltar 2 dias para o prazo, me avise") vira gatilho + ação via
+  `lib/aiAutomationBuilder.ts` (`parseAutomationLocal` determinístico primeiro; Gemini
+  JSON estrito para frases mais soltas, validado contra os tipos existentes). O
+  resultado **sempre abre no editor para revisão** — nunca salva direto. Frase não
+  entendida orienta o formato "quando X, então Y". Gatilho/ação novos no motor devem
+  entrar também no parser e no prompt.
 - **Notificação de automação**: `useNotificationStore.push` cria uma notificação do tipo
   `automation`, e `generate` **preserva** as desse tipo — ele roda a cada minuto e, se
   substituísse a lista inteira, o aviso sumiria antes de ser lido.
@@ -1329,6 +1336,7 @@ chave ali não amplia o acesso de forma relevante.
 | Briefing "Começar o dia" (dispensável por dia, `tf_briefing_hidden`) | Minhas tarefas (`DailyBriefingCard`) | `lib/aiDailyBriefing.ts` |
 | GUT sugerido (heurística prazos/prioridades/paradas) | `GUTModal` | `lib/aiGut.ts` |
 | Triagem da inbox (afinidade local sempre; lote Gemini no botão "Triar com IA") | `InboxView` | `lib/aiInboxTriage.ts` |
+| Criar automação por frase ("quando X, então Y" → editor preenchido) | `AutomationsView` | `lib/aiAutomationBuilder.ts` |
 
 - Botões de IA usam `ai-gradient-bg` (mesmo selo visual em todo o app).
 - A triagem local usa afinidade de texto (nome do projeto ×3, descrição ×2, títulos de
