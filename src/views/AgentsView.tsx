@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import { Bot, Plus, Play, Pencil, Trash2, Loader2, Copy, Check, Sparkles } from 'lucide-react'
+import { Bot, Plus, Play, Pencil, Trash2, Loader2, Copy, Check } from 'lucide-react'
 import { useAppStore } from '../stores/useAppStore'
 import { useSettingsStore } from '../stores/useSettingsStore'
 import { Modal } from '../components/ui/Modal'
@@ -8,7 +8,35 @@ import { AiKeyNotice } from '../components/ui/AiKeyNotice'
 import { VIEW_ICON, VIEW_ICON_KEYS } from '../lib/viewIcons'
 import { buildWorkspaceDigest, runAgent, AGENT_TEMPLATES, AGENT_CATEGORIES } from '../lib/agentEngine'
 import type { Agent } from '../types'
-import { INBOX_PROJECT_ID } from '../types'
+import { INBOX_PROJECT_ID, PROJECT_COLORS } from '../types'
+
+// ── Avatar de robô (estilo n8n): cara de robô em SVG sobre degradê colorido ──
+// Cor determinística por agente (hash do nome sobre a paleta de projetos) —
+// cada agente ganha uma "foto" própria sem depender de imagem externa.
+function agentColor(seed: string): string {
+  let h = 0
+  for (const c of seed) h = (h * 31 + c.charCodeAt(0)) >>> 0
+  return PROJECT_COLORS[h % PROJECT_COLORS.length]
+}
+
+export function AgentAvatar({ seed, size = 36 }: { seed: string; size?: number }) {
+  const color = agentColor(seed)
+  return (
+    <div className="rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm"
+      style={{ width: size, height: size, background: `linear-gradient(135deg, ${color}, ${color}B0)`, boxShadow: `0 1px 3px ${color}55` }}>
+      <svg width={size * 0.64} height={size * 0.64} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <line x1="12" y1="2.6" x2="12" y2="4.8" stroke="#fff" strokeWidth="1.6" strokeLinecap="round"/>
+        <circle cx="12" cy="2.3" r="1.1" fill="#fff"/>
+        <rect x="4.6" y="5" width="14.8" height="12.6" rx="4.2" stroke="#fff" strokeWidth="1.7"/>
+        <rect x="2.2" y="9.2" width="2" height="4.4" rx="1" fill="#fff"/>
+        <rect x="19.8" y="9.2" width="2" height="4.4" rx="1" fill="#fff"/>
+        <circle cx="9.2" cy="10.6" r="1.45" fill="#fff"/>
+        <circle cx="14.8" cy="10.6" r="1.45" fill="#fff"/>
+        <path d="M9 14.2 q3 2.1 6 0" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
+      </svg>
+    </div>
+  )
+}
 
 // Agentes de IA (inspirados nos "superagentes"): instruções próprias + execução
 // sob demanda sobre o retrato do workspace. Galeria de modelos por categoria;
@@ -75,15 +103,12 @@ export function AgentsView() {
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Meus agentes</p>
             <div className="space-y-2">
               {agents.map(a => {
-                const Icon = VIEW_ICON[a.icon] ?? Bot
                 const run = lastRunOf(a.id)
                 const aberto = openOutput === a.id && run
                 return (
                   <div key={a.id} className="bg-white border border-gray-200/70 rounded-xl px-4 py-3">
                     <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-lg ai-gradient-bg text-white flex items-center justify-center flex-shrink-0">
-                        <Icon size={15}/>
-                      </div>
+                      <AgentAvatar seed={a.name} size={38}/>
                       <div className="flex-1 min-w-0">
                         <p className="text-[13px] font-bold text-gray-800 truncate">{a.name}</p>
                         <p className="text-[11px] text-gray-500 leading-relaxed mt-0.5">{a.description}</p>
@@ -138,13 +163,10 @@ export function AgentsView() {
                 <p className="text-[11px] font-semibold text-gray-500 mb-1.5">{cat}</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
                   {AGENT_TEMPLATES.filter(t => t.category === cat).map(t => {
-                    const Icon = VIEW_ICON[t.icon] ?? Sparkles
                     const jaUsado = usados.has(t.id)
                     return (
                       <div key={t.id} className="flex items-start gap-2.5 px-3.5 py-3 bg-white border border-gray-200/70 rounded-xl">
-                        <div className="w-7 h-7 rounded-lg ai-gradient-bg text-white flex items-center justify-center flex-shrink-0">
-                          <Icon size={13}/>
-                        </div>
+                        <AgentAvatar seed={t.name} size={30}/>
                         <div className="flex-1 min-w-0">
                           <p className="text-[12px] font-bold text-gray-800">{t.name}</p>
                           <p className="text-[11px] text-gray-500 leading-relaxed mt-0.5">{t.description}</p>

@@ -2,7 +2,43 @@ import React, { useState, useRef, useEffect } from 'react'
 import {
   X, Send, Sparkles, Loader2, Bot, History, MessageSquarePlus, ChevronLeft, Trash2,
   Check, AlertTriangle, Search, Info, Settings as SettingsIcon,
+  Plus, Pencil, BarChart2, Flag, CalendarDays,
 } from 'lucide-react'
+
+// Ações rápidas da caixa de diálogo (padrão do material de referência): chips por
+// intenção que abrem começos de prompt prontos — clicar preenche o campo de entrada.
+const QUICK_ACTIONS: { key: string; label: string; Icon: React.ElementType; prompts: string[] }[] = [
+  { key: 'find', label: 'Encontrar', Icon: Search, prompts: [
+    'Encontre minhas tarefas atrasadas',
+    'Quais tarefas urgentes estão abertas?',
+    'Busque tarefas sobre ',
+  ]},
+  { key: 'create', label: 'Criar', Icon: Plus, prompts: [
+    'Crie uma tarefa sobre ',
+    'Crie uma subtarefa em ',
+    'Crie um projeto chamado ',
+  ]},
+  { key: 'edit', label: 'Editar', Icon: Pencil, prompts: [
+    'Mude o status da tarefa ',
+    'Mude o prazo da tarefa ',
+    'Mude a prioridade da tarefa ',
+  ]},
+  { key: 'analyze', label: 'Analisar', Icon: BarChart2, prompts: [
+    'O que foi concluído esta semana?',
+    'Como está o projeto ',
+    'Me dê um resumo do workspace',
+  ]},
+  { key: 'prioritize', label: 'Priorizar', Icon: Flag, prompts: [
+    'No que devo focar agora?',
+    'Quais tarefas devo fazer primeiro hoje?',
+    'Me ajude a triar as tarefas novas',
+  ]},
+  { key: 'schedule', label: 'Agendar', Icon: CalendarDays, prompts: [
+    'O que vence hoje?',
+    'Planeje meu dia pelo que importa mais',
+    'Defina o prazo da tarefa ',
+  ]},
+]
 import { useAppStore } from '../stores/useAppStore'
 import { useSettingsStore } from '../stores/useSettingsStore'
 import { AiKeyNotice } from './ui/AiKeyNotice'
@@ -70,6 +106,7 @@ export function AIPanel() {
   const [conv, setConv] = useState<ChatConversation>(emptyConversation)
   const [conversations, setConversations] = useState<ChatConversation[]>([])
   const [input, setInput] = useState('')
+  const [quickCat, setQuickCat] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
@@ -404,6 +441,29 @@ export function AIPanel() {
               </div>
             )}
             <div ref={bottomRef}/>
+          </div>
+
+          {/* Ações rápidas — chips de intenção com começos de prompt */}
+          <div className="border-t border-gray-100 px-3 pt-2">
+            <div className="flex items-center gap-1 flex-wrap">
+              {QUICK_ACTIONS.map(q => (
+                <button key={q.key} onClick={() => setQuickCat(c => c === q.key ? null : q.key)}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-full border text-[11px] font-medium transition-colors ${
+                    quickCat === q.key ? 'border-brand-400 bg-brand-50 text-brand-700' : 'border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700'}`}>
+                  <q.Icon size={12}/>{q.label}
+                </button>
+              ))}
+            </div>
+            {quickCat && (
+              <div className="py-1.5 space-y-0.5 animate-fade-in">
+                {QUICK_ACTIONS.find(q => q.key === quickCat)!.prompts.map(p => (
+                  <button key={p} onClick={() => { setInput(p); setQuickCat(null) }}
+                    className="w-full text-left text-[11px] px-2.5 py-1.5 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors">
+                    {p}{p.endsWith(' ') ? '…' : ''}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Input */}
