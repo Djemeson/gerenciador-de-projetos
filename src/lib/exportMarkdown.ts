@@ -200,6 +200,35 @@ function tarefaMd(t: Task, filhasDe: (id: string) => Task[], anexos: Anexos, niv
   ].filter(l => l !== '').join('\n')
 }
 
+// ── Filtro de concluídas ─────────────────────────────────────────────────────
+
+/**
+ * Decide se uma tarefa entra no documento.
+ *
+ * Concluída fica de fora — o arquivo existe para dizer o que **falta** fazer, e tarefa
+ * pronta só gasta contexto de quem for executar.
+ *
+ * A exceção não é capricho: uma tarefa marcada como concluída pode ter **subtarefa
+ * pendente** abaixo dela (acontece quando alguém fecha o pai antes da hora). Descartá-la
+ * levaria a pendente junto, e o trabalho que falta sumiria do documento sem aviso. Nesse
+ * caso ela é mantida como caminho até a pendente — e o próprio Markdown mostra `[x]` no pai
+ * e `[ ]` na filha, então a situação fica visível em vez de escondida.
+ */
+export function criarFiltroDePendentes(filhasDe: (id: string) => Task[]) {
+  const cache = new Map<string, boolean>()
+
+  const temPendenteAbaixo = (id: string, visitados = new Set<string>()): boolean => {
+    if (cache.has(id)) return cache.get(id)!
+    if (visitados.has(id)) return false   // guarda contra ciclo em dado corrompido
+    visitados.add(id)
+    const r = filhasDe(id).some(f => f.status !== 'done' || temPendenteAbaixo(f.id, visitados))
+    cache.set(id, r)
+    return r
+  }
+
+  return (t: Task): boolean => t.status !== 'done' || temPendenteAbaixo(t.id)
+}
+
 // ── Documento ────────────────────────────────────────────────────────────────
 
 export interface ProjetoExportado { nome: string; tarefas: Task[] }
@@ -212,6 +241,11 @@ export interface ParamsExportacao {
   projetos: ProjetoExportado[]
   /** Universo de tarefas, usado para resolver subtarefas de qualquer nível. */
   todasTarefas: Task[]
+  /**
+   * Quando o usuário escolheu **uma tarefa específica**, ela sai mesmo se estiver
+   * concluída — pediu aquela. O filtro de concluídas continua valendo para as subtarefas.
+   */
+  escolhaDireta?: boolean
   /** Injetável para o teste não depender do relógio. */
   agora?: Date
 }
@@ -229,19 +263,26 @@ export function montarMarkdown(p: ParamsExportacao): ResultadoExportacao {
     l.push(t)
     porPai.set(t.parentId, l)
   }
-  const filhasDe = (id: string) => porPai.get(id) ?? []
+  const todasFilhasDe = (id: string) => porPai.get(id) ?? []
+  const manter = criarFiltroDePendentes(todasFilhasDe)
+
+  // Concluída fica de fora em qualquer nível — o documento é a lista do que **falta** fazer.
+  const filhasDe = (id: string) => todasFilhasDe(id).filter(manter)
 
   const anexos = new Anexos()
   const agruparPorProjeto = p.projetos.length > 1
   const nivelTarefa = agruparPorProjeto ? 3 : 2
-  const total = p.projetos.reduce((n, pr) => n + pr.tarefas.length, 0)
+  const porProjeto = p.escolhaDireta
+    ? p.projetos
+    : p.projetos.map(pr => ({ ...pr, tarefas: pr.tarefas.filter(manter) }))
+  const total = porProjeto.reduce((n, pr) => n + pr.tarefas.length, 0)
   const data = (p.agora ?? new Date()).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
 
-  const corpo = p.projetos.map(pr => {
+  const corpo = porProjeto.map(pr => {
     const cabecalho = agruparPorProjeto ? `## ${escapar(pr.nome)}\n` : ''
     const tarefas = pr.tarefas.length
       ? pr.tarefas.map(t => tarefaMd(t, filhasDe, anexos, nivelTarefa)).join('\n\n---\n\n')
-      : '*Nenhuma tarefa neste projeto.*'
+      : '*Nenhuma tarefa pendente neste projeto.*'
     return `${cabecalho}\n${tarefas}`
   }).join('\n\n')
 
@@ -287,7 +328,7 @@ export function escopoDe(tipo: TipoEscopo, id: string, d: DadosDoApp): ParamsExp
     const t = d.tasks.find(x => x.id === id)
     if (!t) return null
     const projeto = d.projects.find(p => p.id === t.projectId)
-    return { tipo: 'Tarefa', titulo: t.title, projetos: [{ nome: projeto?.name ?? '', tarefas: [t] }], todasTarefas: d.tasks }
+    return { tipo: 'Tarefa', titulo: t.title, projetos: [{ nome: projeto?.name ?? '', tarefas: [t] }], todasTarefas: d.tasks, escolhaDireta: true }
   }
 
   if (tipo === 'project') {

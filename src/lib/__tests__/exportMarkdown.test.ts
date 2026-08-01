@@ -61,15 +61,62 @@ describe('montarMarkdown', () => {
     expect(markdown).toContain('  - [ ] Passo um')
   })
 
+  it('tarefa concluída não entra no documento', () => {
+    const feita = tarefa({ id: 't1', title: 'Ja resolvida', status: 'done' })
+    const aberta = tarefa({ id: 't2', title: 'Ainda pendente' })
+    const { markdown } = montarMarkdown({ tipo: 'Projeto', titulo: 'P', projetos: [{ nome: 'P', tarefas: [feita, aberta] }], todasTarefas: [feita, aberta], agora: AGORA })
+    expect(markdown).not.toContain('Ja resolvida')
+    expect(markdown).toContain('Ainda pendente')
+    expect(markdown).toContain('> 1 tarefa')
+  })
+
+  it('subtarefa concluída também fica de fora', () => {
+    const pai = tarefa({ id: 'p', title: 'Pai' })
+    const feita = tarefa({ id: 'f1', title: 'Filha pronta', parentId: 'p', status: 'done' })
+    const aberta = tarefa({ id: 'f2', title: 'Filha pendente', parentId: 'p' })
+    const { markdown } = montarMarkdown({ tipo: 'Projeto', titulo: 'P', projetos: [{ nome: 'P', tarefas: [pai] }], todasTarefas: [pai, feita, aberta], agora: AGORA })
+    expect(markdown).not.toContain('Filha pronta')
+    expect(markdown).toContain('Filha pendente')
+    expect(markdown).toContain('Subtarefas (1)')
+  })
+
+  // O caso perigoso: descartar o pai concluído levaria junto a subtarefa que falta fazer.
+  it('pai concluído com filha pendente é mantido, para não sumir com a pendente', () => {
+    const pai = tarefa({ id: 'p', title: 'Pai fechado cedo', status: 'done' })
+    const filha = tarefa({ id: 'f', title: 'Falta esta', parentId: 'p' })
+    const { markdown } = montarMarkdown({ tipo: 'Projeto', titulo: 'P', projetos: [{ nome: 'P', tarefas: [pai] }], todasTarefas: [pai, filha], agora: AGORA })
+    expect(markdown).toContain('Pai fechado cedo')
+    expect(markdown).toContain('Falta esta')
+  })
+
+  it('avó concluída é mantida quando a pendente está dois níveis abaixo', () => {
+    const avo   = tarefa({ id: 'a', title: 'Avo', status: 'done' })
+    const mae   = tarefa({ id: 'm', title: 'Mae', parentId: 'a', status: 'done' })
+    const neta  = tarefa({ id: 'n', title: 'Neta pendente', parentId: 'm' })
+    const { markdown } = montarMarkdown({ tipo: 'Projeto', titulo: 'P', projetos: [{ nome: 'P', tarefas: [avo] }], todasTarefas: [avo, mae, neta], agora: AGORA })
+    expect(markdown).toContain('Neta pendente')
+  })
+
+  it('exportar uma tarefa concluída escolhida a dedo respeita a escolha', () => {
+    const t = tarefa({ id: 't1', title: 'Concluida de proposito', status: 'done' })
+    const { markdown } = montarMarkdown({ tipo: 'Tarefa', titulo: t.title, projetos: [{ nome: 'P', tarefas: [t] }], todasTarefas: [t], escolhaDireta: true, agora: AGORA })
+    expect(markdown).toContain('Concluida de proposito')
+  })
+
+  it('projeto só com concluídas avisa que não há pendência', () => {
+    const t = tarefa({ id: 't1', title: 'Feita', status: 'done' })
+    const { markdown } = montarMarkdown({ tipo: 'Projeto', titulo: 'P', projetos: [{ nome: 'P', tarefas: [t] }], todasTarefas: [t], agora: AGORA })
+    expect(markdown).toContain('*Nenhuma tarefa pendente neste projeto.*')
+  })
+
   it('desce por subtarefas de subtarefas', () => {
     const a = tarefa({ id: 'a', title: 'Avó' })
     const b = tarefa({ id: 'b', title: 'Mãe',  parentId: 'a' })
-    const c = tarefa({ id: 'c', title: 'Neta', parentId: 'b', status: 'done' })
+    const c = tarefa({ id: 'c', title: 'Neta', parentId: 'b' })
     const { markdown } = montarMarkdown({ tipo: 'Projeto', titulo: 'P', projetos: [{ nome: 'P', tarefas: [a] }], todasTarefas: [a, b, c], agora: AGORA })
     expect(markdown).toContain('- [ ] **Mãe**')
-    expect(markdown).toContain('- [x] **Neta**')
     // a neta fica indentada dentro da mãe
-    expect(markdown).toMatch(/\n\s{2,}- \[x\] \*\*Neta\*\*/)
+    expect(markdown).toMatch(/\n\s{2,}- \[ \] \*\*Neta\*\*/)
   })
 
   it('imagem vira arquivo referenciado, nunca base64 no texto', () => {
@@ -98,7 +145,7 @@ describe('montarMarkdown', () => {
     expect(markdown).toContain('## Rede')
     expect(markdown).toContain('## Suporte')
     expect(markdown).toContain('### Tarefa')          // desce um nível
-    expect(markdown).toContain('*Nenhuma tarefa neste projeto.*')
+    expect(markdown).toContain('*Nenhuma tarefa pendente neste projeto.*')
   })
 
   it('título com # não quebra a estrutura do documento', () => {

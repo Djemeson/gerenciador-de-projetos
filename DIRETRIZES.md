@@ -1388,6 +1388,15 @@ propriedades da **tarefa** (`TaskDetail`) → **Exportar Markdown** (`lib/export
   e o construtor lê como meia-noite UTC — em UTC−3 o documento saía com o dia anterior.
 - Só tarefas **raiz** entram na lista de cada projeto (subtarefa aparece dentro do pai, não
   repetida solta) e **projeto arquivado fica de fora**.
+- **Tarefa concluída não entra**, em nenhum nível: o documento é a lista do que *falta*
+  fazer, e tarefa pronta só gasta contexto de quem vai executar. Duas exceções, ambas com
+  teste:
+  1. **Concluída com pendência abaixo é mantida** (`criarFiltroDePendentes`). Descartar um
+     pai fechado cedo levaria junto a subtarefa que falta — o trabalho sumiria do documento
+     sem aviso. Ela aparece com `Status: Concluído`, então a inconsistência fica visível.
+  2. **Escolha direta manda** (`escolhaDireta`): exportar uma tarefa específica pelo painel
+     dela funciona mesmo se estiver concluída — foi aquela que o usuário pediu. O filtro
+     continua valendo para as subtarefas.
 
 ---
 
