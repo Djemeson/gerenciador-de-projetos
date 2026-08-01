@@ -51,11 +51,18 @@ export function ProjectDetailView() {
    * era por escopo (`loadMultiSort`/`saveMultiSort` com `scopeKeyForProject`), então cada
    * projeto guarda a sua ordem de forma independente — só faltava o controle na barra.
    */
-  const [multiSort, setMultiSort] = useState<MultiSort>(() => loadMultiSort(scopeKeyForProject(project.id)))
+  const chaveOrdenacao = (g: SortBy) => `${scopeKey}:${g}`
+  const carregarOrdenacao = (g: SortBy): MultiSort => {
+    const doGrupo = loadMultiSort(chaveOrdenacao(g))
+    return doGrupo.length ? doGrupo : loadMultiSort(scopeKey)
+  }
+  const [multiSort, setMultiSort] = useState<MultiSort>(() => carregarOrdenacao(sortBy))
   const atualizarMultiSort = (next: MultiSort) => {
     setMultiSort(next)
-    saveMultiSort(scopeKeyForProject(project.id), next)
+    saveMultiSort(chaveOrdenacao(sortBy), next)
   }
+  /** Trocar o agrupamento troca também a ordenação — cada um guarda a sua. */
+  const trocarAgrupamento = (g: SortBy) => { setSortBy(g); setMultiSort(carregarOrdenacao(g)) }
 
   const projectTasks  = useMemo(
     () => sortTasksMulti(tasks.filter(t => t.projectId === project.id), multiSort),
@@ -236,7 +243,7 @@ export function ProjectDetailView() {
               <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Agrupar por</span>
               <div className="flex items-center gap-0.5 bg-gray-200/50 rounded-lg p-[3px]">
                 {(['status','priority','dueDate'] as SortBy[]).map(s=>(
-                  <button key={s} onClick={()=>setSortBy(s)}
+                  <button key={s} onClick={()=>trocarAgrupamento(s)}
                     className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${sortBy===s?'bg-white text-gray-800 shadow-sm font-bold':'text-gray-500 hover:text-gray-800'}`}>
                     {{status:'Status',priority:'Prioridade',dueDate:'Prazo'}[s]}
                   </button>

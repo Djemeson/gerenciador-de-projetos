@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { buscarIcones, CONCEITOS } from '../iconSearch'
-import { ICON_CATEGORIES } from '../sidebarIcons'
+import { ICON_CATEGORIES, getIconComponent } from '../sidebarIcons'
+import { ICON_LABEL_PT } from '../iconLabelsPt'
 
 const DISPONIVEIS = new Set(ICON_CATEGORIES.flatMap(c => c.icons))
 
@@ -61,6 +62,67 @@ describe('buscarIcones', () => {
     for (const termo of ['dinheiro', 'rede', 'saude', 'juridico', 'transporte']) {
       for (const nome of buscarIcones(termo)) expect(DISPONIVEIS.has(nome)).toBe(true)
     }
+  })
+})
+
+describe('escopo ampliado (01/08/2026)', () => {
+  it('assuntos do dia a dia de um provedor', () => {
+    expect(buscarIcones('ordem de servico')).toContain('hard-hat')
+    expect(buscarIcones('cobranca')).toContain('receipt')
+    expect(buscarIcones('cancelamento')).toContain('user-x')
+    expect(buscarIcones('estoque')).toContain('package')
+    expect(buscarIcones('contrato')).toContain('file-text')
+  })
+
+  it('assuntos gerais que antes não tinham nada', () => {
+    expect(buscarIcones('emocao')).toContain('smile')
+    expect(buscarIcones('academia')).toContain('dumbbell')
+    expect(buscarIcones('pet')).toContain('dog')
+    expect(buscarIcones('ciencia')).toContain('flask-conical')
+    expect(buscarIcones('matematica')).toContain('sigma')
+    expect(buscarIcones('kanban')).toContain('kanban')
+    expect(buscarIcones('backup')).toContain('cloud-upload')
+    expect(buscarIcones('desfazer')).toContain('undo')
+  })
+
+  // Regressões de ranking pegas testando no seletor real.
+  it('termo curto dentro de outra palavra não dispara o conceito', () => {
+    // O conceito de IA tem o termo "ia", e "academia" contém "ia".
+    const r = buscarIcones('academia')
+    expect(r).not.toContain('bot')
+    expect(r).not.toContain('cpu')
+    expect(r).toContain('dumbbell')
+  })
+
+  it('conceito exato vem antes de substring acidental', () => {
+    // "repetir" contém "pet" (re-pet-ir) e vinha na frente dos animais.
+    const r = buscarIcones('pet')
+    expect(r.indexOf('dog')).toBeLessThan(r.indexOf('repeat'))
+  })
+
+  it('frase encontra o conceito pela palavra inteira', () => {
+    expect(buscarIcones('controle de estoque')).toContain('package')
+  })
+
+  it('o catálogo cresceu e não tem nome quebrado', () => {
+    const todos = ICON_CATEGORIES.flatMap(c => c.icons)
+    expect(new Set(todos).size).toBeGreaterThan(500)
+    expect(ICON_CATEGORIES.length).toBeGreaterThanOrEqual(24)
+  })
+
+  // A lista antiga tinha 34 nomes que não existiam na lucide instalada: a grade os pulava
+  // em silêncio, então eram buracos invisíveis no seletor.
+  it('todo nome do catálogo resolve para um componente real', () => {
+    const quebrados = [...new Set(ICON_CATEGORIES.flatMap(c => c.icons))].filter(n => !getIconComponent(n))
+    expect(quebrados).toEqual([])
+  })
+
+  // Verifica a **presença no mapa**, não `iconLabel(n) === n`: há 22 ícones cujo rótulo é
+  // igual em português ('link', 'menu', 'bitcoin', 'podcast', 'usb', 'dna', 'pi'...), e
+  // comparar as strings acusaria falta de tradução onde ela existe.
+  it('todo ícone do catálogo tem rótulo em português', () => {
+    const semRotulo = [...new Set(ICON_CATEGORIES.flatMap(c => c.icons))].filter(n => !(n in ICON_LABEL_PT))
+    expect(semRotulo).toEqual([])
   })
 })
 

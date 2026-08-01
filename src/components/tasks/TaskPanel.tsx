@@ -85,12 +85,30 @@ export function TaskPanel({
   const [subtasksCollapsed, setSubtasksCollapsed] = useState(false)
   const [expandVersion,     setExpandVersion]     = useState(0)
   const toggleAllSubtasks = () => { setSubtasksCollapsed(v => !v); setExpandVersion(v => v+1) }
-  // Classificação multi-nível (estilo Notion) — aplicada em todas as visualizações, salva por escopo.
-  const [multiSort, setMultiSort] = useState<MultiSort>(() => loadMultiSort(scopeKey))
-  const updateMultiSort = (next: MultiSort) => { setMultiSort(next); saveMultiSort(scopeKey, next) }
+  /**
+   * Classificação multi-nível (estilo Notion), **por agrupamento**.
+   *
+   * A ordem é salva em `escopo:agrupamento`, não só em `escopo`: agrupado por status faz
+   * sentido ordenar por prazo, e agrupado por responsável faz sentido ordenar por
+   * prioridade. Com uma chave só, trocar o agrupamento levava junto uma ordenação pensada
+   * para outro contexto.
+   */
+  const chaveOrdenacao = (g: GroupBy) => `${scopeKey}:${g}`
+  /** Sem ordem para este agrupamento, herda a que estava salva no escopo antes desta
+   *  separação — senão quem já tinha classificação a perderia na primeira abertura. */
+  const carregarOrdenacao = (g: GroupBy): MultiSort => {
+    const doGrupo = loadMultiSort(chaveOrdenacao(g))
+    return doGrupo.length ? doGrupo : loadMultiSort(scopeKey)
+  }
+  const [multiSort, setMultiSort] = useState<MultiSort>(() => carregarOrdenacao(group))
+  const updateMultiSort = (next: MultiSort) => { setMultiSort(next); saveMultiSort(chaveOrdenacao(group), next) }
 
   const selectView  = (v: ViewType) => { setView(v); vSet(scopeKey+'_view', v); setActiveCustomId(null) }
-  const selectGroup = (g: GroupBy)  => { setGroup(g); vSet(scopeKey+'_group', g) }
+  const selectGroup = (g: GroupBy)  => {
+    setGroup(g)
+    vSet(scopeKey+'_group', g)
+    setMultiSort(carregarOrdenacao(g))   // cada agrupamento traz a sua própria ordem
+  }
 
   const customViews       = getCustomViews(scopeKey)
   const currentCustomView = activeCustomId ? customViews.find(v => v.id===activeCustomId) : null
