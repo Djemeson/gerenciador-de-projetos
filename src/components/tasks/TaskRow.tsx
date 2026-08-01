@@ -5,6 +5,7 @@ import {
 import type { Task, Project, Priority, ColumnDef, TaskType, ListColumn } from '../../types'
 import { PRIORITY_LABEL, PRIORITY_COLOR, PRIORITY_TEXT_COLOR, priorityTint, TASK_TYPE_META } from '../../types'
 import { TYPE_ICON, TYPE_ICON_COLOR } from '../../lib/taskTypeIcons'
+import { TIPO_ARRASTE_TAREFA } from '../../lib/dragTypes'
 import { useAppStore } from '../../stores/useAppStore'
 import { QuickAddRow } from './QuickAddRow'
 import { CustomFieldCell } from './CustomFieldCell'
@@ -170,7 +171,15 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
     <>
       <div
         draggable={!!onDragStartTask && depth===0}
-        onDragStart={e => { if (onDragStartTask) { onDragStartTask(task.id); e.dataTransfer.effectAllowed = 'move' } }}
+        onDragStart={e => {
+          if (!onDragStartTask) return
+          onDragStartTask(task.id)
+          e.dataTransfer.effectAllowed = 'move'
+          // Publica o id num tipo próprio para a **sidebar** poder aceitar o arraste e mover
+          // a tarefa de projeto. O estado interno de reordenação não atravessa componentes;
+          // o `dataTransfer` é o canal que o navegador já oferece para isso.
+          e.dataTransfer.setData(TIPO_ARRASTE_TAREFA, task.id)
+        }}
         onDragOver={e => { if (onDropTask && dragTaskId && dragTaskId!==task.id) { e.preventDefault(); if (!dropOver) setDropOver(true) } }}
         onDragLeave={() => setDropOver(false)}
         onDrop={e => { if (onDropTask) { e.preventDefault(); e.stopPropagation(); onDropTask(task.id) } setDropOver(false) }}
@@ -243,8 +252,11 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
                       const m = TASK_TYPE_META[type]
                       const Icon = TYPE_ICON[type]
                       const selected = (task.taskType??'task')===type
+                      // `stopPropagation` é obrigatório: sem ele o clique sobe até o
+                      // `onClick` da linha e a tarefa **abre** ao trocar o tipo. O contêiner
+                      // do menu só interrompe o `onMouseDown`.
                       return (
-                        <button key={type} onClick={()=>{updateTask(task.id,{taskType:type});setTypeOpen(false)}}
+                        <button key={type} onClick={e=>{e.stopPropagation();updateTask(task.id,{taskType:type});setTypeOpen(false)}}
                           className={`w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-gray-50 transition-colors ${selected?'bg-gray-50':''}`}>
                           <Icon size={16} strokeWidth={2} style={{ color: TYPE_ICON_COLOR }} className="flex-shrink-0"/>
                           <span className="text-[13px] text-gray-700">

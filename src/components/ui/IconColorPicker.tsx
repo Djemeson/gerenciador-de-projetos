@@ -5,6 +5,7 @@ import {
   loadSavedColors, saveSavedColors, loadRecentIcons, addRecentIcon,
 } from '../../lib/sidebarIcons'
 import { iconLabel } from '../../lib/iconLabelsPt'
+import { buscarIcones } from '../../lib/iconSearch'
 import { FloatingPanel } from './FloatingPanel'
 
 interface IconColorPickerProps {
@@ -160,17 +161,10 @@ export function IconColorPicker({ mode, theme = 'dark', color, icon, onPickColor
       {mode === 'icon' && (
         <div className="grid grid-cols-10 gap-1.5 max-h-[220px] overflow-y-auto sidebar-scroll pr-1">
           {q.length > 0 ? (() => {
-            // Busca: mesmo ícone pode existir em mais de uma categoria (browsing temático) —
-            // dedupe pra não repetir o mesmo ícone várias vezes no resultado da busca.
-            const seen = new Set<string>()
-            const results: string[] = []
-            ICON_CATEGORIES.forEach(cat => {
-              const catMatches = normalizeSearch(cat.label).includes(q)
-              cat.icons.forEach(n => {
-                if (seen.has(n)) return
-                if (catMatches || normalizeSearch(n).includes(q) || normalizeSearch(iconLabel(n)).includes(q)) { seen.add(n); results.push(n) }
-              })
-            })
+            // `buscarIcones` entende o assunto, não só o nome: "dinheiro" traz cédula,
+            // moeda e carteira (ver `lib/iconSearch.ts`). Já vem sem repetição e ordenado
+            // por relevância.
+            const results = buscarIcones(q)
             if (results.length === 0) {
               return <div className={`col-span-10 text-center text-xs py-4 ${mutedCls}`}>Nenhum ícone encontrado</div>
             }

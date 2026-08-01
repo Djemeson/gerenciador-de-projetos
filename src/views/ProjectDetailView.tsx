@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import {
   MoreHorizontal,
   Target, ChevronLeft, Archive, Trash2, AlertTriangle,
@@ -8,6 +8,8 @@ import {
 import { useAppStore, scopeKeyForProject } from '../stores/useAppStore'
 import { Select, STATUS_OPTIONS, PRIORITY_OPTIONS } from '../components/ui/Select'
 import { TaskList } from '../components/tasks/TaskList'
+import { SortControl } from '../components/tasks/SortControl'
+import { loadMultiSort, saveMultiSort, sortTasksMulti, type MultiSort } from '../lib/taskColumns'
 import { TaskDetail } from '../components/tasks/TaskDetail'
 import { WhiteboardView } from '../components/tasks/WhiteboardView'
 import { FilterPanel } from '../components/FilterPanel'
@@ -41,7 +43,24 @@ export function ProjectDetailView() {
   if (!project) return null
 
   const scopeKey      = scopeKeyForProject(project.id)
-  const projectTasks  = tasks.filter(t => t.projectId === project.id)
+  /**
+   * Classificação multi-nível, por projeto.
+   *
+   * Esta tela é uma implementação paralela ao `TaskPanel` (ver DIRETRIZES): espaço e pasta
+   * ganharam o `SortControl` porque usam o painel, e o projeto ficou sem. A persistência já
+   * era por escopo (`loadMultiSort`/`saveMultiSort` com `scopeKeyForProject`), então cada
+   * projeto guarda a sua ordem de forma independente — só faltava o controle na barra.
+   */
+  const [multiSort, setMultiSort] = useState<MultiSort>(() => loadMultiSort(scopeKeyForProject(project.id)))
+  const atualizarMultiSort = (next: MultiSort) => {
+    setMultiSort(next)
+    saveMultiSort(scopeKeyForProject(project.id), next)
+  }
+
+  const projectTasks  = useMemo(
+    () => sortTasksMulti(tasks.filter(t => t.projectId === project.id), multiSort),
+    [tasks, project.id, multiSort],
+  )
   const rootTasks     = projectTasks.filter(t => !t.parentId)
   const done  = rootTasks.filter(t => t.status === 'done').length
   const total = rootTasks.length
@@ -223,6 +242,7 @@ export function ProjectDetailView() {
                   </button>
                 ))}
               </div>
+              <SortControl value={multiSort} onChange={atualizarMultiSort}/>
             </div>
 
             {/* Botão de recolher/expandir subtarefas extremamente atraente */}

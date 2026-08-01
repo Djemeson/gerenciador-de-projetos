@@ -33,6 +33,14 @@ interface TaskListProps {
   expandVersion?:     number
 }
 
+/** Agrupamento → chave da coluna que ele torna redundante. `status` não tem coluna. */
+const COLUNA_DO_AGRUPAMENTO: Record<string, string | undefined> = {
+  priority: 'priority',
+  dueDate:  'dueDate',
+  assignee: 'assignee',
+  project:  'project',
+}
+
 export function TaskList({ tasks, projectId, scopeKey, columns=[], showProject=false, sortBy='status', subtasksCollapsed=false, expandVersion=0 }: TaskListProps) {
   const { projects, activeProjectId, deleteTask, updateTask, reorderTask, filteredTasks, columnsVersion: storeColumnsVersion } = useAppStore()
   const [collapsed,    setCollapsed]    = useState<Set<string>>(new Set(['done']))
@@ -118,10 +126,19 @@ export function TaskList({ tasks, projectId, scopeKey, columns=[], showProject=f
   const [colSort,    setColSort]    = useState<ColumnSort|null>(() => loadSort(scope))
   const [colVersion, setColVersion] = useState(0)
 
-  const orderedColumns = useMemo(
-    () => buildColumns(scope, columns, showProject),
-    [scope, columns, showProject, colVersion, storeColumnsVersion],
-  )
+  /**
+   * A coluna do campo agrupado sai da lista.
+   *
+   * Agrupando por prioridade, o cabeçalho de cada grupo já diz "Alta"/"Média" — repetir isso
+   * em toda linha é ruído e rouba largura das colunas que ainda informam algo. Vale para
+   * prioridade, prazo, responsável e projeto; `status` não tem coluna (aparece no círculo da
+   * linha), então agrupar por status não remove nada.
+   */
+  const orderedColumns = useMemo(() => {
+    const todas = buildColumns(scope, columns, showProject)
+    const redundante = COLUNA_DO_AGRUPAMENTO[sortBy]
+    return redundante ? todas.filter(c => c.key !== redundante) : todas
+  }, [scope, columns, showProject, colVersion, storeColumnsVersion, sortBy])
 
   const cycleSort = (key: string) => {
     setColSort(prev => {

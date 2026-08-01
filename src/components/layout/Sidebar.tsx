@@ -17,6 +17,7 @@ import { IconColorPicker } from '../ui/IconColorPicker'
 import { FloatingPanel } from '../ui/FloatingPanel'
 import { getIconComponent } from '../../lib/sidebarIcons'
 import { escopoDe, exportarMarkdown } from '../../lib/exportMarkdown'
+import { TIPO_ARRASTE_TAREFA, arrastandoTarefa } from '../../lib/dragTypes'
 
 type ItemKind = 'space' | 'folder' | 'project' | 'workspace'
 type IconTarget = { kind: ItemKind; id: string; anchor: HTMLElement }
@@ -31,6 +32,7 @@ export function Sidebar() {
     addSpace, updateSpace, deleteSpace, reorderSpace, duplicateSpace,
     addFolder, updateFolder, deleteFolder, reorderFolder, duplicateFolder,
     addProject, updateProject, moveProject, reorderProject, archiveProject, deleteProject, duplicateProject,
+    updateTask,
     addWorkspace, updateWorkspace, switchWorkspace,
   } = useAppStore()
   const { openSettings } = useSettingsStore()
@@ -334,6 +336,25 @@ export function Sidebar() {
     setDragProjId(null); setDropHint(null)
   }
 
+  /**
+   * Solta uma **tarefa** arrastada da lista sobre um projeto da barra lateral.
+   *
+   * As subtarefas vão junto: mover só a raiz deixaria as filhas apontando para o projeto
+   * antigo, e elas sumiriam das duas telas — não aparecem no projeto novo (o pai não está
+   * lá) nem no antigo (o pai saiu).
+   */
+  const soltarTarefaNoProjeto = (e: React.DragEvent, projetoId: string) => {
+    const tarefaId = e.dataTransfer.getData(TIPO_ARRASTE_TAREFA)
+    if (!tarefaId) return false
+    const mover = (id: string) => {
+      updateTask(id, { projectId: projetoId })
+      tasks.filter(t => t.parentId === id).forEach(f => mover(f.id))
+    }
+    mover(tarefaId)
+    setDropHint(null)
+    return true
+  }
+
   const nameCls = dark ? 'text-white' : 'text-[#17181C]'
   const mutedCls = dark ? 'text-[#54565f]' : 'text-[#9B9EA8]'
   const rowTextCls = dark ? 'text-[#9195A0]' : 'text-[#52555D]'
@@ -350,9 +371,18 @@ export function Sidebar() {
       <div key={p.id}
         draggable
         onDragStart={e => { setDragProjId(p.id); e.dataTransfer.effectAllowed = 'move' }}
-        onDragOver={e => { e.preventDefault(); if (dragProjId && dropHint !== p.id) setDropHint(p.id) }}
+        onDragOver={e => {
+          // Aceita projeto (reordenar/mover) **e** tarefa vinda da lista.
+          if (!dragProjId && !arrastandoTarefa(e)) return
+          e.preventDefault()
+          if (dropHint !== p.id) setDropHint(p.id)
+        }}
         onDragLeave={() => setDropHint(h => (h === p.id ? null : h))}
-        onDrop={e => { e.preventDefault(); onDropProject(p) }}
+        onDrop={e => {
+          e.preventDefault()
+          if (soltarTarefaNoProjeto(e, p.id)) return
+          onDropProject(p)
+        }}
         onDragEnd={() => { setDragProjId(null); setDropHint(null) }}
         className={`relative flex items-center group/proj rounded-lg mx-2 ${inFolder ? (dark ? 'folder-line-item-dark' : 'folder-line-item-light') : ''} ${isLastCls} ${dragProjId===p.id ? 'opacity-40' : ''} ${dropHint===p.id && dragProjId!==p.id ? 'ring-1 ring-brand-400 ring-inset' : ''}`}>
         <button
@@ -781,6 +811,19 @@ export function Sidebar() {
 
                         {/* Alinhamento uniforme das ações e contagem da Pasta à direita */}
                         <div className="absolute right-2 flex items-center gap-1">
+                          {/* Chevron dedicado, igual ao do espaço. Antes só dava para
+                              recolher clicando na pasta **quando ela já era a ativa** — em
+                              qualquer outra situação o clique navegava, então recolher exigia
+                              entrar na pasta primeiro. */}
+                          {fp.length > 0 && (
+                            <button
+                              onClick={e => { e.stopPropagation(); updateFolder(f.id, { collapsed: !f.collapsed }) }}
+                              title={f.collapsed ? 'Expandir' : 'Recolher'}
+                              className={`w-6 h-6 flex items-center justify-center flex-shrink-0 rounded transition-colors ${actionBtnCls}`}
+                            >
+                              {f.collapsed ? <ChevronRight size={14}/> : <ChevronDown size={14}/>}
+                            </button>
+                          )}
                           <div className="relative w-14 h-6 flex items-center justify-end">
                             {fCount > 0 && (
                               <span
