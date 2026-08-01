@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { nanoid } from '../lib/nanoid'
+import { parseISO } from '../lib/dateFilter'
 
 export type NotifType = 'overdue' | 'due_today' | 'due_soon' | 'automation'
 
@@ -49,7 +50,7 @@ export const useNotificationStore = create<NotifState>((set, get) => ({
 
     tasks.forEach(t => {
       if (t.status === 'done' || !t.dueDate) return
-      const due = new Date(t.dueDate)
+      const due = parseISO(t.dueDate)
       const dKey = `${t.id}-${t.dueDate}`
       if (dismissed.has(dKey)) return
 

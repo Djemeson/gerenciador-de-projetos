@@ -706,6 +706,29 @@ Regras:
 
 ---
 
+## 9.2. Prazo: sempre por `lib/dueDate.ts`
+
+Nunca usar `new Date(t.dueDate)` direto. Prazo é gravado como `'YYYY-MM-DD'`, e o construtor
+do `Date` lê data pura como meia-noite **UTC** — em UTC−3 isso produzia dois defeitos
+visíveis em toda a interface (corrigidos em 01/08/2026):
+
+1. **A data aparecia um dia antes.** Prazo 20/08 saía como "19 de ago." na lista, no board,
+   na tabela e nas notificações.
+2. **Tarefa que vencia hoje já nascia atrasada.** O prazo de hoje virava "ontem 21h", menor
+   que "agora", então a tarefa aparecia em vermelho no dia em que ainda havia o dia inteiro
+   para fazê-la.
+
+O segundo **não** se resolve só trocando o parser: mesmo lendo como meia-noite local, o prazo
+de hoje continua menor que "agora" às 11h. Atraso é medido contra o **começo de hoje**.
+
+- `estaAtrasada(dueDate, status, agora?)` — a única forma de decidir atraso. Concluída nunca
+  é atraso; vencer hoje não é atraso.
+- `venceHoje(dueDate, agora?)`, `formatarPrazo(dueDate, opcoes?)`, `inicioDeHoje(agora?)`.
+- Comparação só para **ordenar** pode usar timestamp (o deslocamento é igual para todos e não
+  muda a ordem), mas prefira `parseISO` para o valor não divergir do que a tela mostra.
+
+---
+
 ## 10. Fluxo de trabalho
 
 - **Publicar é nos dois lugares** (29/07/2026 — substitui a regra anterior de push manual):

@@ -41,6 +41,7 @@ const QUICK_ACTIONS: { key: string; label: string; Icon: React.ElementType; prom
 ]
 import { useAppStore } from '../stores/useAppStore'
 import { useSettingsStore } from '../stores/useSettingsStore'
+import { estaAtrasada } from '../lib/dueDate'
 import { AiKeyNotice } from './ui/AiKeyNotice'
 import { AI_TOOLS, executeTool, type ToolName } from '../lib/aiTools'
 import {
@@ -195,7 +196,7 @@ export function AIPanel() {
   const callGemini = async (history: ChatMessage[]): Promise<{ text: string; toolCalls: ChatToolCall[] }> => {
     const inScope = (wid: string) => !scopeWorkspace || wid === activeWorkspaceId
     const active = tasks.filter(t => inScope(t.workspaceId) && t.status !== 'done').slice(0, 30)
-    const overdue = active.filter(t => t.dueDate && new Date(t.dueDate) < new Date()).length
+    const overdue = active.filter(t => estaAtrasada(t.dueDate, t.status)).length
     const wsProjects = projects.filter(p => inScope(p.workspaceId) && !p.archived)
     const contextBlurb = `Contexto (somente consulta, sem execução de ações): ${wsProjects.length} projetos ativos; ${active.length} tarefas ativas; ${overdue} atrasadas. Projetos: ${wsProjects.map(p => p.name).join(', ') || 'nenhum'}.`
     const transcript = history.map(m => `${m.role === 'user' ? 'Usuário' : 'Assistente'}: ${m.content}`).join('\n')

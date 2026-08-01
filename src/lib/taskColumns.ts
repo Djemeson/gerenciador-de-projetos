@@ -1,4 +1,5 @@
 import type { ColumnDef, ListColumn, Task, Priority, TaskStatus } from '../types'
+import { parseISO } from './dateFilter'
 
 // Colunas de sistema padrão (sem "Nome", que fica fixo à esquerda) — sempre disponíveis,
 // visíveis por padrão (podem ser ocultadas em "Adicionar um existente").
@@ -106,7 +107,7 @@ function cmpValue(t: Task, key: string): string | number {
     case 'assignee':  return (t.assignee || '').toLowerCase()
     case 'priority':  return PRIO_ORDER[t.priority]
     case 'status':    return STATUS_ORDER[t.status]
-    case 'dueDate':   return t.dueDate ? new Date(t.dueDate).getTime() : Number.POSITIVE_INFINITY
+    case 'dueDate':   return t.dueDate ? parseISO(t.dueDate).getTime() : Number.POSITIVE_INFINITY
     case 'tags':      return (t.tags[0] || '').toLowerCase()
     case 'createdAt': return new Date(t.createdAt).getTime()
     case 'updatedAt': return new Date(t.updatedAt).getTime()

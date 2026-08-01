@@ -6,6 +6,7 @@ import type { Task, Project, Priority, ColumnDef, TaskType, ListColumn } from '.
 import { PRIORITY_LABEL, PRIORITY_COLOR, PRIORITY_TEXT_COLOR, priorityTint, TASK_TYPE_META } from '../../types'
 import { TYPE_ICON, TYPE_ICON_COLOR } from '../../lib/taskTypeIcons'
 import { TIPO_ARRASTE_TAREFA } from '../../lib/dragTypes'
+import { estaAtrasada } from '../../lib/dueDate'
 import { useAppStore } from '../../stores/useAppStore'
 import { QuickAddRow } from './QuickAddRow'
 import { CustomFieldCell } from './CustomFieldCell'
@@ -59,7 +60,7 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
   const hasChildren = subtasks.length > 0
   const isSelected  = selectedTaskId===task.id
   const isDone      = task.status==='done'
-  const isOverdue   = task.dueDate && !isDone && new Date(task.dueDate) < new Date()
+  const isOverdue   = estaAtrasada(task.dueDate, task.status)
   const indent      = depth * 20
   const circleStyle = isDone ? null : priorityCircleStyle(task.priority)
   const typeMeta    = TASK_TYPE_META[task.taskType ?? 'task']

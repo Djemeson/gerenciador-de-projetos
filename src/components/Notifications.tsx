@@ -2,6 +2,7 @@ import React from 'react'
 import { AlertCircle, Clock, Bell, X, AlarmClock, CheckCheck, Zap } from 'lucide-react'
 import { useNotificationStore } from '../stores/useNotificationStore'
 import { useAppStore } from '../stores/useAppStore'
+import { formatarPrazo } from '../lib/dueDate'
 
 const TYPE_CONFIG = {
   overdue:  { icon: AlertCircle, label: 'Em atraso',   bg: 'bg-danger-50',    border: 'border-danger-100',   iconColor: 'text-danger-500',    badge: 'bg-danger-100 text-danger-700' },
@@ -48,7 +49,7 @@ export function Notifications() {
               <p className="text-xs font-medium text-gray-800 truncate">{n.taskTitle}</p>
               {n.dueDate && (
                 <p className="text-[10px] text-gray-500 mt-0.5">
-                  Prazo: {new Date(n.dueDate).toLocaleDateString('pt-BR', { day:'2-digit', month:'short' })}
+                  Prazo: {formatarPrazo(n.dueDate)}
                 </p>
               )}
               <div className="flex items-center gap-2 mt-2">

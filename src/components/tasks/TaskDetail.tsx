@@ -9,6 +9,7 @@ import { useAppStore } from '../../stores/useAppStore'
 import { useSettingsStore } from '../../stores/useSettingsStore'
 import type { Priority, TaskStatus, TaskOpenMode, ContentBlock } from '../../types'
 import { TYPE_ICON } from '../../lib/taskTypeIcons'
+import { estaAtrasada } from '../../lib/dueDate'
 import { escopoDe, exportarMarkdown } from '../../lib/exportMarkdown'
 import { Button } from '../ui'
 import { Select, PRIORITY_OPTIONS, STATUS_OPTIONS, STATUS_COLOR } from '../ui/Select'
@@ -1192,7 +1193,7 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
 
           <SideProp label="Prazo">
             <DueDatePicker value={task.dueDate} onChange={v => updateTask(task.id, { dueDate: v })}
-              overdue={!!task.dueDate && task.status!=='done' && new Date(task.dueDate) < new Date()} variant="side"/>
+              overdue={estaAtrasada(task.dueDate, task.status)} variant="side"/>
           </SideProp>
 
           {(() => { const prog = taskProgress(task, subtasks); return prog && (

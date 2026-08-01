@@ -1,5 +1,6 @@
 import type { Task, Project, TaskStatus, Priority, TaskType } from '../types'
 import { PROJECT_COLORS } from '../types'
+import { estaAtrasada } from './dueDate'
 
 // ── Ferramentas que a IA do "Pergunte à IA" pode executar de verdade sobre os
 // dados do workspace — não é mais "gerar um JSON de tarefa e torcer para dar
@@ -240,7 +241,7 @@ export function executeTool(name: ToolName, rawArgs: string, ctx: ToolCtx): Tool
       if (args.status && args.status !== 'all') pool = pool.filter(t => t.status === args.status)
       if (args.priority) pool = pool.filter(t => t.priority === args.priority)
       if (args.assignee) pool = pool.filter(t => norm(t.assignee).includes(norm(args.assignee)))
-      if (args.overdueOnly) pool = pool.filter(t => t.dueDate && t.status !== 'done' && new Date(t.dueDate) < new Date())
+      if (args.overdueOnly) pool = pool.filter(t => estaAtrasada(t.dueDate, t.status))
       pool = pool.filter(t => !t.parentId)
       const limit = typeof args.limit === 'number' ? args.limit : 25
       const shown = pool.slice(0, limit)
@@ -345,7 +346,7 @@ export function executeTool(name: ToolName, rawArgs: string, ctx: ToolCtx): Tool
       const proj = findProject(workspaceProjects, args.projectName)
       const pool = (proj ? workspaceTasks.filter(t => t.projectId === proj.id) : workspaceTasks).filter(t => !t.parentId)
       const done = pool.filter(t => t.status === 'done').length
-      const overdue = pool.filter(t => t.dueDate && t.status !== 'done' && new Date(t.dueDate) < new Date()).length
+      const overdue = pool.filter(t => estaAtrasada(t.dueDate, t.status)).length
       const urgent = pool.filter(t => t.priority === 'urgent' && t.status !== 'done').length
       const pct = pool.length ? Math.round((done / pool.length) * 100) : 0
       return {

@@ -15,6 +15,7 @@ import { AIPanel } from '../AIPanel'
 import { NotesPanel, NotesButton } from '../NotesPanel'
 import { applyCustomViewFilter } from '../../lib/customViews'
 import { VIEW_ICON } from '../../lib/viewIcons'
+import { estaAtrasada, formatarPrazo } from '../../lib/dueDate'
 import { Select, PRIORITY_OPTIONS, STATUS_OPTIONS } from '../ui/Select'
 import { AssigneePicker } from '../ui/AssigneePicker'
 import { DueDatePicker } from '../ui/DueDatePicker'
@@ -324,7 +325,7 @@ function OverviewView({ tasks, accent, pct, gut }: { tasks: Task[]; accent: stri
   const now      = new Date()
   const statusCounts = { todo:0, in_progress:0, done:0 } as Record<string, number>
   root.forEach(t => { statusCounts[t.status] = (statusCounts[t.status] ?? 0) + 1 })
-  const overdue  = root.filter(t => t.dueDate && t.status!=='done' && new Date(t.dueDate) < now)
+  const overdue  = root.filter(t => estaAtrasada(t.dueDate, t.status, now))
   const noDate   = root.filter(t => !t.dueDate && t.status!=='done').length
   const upcoming = [...root].filter(t => t.dueDate && t.status!=='done')
     .sort((a,b) => new Date(a.dueDate as string).getTime()-new Date(b.dueDate as string).getTime()).slice(0,5)
@@ -428,7 +429,7 @@ function OverviewView({ tasks, accent, pct, gut }: { tasks: Task[]; accent: stri
             ) : (
               <div className="space-y-0.5">
                 {upcoming.map(t=>{
-                  const late = new Date(t.dueDate as string) < now
+                  const late = estaAtrasada(t.dueDate, t.status, now)
                   return (
                     <button key={t.id} onClick={()=>setSelectedTask(t.id)}
                       className="w-full flex items-center gap-2.5 text-left hover:bg-gray-50 px-2 py-1.5 rounded-lg transition-colors">
@@ -540,7 +541,7 @@ function BoardView({ tasks }: { tasks: Task[] }) {
                         </span>
                         {t.dueDate && (
                           <span className="text-[10px] font-medium text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded-md border border-gray-100">
-                            {new Date(t.dueDate).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}
+                            {formatarPrazo(t.dueDate)}
                           </span>
                         )}
                         <span className="w-5 h-5 rounded-full bg-brand-50 text-brand-700 text-[10px] font-semibold flex items-center justify-center border border-brand-100">{t.assignee.slice(0,2)}</span>
@@ -665,7 +666,7 @@ function TableView({ tasks, columns, showProject, scopeKey }: { tasks: Task[]; c
                   <AssigneePicker value={t.assignee} onChange={v=>updateTask(t.id,{assignee:v})} variant="row"/>
                 </td>
                 <td className={cellPad} onClick={e=>e.stopPropagation()}>
-                  <DueDatePicker value={t.dueDate} onChange={v=>updateTask(t.id,{dueDate:v})} overdue={!!t.dueDate && t.status!=='done' && new Date(t.dueDate)<new Date()} variant="row"/>
+                  <DueDatePicker value={t.dueDate} onChange={v=>updateTask(t.id,{dueDate:v})} overdue={estaAtrasada(t.dueDate, t.status)} variant="row"/>
                 </td>
                 {columns.map(c=>(
                   <td key={c.id} className={`${cellPad} text-gray-500`} onClick={e=>e.stopPropagation()}>
@@ -762,7 +763,7 @@ function ActivityView({ tasks }: { tasks: Task[] }) {
                       {statusLabel[t.status]}
                     </span>
                     {t.assignee && <span className="text-[10px] text-gray-400">{t.assignee}</span>}
-                    {t.dueDate && <span className="inline-flex items-center gap-1 text-[10px] text-gray-400"><Calendar size={12}/>{new Date(t.dueDate).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}</span>}
+                    {t.dueDate && <span className="inline-flex items-center gap-1 text-[10px] text-gray-400"><Calendar size={12}/>{formatarPrazo(t.dueDate)}</span>}
                   </div>
                 </div>
               </div>
@@ -849,7 +850,7 @@ function DashboardView({ tasks, accent }: { tasks: Task[]; accent: string }) {
           <h3 className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Visão geral</h3>
           {[
             { label:'Total de tarefas', val:root.length, color:'#6366F1' },
-            { label:'Atrasadas', val:root.filter(t=>t.dueDate&&t.status!=='done'&&new Date(t.dueDate)<new Date()).length, color:'#E24B4A' },
+            { label:'Atrasadas', val:root.filter(t=>estaAtrasada(t.dueDate,t.status)).length, color:'#E24B4A' },
             { label:'Sem prazo', val:root.filter(t=>!t.dueDate).length, color:'#888780' },
           ].map(s=>(
             <div key={s.label} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
