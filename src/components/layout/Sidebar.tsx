@@ -837,19 +837,24 @@ export function Sidebar() {
 
                         {/* Alinhamento uniforme das ações e contagem da Pasta à direita */}
                         <div className="absolute right-2 flex items-center gap-1">
-                          {/* Chevron dedicado, igual ao do espaço. Antes só dava para
-                              recolher clicando na pasta **quando ela já era a ativa** — em
-                              qualquer outra situação o clique navegava, então recolher exigia
-                              entrar na pasta primeiro. */}
-                          {fp.length > 0 && (
-                            <button
-                              onClick={e => { e.stopPropagation(); updateFolder(f.id, { collapsed: !f.collapsed }) }}
-                              title={f.collapsed ? 'Expandir' : 'Recolher'}
-                              className={`w-6 h-6 flex items-center justify-center flex-shrink-0 rounded transition-colors ${actionBtnCls}`}
-                            >
-                              {f.collapsed ? <ChevronRight size={14}/> : <ChevronDown size={14}/>}
-                            </button>
-                          )}
+                          {/* Chevron dedicado, **sempre visível**, igual ao do espaço.
+                              Duas correções moram aqui:
+                              1. Antes só dava para recolher clicando na pasta *quando ela já
+                                 era a ativa*; em qualquer outra situação o clique navegava,
+                                 então recolher exigia entrar na pasta primeiro.
+                              2. O botão chegou condicionado a ter projeto dentro, com o
+                                 argumento de que pasta vazia não teria o que esconder. Errado:
+                                 a pasta vazia renderiza o rótulo "Vazia", que também recolhe,
+                                 e o espaço nunca teve essa condição — o resultado era uma
+                                 barra em que algumas pastas tinham o controle e outras não,
+                                 sem regra visível para o usuário. */}
+                          <button
+                            onClick={e => { e.stopPropagation(); updateFolder(f.id, { collapsed: !f.collapsed }) }}
+                            title={f.collapsed ? 'Expandir' : 'Recolher'}
+                            className={`w-6 h-6 flex items-center justify-center flex-shrink-0 rounded transition-colors ${actionBtnCls}`}
+                          >
+                            {f.collapsed ? <ChevronRight size={14}/> : <ChevronDown size={14}/>}
+                          </button>
                           <div className="relative w-14 h-6 flex items-center justify-end">
                             {fCount > 0 && (
                               <span

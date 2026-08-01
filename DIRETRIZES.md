@@ -995,6 +995,10 @@ de hoje continua menor que "agora" às 11h. Atraso é medido contra o **começo 
   editar — antes só dava para apagar e refazer), duplicar (nasce desligada), pausar e
   excluir.
 
+- **Pasta sempre mostra o chevron de recolher**, com ou sem projeto dentro — igual ao
+  espaço. Condicionar a "ter projeto" produzia uma barra em que algumas pastas tinham o
+  controle e outras não, sem regra visível; e pasta vazia **tem** o que recolher, porque
+  renderiza o rótulo "Vazia".
 - **Criar ou mover item revela o contêiner** (`revelarContainer`, Sidebar). Item novo nasce
   em modo de renomear; se o espaço ou a pasta estiver recolhido, a linha nem é renderizada —
   o campo de nome nunca aparece e o projeto fica preso como "Novo Projeto". Vale para criar
