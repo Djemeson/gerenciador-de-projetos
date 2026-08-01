@@ -995,6 +995,11 @@ de hoje continua menor que "agora" às 11h. Atraso é medido contra o **começo 
   editar — antes só dava para apagar e refazer), duplicar (nasce desligada), pausar e
   excluir.
 
+- **Criar ou mover item revela o contêiner** (`revelarContainer`, Sidebar). Item novo nasce
+  em modo de renomear; se o espaço ou a pasta estiver recolhido, a linha nem é renderizada —
+  o campo de nome nunca aparece e o projeto fica preso como "Novo Projeto". Vale para criar
+  projeto, criar pasta, mover pelo menu e soltar arrastando: em todos, o contêiner de destino
+  abre antes.
 ---
 
 ## 13.7. Lista de projetos (reformulada em 29/07/2026)

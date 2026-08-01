@@ -174,12 +174,33 @@ export function Sidebar() {
   const saveSpace = () => {
     if (spaceName.trim()) { addSpace(spaceName.trim(), '#6366F1'); setSpaceName(''); setAddingSpace(null) }
   }
+  /**
+   * Abre os contêineres que esconderiam o item recém-criado.
+   *
+   * Item novo nasce em **modo de renomear** (`startRename`). Se o espaço ou a pasta que o
+   * contém estiver recolhido, a linha nem chega a ser renderizada — o campo de nome nunca
+   * aparece e o item fica preso como "Novo Projeto", sem caminho para renomear a não ser
+   * descobrir sozinho que a pasta estava fechada.
+   */
+  const revelarContainer = (spaceId?: string | null, folderId?: string | null) => {
+    if (folderId) {
+      const f = folders.find(x => x.id === folderId)
+      if (f?.collapsed) updateFolder(folderId, { collapsed: false })
+    }
+    if (spaceId) {
+      const s = spaces.find(x => x.id === spaceId)
+      if (s?.collapsed) updateSpace(spaceId, { collapsed: false })
+    }
+  }
+
   const createFolder = (spaceId: string) => {
+    revelarContainer(spaceId)
     const f = addFolder('Nova Pasta', spaceId)
     startRename({ kind:'folder', id: f.id }, f.name)
     setCreateMenu(null)
   }
   const createProject = (spaceId?: string, folderId?: string, color?: string) => {
+    revelarContainer(spaceId, folderId)
     const p = addProject('Novo Projeto', color ?? '#6366F1', '', spaceId, folderId, 'circle')
     startRename({ kind:'project', id: p.id }, p.name)
   }
@@ -191,7 +212,12 @@ export function Sidebar() {
   // ─── Menu de item (⋯): Mover / Duplicar / Arquivar / Excluir ───────────────
   const openItemMenu = (kind: ItemKind, id: string, anchor: HTMLElement) => setItemMenu(m => (m?.kind===kind && m.id===id) ? null : { kind, id, view: 'root', anchor })
 
-  const doMove = (id: string, spaceId: string | null, folderId: string | null) => { moveProject(id, spaceId, folderId); setItemMenu(null) }
+  // Mover para um contêiner recolhido faria o projeto "sumir" da barra sem explicação.
+  const doMove = (id: string, spaceId: string | null, folderId: string | null) => {
+    revelarContainer(spaceId, folderId)
+    moveProject(id, spaceId, folderId)
+    setItemMenu(null)
+  }
   const doDuplicate = () => {
     if (!itemMenu) return
     if (itemMenu.kind === 'space')   duplicateSpace(itemMenu.id)
@@ -332,7 +358,7 @@ export function Sidebar() {
     setDragProjId(null); setDropHint(null)
   }
   const onDropContainer = (spaceId: string|null, folderId: string|null) => {
-    if (dragProjId) moveProject(dragProjId, spaceId, folderId)
+    if (dragProjId) { revelarContainer(spaceId, folderId); moveProject(dragProjId, spaceId, folderId) }
     setDragProjId(null); setDropHint(null)
   }
 
