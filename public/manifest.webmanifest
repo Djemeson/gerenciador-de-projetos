@@ -10,6 +10,15 @@
   "display": "standalone",
   "background_color": "#08090C",
   "theme_color": "#08090C",
+  "shortcuts": [
+    {
+      "name": "Nova tarefa por voz",
+      "short_name": "Falar tarefa",
+      "description": "Abre a captura rápida já ouvindo — dite a tarefa e ela vai para o projeto certo.",
+      "url": "/?acao=voz",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ],
   "icons": [
     { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },

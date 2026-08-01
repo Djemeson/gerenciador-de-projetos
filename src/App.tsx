@@ -30,7 +30,7 @@ import { SyncIndicator }            from './components/SyncIndicator'
 import { USE_FIREBASE }             from './lib/firebase'
 
 export default function App() {
-  const { activeView, tasks: allTasks, projects, init, undo, activeWorkspaceId, quickCaptureOpen, toggleQuickCapture, closeQuickCapture, toggleMobileSidebar, startCloudSync, stopCloudSync, runDueDateAutomations } = useAppStore()
+  const { activeView, tasks: allTasks, projects, init, undo, activeWorkspaceId, quickCaptureOpen, toggleQuickCapture, closeQuickCapture, openQuickCapture, toggleMobileSidebar, startCloudSync, stopCloudSync, runDueDateAutomations } = useAppStore()
   const { quickCaptureHotkey }  = useSettingsStore()
   const generate                = useNotificationStore(s => s.generate)
   const { user, authLoading, init: initAuth } = useAuthStore()
@@ -86,6 +86,15 @@ export default function App() {
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [quickCaptureHotkey])
+
+  /**
+   * Atalho "Nova tarefa por voz" do ícone do app (`shortcuts` no manifesto): abre em
+   * `/?acao=voz` e a captura rápida entra já ouvindo. É o caminho mais curto que um PWA
+   * permite — widget de tela inicial exige app nativo.
+   */
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('acao') === 'voz') openQuickCapture()
+  }, [])
 
   // Ctrl+Z / Cmd+Z → desfazer (mover/excluir/reordenar)
   useEffect(() => {

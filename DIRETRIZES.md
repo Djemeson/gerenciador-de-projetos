@@ -750,6 +750,33 @@ de hoje continua menor que "agora" às 11h. Atraso é medido contra o **começo 
 
 ---
 
+## 9.4. Captura por voz e captura inteligente
+
+- **`lib/smartCapture.ts` entende, numa frase só**: prazo, prioridade, **projeto** (pelo nome
+  cadastrado), **#etiquetas**, **@responsável** e **tipo de tarefa**. Determinístico e
+  testável — sem chave de IA e sem custo.
+- **Sem projeto dito, vai para a Caixa de entrada** (pedido explícito). Escolha manual na
+  interface vence o que foi detectado.
+- **Ordem das regras importa**: etiquetas e responsável são extraídos **antes** de prazo e
+  prioridade. Rodando depois, a etiqueta `#urgente-cliente` era comida pela regra de
+  "urgente" e chegava pela metade.
+- **A palavra do tipo continua no título**, ao contrário dos outros campos: "amanhã" e
+  "urgente" são metadado disfarçado de texto e saem, mas "reunião com fornecedor" viraria
+  "com fornecedor".
+- **Projeto casa sem acento**, dos dois lados (`semAcento`, mapa 1-para-1 e não `NFD`, para
+  os índices continuarem valendo): transcrição de fala vem sem acento, e "migracao de rede"
+  precisa achar "Migração de rede". Nome com menos de 3 letras é ignorado — casaria em
+  qualquer frase.
+- **Voz** (`lib/speech.ts`): Web Speech API em pt-BR, rodando no dispositivo, sem chave e
+  sem custo. O microfone só aparece quando `suportaFala()` — Firefox não tem, Safari é
+  irregular; oferecer um botão que falha ao toque é pior que não oferecer.
+- **Widget de tela inicial não existe para PWA.** O pedido original pedia isso; nenhuma API
+  da web cria widget — exige app nativo. O mais próximo é o **atalho no ícone**
+  (`shortcuts` no manifesto → `/?acao=voz`), que abre a captura já ouvindo. O parâmetro é
+  apagado da URL logo em seguida, senão recarregar a página reabriria o microfone sozinha.
+
+---
+
 ## 10. Fluxo de trabalho
 
 - **Publicar é nos dois lugares** (29/07/2026 — substitui a regra anterior de push manual):

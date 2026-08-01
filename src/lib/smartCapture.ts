@@ -1,4 +1,4 @@
-import type { Priority } from '../types'
+import type { Priority, TaskType } from '../types'
 import { isoDate } from './dateFilter'
 
 // ── Captura inteligente ─────────────────────────────────────────────────────
@@ -8,13 +8,30 @@ import { isoDate } from './dateFilter'
 // O texto reconhecido sai do título; o que foi entendido volta em `matched`
 // para a interface mostrar a prévia ("Entendi: prazo amanhã · urgente").
 
-export interface SmartMatch { text: string; kind: 'date' | 'priority'; label: string }
+export interface SmartMatch {
+  text: string
+  kind: 'date' | 'priority' | 'project' | 'tag' | 'assignee' | 'type'
+  label: string
+}
 
 export interface ParsedCapture {
-  title:    string
-  dueDate:  string | null
-  priority: Priority | null
-  matched:  SmartMatch[]
+  title:     string
+  dueDate:   string | null
+  priority:  Priority | null
+  projectId: string | null
+  tags:      string[]
+  assignee:  string | null
+  taskType:  TaskType | null
+  matched:   SmartMatch[]
+}
+
+/**
+ * Vocabulário do workspace, para o parser reconhecer nomes que só existem nos dados do
+ * usuário. Sem isto ele nunca saberia que "Migração de rede" é um projeto.
+ */
+export interface VocabularioCaptura {
+  projetos:      { id: string; name: string }[]
+  responsaveis?: string[]
 }
 
 const WEEKDAYS: { re: RegExp; day: number }[] = [
@@ -54,11 +71,38 @@ function limpar(title: string, match: string): string {
     .trim()
 }
 
-export function parseSmartCapture(raw: string, now: Date = new Date()): ParsedCapture {
+export function parseSmartCapture(
+  raw: string,
+  now: Date = new Date(),
+  vocab: VocabularioCaptura = { projetos: [] },
+): ParsedCapture {
   let title = raw
   let dueDate: string | null = null
   let priority: Priority | null = null
+  let projectId: string | null = null
+  let assignee: string | null = null
+  let taskType: TaskType | null = null
+  const tags: string[] = []
   const matched: SmartMatch[] = []
+
+  // ── Etiquetas (#) e responsável (@) ──
+  // **Antes de tudo**, de propósito: são marcadores explícitos e delimitam o próprio
+  // texto. Rodando depois da prioridade, a etiqueta `#urgente-cliente` era comida pela
+  // regra de "urgente" e só metade dela sobrava.
+  title = title.replace(/#([\p{L}\p{N}_-]+)/gu, (todo, tag) => {
+    tags.push(tag)
+    matched.push({ text: todo, kind: 'tag', label: tag })
+    return ' '
+  })
+
+  const mResp = title.match(/@([\p{L}\p{N}_.-]+)/u)
+  if (mResp) {
+    const alvo = vocab.responsaveis?.find(r => normalizar(r) === normalizar(mResp[1]))
+    assignee = alvo ?? mResp[1]
+    matched.push({ text: mResp[0], kind: 'assignee', label: assignee })
+    title = limpar(title, mResp[0])
+  }
+
 
   // ── Prazo ──
   const dateRules: { re: RegExp; resolve: (m: RegExpMatchArray) => Date | null; label?: (d: Date) => string }[] = [
@@ -116,5 +160,66 @@ export function parseSmartCapture(raw: string, now: Date = new Date()): ParsedCa
     break
   }
 
-  return { title: title.trim(), dueDate, priority, matched }
+  // ── Tipo de tarefa ──
+  // **A palavra continua no título**, ao contrário dos outros campos. "amanhã" e "urgente"
+  // são metadado disfarçado de texto e saem; já "reunião com fornecedor" e "bug do login"
+  // perdem o sentido sem a primeira palavra — o título viraria "com fornecedor".
+  for (const { re, tipo, label } of TYPE_WORDS) {
+    const m = title.match(re)
+    if (!m) continue
+    taskType = tipo
+    matched.push({ text: m[0], kind: 'type', label })
+    break
+  }
+
+  // ── Projeto ──
+  // Casa o **nome real** do projeto no texto, do mais longo para o mais curto: com
+  // "Rede" e "Rede externa" cadastrados, falar "rede externa" tem que achar o segundo.
+  const porTamanho = [...vocab.projetos].sort((a, b) => b.name.length - a.name.length)
+  for (const proj of porTamanho) {
+    if (proj.name.trim().length < 3) continue   // nome curto demais casaria em qualquer frase
+    // Busca no texto **sem acento**, dos dois lados: transcrição de fala e digitação
+    // apressada vêm sem acento, e "migracao de rede" precisa achar "Migração de rede".
+    // O mapa é 1-para-1 (não `NFD`), então os índices continuam valendo para recortar o
+    // trecho do título original.
+    //
+    // Barras dobradas: dentro de template literal `\b` é backspace e `\s` perde a barra —
+    // o `RegExp` precisa receber os dois como texto.
+    const re = new RegExp(`(?:\\b(?:no|na|em|do|da|projeto)\\s+)?${escaparRegex(semAcento(proj.name))}(?=[\\s,.;:!?]|$)`, 'i')
+    const m = semAcento(title).match(re)
+    if (!m || m.index === undefined) continue
+    // Recorta do título **original**, para o trecho removido preservar os acentos.
+    const trecho = title.slice(m.index, m.index + m[0].length)
+    projectId = proj.id
+    matched.push({ text: trecho, kind: 'project', label: proj.name })
+    title = limpar(title, trecho)
+    break
+  }
+
+  return { title: title.trim(), dueDate, priority, projectId, tags, assignee, taskType, matched }
 }
+
+const TYPE_WORDS: { re: RegExp; tipo: TaskType; label: string }[] = [
+  { re: /\b(?:bug|erro|defeito)\b/i,                    tipo: 'bug',          label: 'Erro' },
+  { re: /\b(?:reuni[ãa]o|call|daily)(?=[\s,.;:!?]|$)/i, tipo: 'meeting_note', label: 'Anotação de reunião' },
+  { re: /\b(?:marco|milestone|entrega)\b/i,             tipo: 'milestone',    label: 'Marco' },
+  { re: /\bsolicita[çc][ãa]o(?=[\s,.;:!?]|$)/i,         tipo: 'request',      label: 'Solicitação' },
+]
+
+const normalizar = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
+
+/**
+ * Tira o acento **preservando o comprimento** — mapa 1-para-1, não `NFD`.
+ *
+ * `NFD` separa a letra do acento e a string cresce, o que estragaria os índices usados para
+ * recortar o trecho do título original. Aqui cada caractere vira exatamente um.
+ */
+const ACENTOS: Record<string, string> = {
+  á:'a', à:'a', ã:'a', â:'a', ä:'a', é:'e', è:'e', ê:'e', ë:'e', í:'i', ì:'i', î:'i', ï:'i',
+  ó:'o', ò:'o', õ:'o', ô:'o', ö:'o', ú:'u', ù:'u', û:'u', ü:'u', ç:'c', ñ:'n',
+  Á:'A', À:'A', Ã:'A', Â:'A', Ä:'A', É:'E', È:'E', Ê:'E', Ë:'E', Í:'I', Ì:'I', Î:'I', Ï:'I',
+  Ó:'O', Ò:'O', Õ:'O', Ô:'O', Ö:'O', Ú:'U', Ù:'U', Û:'U', Ü:'U', Ç:'C', Ñ:'N',
+}
+const semAcento = (s: string) => s.replace(/[À-ÿ]/g, c => ACENTOS[c] ?? c)
+/** Escapa o nome do projeto para virar regex — nome com "(" ou "." é comum. */
+const escaparRegex = (s: string) => s.replace(/[-.*+?^${}()|[\]\\]/g, '\\$&')

@@ -507,14 +507,48 @@
    (ícone, texto, borda, badge) para ficar visualmente distinguível dos
    campos comuns. Fonte única — não cravar o gradiente solto em outro lugar. */
 :root {
-  --ai-gradient: linear-gradient(90deg, #4285F4 0%, #9B72CB 50%, #D96570 100%);
+  /* Gradiente repetido no dobro da largura: é o que permite deslocá-lo continuamente sem
+     emenda visível. As cores voltam ao ponto inicial no fim do ciclo. */
+  --ai-gradient: linear-gradient(90deg,
+    #4285F4 0%, #9B72CB 25%, #D96570 50%, #9B72CB 75%, #4285F4 100%);
 }
-.ai-gradient-bg  { background: var(--ai-gradient); }
+
+/**
+ * Movimento do gradiente de IA.
+ *
+ * Era estático — "só um gradiente". Agora a faixa desliza devagar o tempo todo e **acelera
+ * no ponteiro**, que é onde o pedido colocava a ênfase. O deslocamento é de
+ * `background-position`, não de layout, então não força recálculo de posição na página.
+ */
+@keyframes ai-drift {
+  from { background-position:   0% 50%; }
+  to   { background-position: 200% 50%; }
+}
+
+.ai-gradient-bg,
 .ai-gradient-text {
   background: var(--ai-gradient);
+  background-size: 200% 100%;
+  animation: ai-drift 8s linear infinite;
+}
+.ai-gradient-bg:hover,
+.ai-gradient-text:hover,
+button:hover .ai-gradient-bg,
+button:hover .ai-gradient-text,
+.group:hover .ai-gradient-bg,
+.group:hover .ai-gradient-text {
+  animation-duration: 2.2s;
+}
+.ai-gradient-text {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+}
+
+/* Movimento contínuo é exatamente o que incomoda quem pede menos animação. */
+@media (prefers-reduced-motion: reduce) {
+  .ai-gradient-bg,
+  .ai-gradient-text { animation: none; }
 }
 .ai-gradient-border {
   border-image: var(--ai-gradient) 1;
