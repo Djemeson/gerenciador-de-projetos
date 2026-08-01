@@ -51,11 +51,26 @@ export function TaskList({ tasks, projectId, scopeKey, columns=[], showProject=f
   const [dragOverGroup,setDragOverGroup]= useState<string|null>(null)
   const [focusId,      setFocusId]      = useState<string|null>(null)
 
-  // Garante que o estado de arraste não fique "preso" se o drop acontecer fora de um alvo válido
+  /**
+   * Limpa o estado de arraste.
+   *
+   * O `dragend` sozinho não basta, e o motivo é sutil: esse evento é disparado **no elemento
+   * de origem**. Ao arrastar uma tarefa para um projeto da barra lateral, ela muda de projeto
+   * e a linha desaparece desta lista — o nó de origem é desmontado antes do `dragend`, que
+   * então nunca acontece e nunca chega à janela. O resultado era a linha ficar meio apagada
+   * (`opacity-40`) e o grupo inteiro seguir com o realce de alvo de soltura.
+   *
+   * O `drop` borbulha do alvo até a janela, inclusive quando o alvo está em outro ramo da
+   * árvore, então cobre justamente o caso que o `dragend` perde.
+   */
   useEffect(() => {
     const reset = () => { setDragTaskId(null); setDragOverGroup(null) }
     window.addEventListener('dragend', reset)
-    return () => window.removeEventListener('dragend', reset)
+    window.addEventListener('drop', reset)
+    return () => {
+      window.removeEventListener('dragend', reset)
+      window.removeEventListener('drop', reset)
+    }
   }, [])
 
   // Navegação por teclado (j/k navegar · e abrir · espaço concluir)
