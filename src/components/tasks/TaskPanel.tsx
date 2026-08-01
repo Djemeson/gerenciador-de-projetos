@@ -18,7 +18,7 @@ import { VIEW_ICON } from '../../lib/viewIcons'
 import { Select, PRIORITY_OPTIONS, STATUS_OPTIONS } from '../ui/Select'
 import { AssigneePicker } from '../ui/AssigneePicker'
 import { DueDatePicker } from '../ui/DueDatePicker'
-import type { Task, ColumnDef, ViewType, Priority, TaskStatus } from '../../types'
+import type { Task, ColumnDef, ViewType, Priority, TaskStatus, TaskOpenMode } from '../../types'
 import { PRIORITY_LABEL, STATUS_LABEL, migrateViewType } from '../../types'
 
 export type GroupBy = 'status' | 'priority' | 'dueDate' | 'assignee' | 'project'
@@ -63,6 +63,13 @@ export interface TaskPanelProps {
   views?:            ViewType[]
   defaultView?:      ViewType
   gut?:              { score: number; g: number; u: number; t: number }
+  /**
+   * Modo de abertura da tarefa. Só o escopo de projeto usa: ele guarda a preferência em
+   * `project.taskOpenMode`, para o mesmo projeto sempre abrir do mesmo jeito. Os demais
+   * escopos não passam nada e ficam com o padrão do `TaskDetail`.
+   */
+  taskOpenMode?:         TaskOpenMode
+  onChangeTaskOpenMode?: (mode: TaskOpenMode) => void
 }
 
 export function TaskPanel({
@@ -70,6 +77,7 @@ export function TaskPanel({
   columns = [], defaultProjectId, showProject = false,
   groupOptions = ['status','priority','dueDate','assignee'],
   defaultGroup = 'status', views, defaultView = 'list', gut,
+  taskOpenMode, onChangeTaskOpenMode,
 }: TaskPanelProps) {
   const { selectedTaskId, getCustomViews, deleteCustomView, openNewViewModal, viewPrefs, setViewPref } = useAppStore()
   // `||` e não `??`: a chave antiga devolve string vazia quando não existe, e `'' ?? d`
@@ -260,7 +268,7 @@ export function TaskPanel({
           <AIPanelMaybe/>
           <NotesPanelMaybe/>
 
-          {selectedTaskId && <TaskDetail/>}
+          {selectedTaskId && <TaskDetail mode={taskOpenMode} onChangeMode={onChangeTaskOpenMode}/>}
         </div>
       </div>
     </div>

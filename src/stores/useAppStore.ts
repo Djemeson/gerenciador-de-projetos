@@ -169,7 +169,9 @@ interface AppState {
   archiveProject:   (id: string) => void
   unarchiveProject: (id: string) => void
   saveGUT:          (id: string, g: number, u: number, t: number) => void
-  setProjectView:   (id: string, view: ViewType) => void
+  // `setProjectView` saiu em 01/08/2026: a visualização do projeto passou a viver em
+  // `viewPrefs`, junto com a de todos os outros escopos. `Project.activeView` continua no
+  // tipo apenas como valor inicial de quem já tinha uma escolhida (ver ProjectDetailView).
   setTaskOpenMode:  (id: string, mode: TaskOpenMode) => void
   addColumn:        (projectId: string, col: Omit<ColumnDef,'id'>) => void
   updateColumn:     (projectId: string, colId: string, patch: Partial<ColumnDef>) => void
@@ -614,10 +616,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   saveGUT: (id, g, u, t) => {
     const gut = calcGUT(g,u,t)
     const projects = get().projects.map(p => p.id===id ? {...p,gut,updatedAt:new Date().toISOString()} : p)
-    pProjects(projects, get().tasks); set({ projects })
-  },
-  setProjectView: (id, view) => {
-    const projects = get().projects.map(p => p.id===id ? {...p,activeView:view} : p)
     pProjects(projects, get().tasks); set({ projects })
   },
   setTaskOpenMode: (id, mode) => {
