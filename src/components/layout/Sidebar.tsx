@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import {
   Zap, CheckSquare, Layers, Calendar, Plus, Settings,
   BarChart2, FileText, Inbox, ChevronRight, ChevronDown, ChevronLeft,
-  MoreHorizontal, Trash2, Copy, CornerUpRight, Archive, Check, List,
+  MoreHorizontal, Trash2, Copy, CornerUpRight, Archive, Check, List, FileDown,
   PanelLeftClose, PanelLeftOpen, ChevronsUpDown, Sun, Moon, Ban, Square, Folder as FolderIcon,
   LayoutGrid, GitFork, Target, Bot,
 } from 'lucide-react'
@@ -16,6 +16,7 @@ import { SpaceBadge, FolderBadgeIcon, ProjectIcon } from '../ui/EntityBadges'
 import { IconColorPicker } from '../ui/IconColorPicker'
 import { FloatingPanel } from '../ui/FloatingPanel'
 import { getIconComponent } from '../../lib/sidebarIcons'
+import { escopoDe, exportarMarkdown } from '../../lib/exportMarkdown'
 
 type ItemKind = 'space' | 'folder' | 'project' | 'workspace'
 type IconTarget = { kind: ItemKind; id: string; anchor: HTMLElement }
@@ -207,6 +208,15 @@ export function Sidebar() {
     if (itemMenu?.kind === 'project') archiveProject(itemMenu.id)
     setItemMenu(null)
   }
+  /** Exporta o item em Markdown (ver `lib/exportMarkdown.ts` — vira `.zip` se houver anexo). */
+  const doExportar = () => {
+    // `ItemKind` também cobre 'workspace', que não tem menu de item e não é escopo de
+    // exportação — a guarda mantém o tipo honesto em vez de forçar um cast.
+    if (!itemMenu || itemMenu.kind === 'workspace') return
+    const escopo = escopoDe(itemMenu.kind, itemMenu.id, { spaces, folders, projects, tasks })
+    setItemMenu(null)
+    if (escopo) exportarMarkdown(escopo)
+  }
 
   const menuCls = dark ? 'bg-[#1B1C21] border-[#2E2F36] text-[#DADBE0]' : 'bg-white border-gray-200 text-[#3B3E45]'
   const menuItemCls = dark ? 'hover:bg-white/6' : 'hover:bg-black/5'
@@ -263,6 +273,10 @@ export function Sidebar() {
         )}
         <button onClick={doDuplicate} className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs ${menuItemCls}`}>
           <Copy size={12}/> Duplicar
+        </button>
+        <button onClick={doExportar} className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs ${menuItemCls}`}
+          title="Baixa um Markdown com as tarefas, descrições, checklists e subtarefas — para entregar a uma IA">
+          <FileDown size={12}/> Exportar Markdown
         </button>
         {itemMenu.kind === 'project' && (
           <button onClick={doArchive} className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs ${menuItemCls}`}>

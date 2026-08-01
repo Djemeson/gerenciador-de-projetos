@@ -3,12 +3,13 @@ import {
   X, Flag, Calendar, User, CheckSquare, Trash2, Plus, ListChecks, GitBranch, Tag,
   Maximize2, Minimize2, ChevronDown, Check, TrendingUp,
   MessageCircle, Paperclip, Mic, MicOff, FileText, Pencil, Image as ImageIcon,
-  ChevronRight, ArrowUpFromLine, Download, Send, Wand2, Loader2,
+  ChevronRight, ArrowUpFromLine, Download, Send, Wand2, Loader2, FileDown,
 } from 'lucide-react'
 import { useAppStore } from '../../stores/useAppStore'
 import { useSettingsStore } from '../../stores/useSettingsStore'
 import type { Priority, TaskStatus, TaskOpenMode, ContentBlock } from '../../types'
 import { TYPE_ICON } from '../../lib/taskTypeIcons'
+import { escopoDe, exportarMarkdown } from '../../lib/exportMarkdown'
 import { Button } from '../ui'
 import { Select, PRIORITY_OPTIONS, STATUS_OPTIONS, STATUS_COLOR } from '../ui/Select'
 import { TagInput } from '../ui/TagInput'
@@ -35,7 +36,7 @@ interface Props {
 
 export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
   const {
-    tasks, projects, selectedTaskId, setSelectedTask,
+    tasks, projects, spaces, folders, selectedTaskId, setSelectedTask,
     updateTask, deleteTask, updateBlocks, addTask,
     addChecklist, renameChecklist, removeChecklist, addChecklistItem, renameChecklistItem,
     toggleChecklistItem, removeChecklistItem,
@@ -1209,8 +1210,17 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
             <TagInput value={task.tags} onChange={tags => updateTask(task.id, { tags })} />
           </SideProp>
 
-          {/* Botão excluir integrado no rodapé da barra lateral de forma muito limpa */}
-          <div className="pt-4 mt-6 border-t border-gray-100">
+          {/* Exportar e excluir no rodapé da barra lateral */}
+          <div className="pt-4 mt-6 border-t border-gray-100 space-y-1.5">
+            <button
+              onClick={() => {
+                const escopo = escopoDe('task', task.id, { spaces, folders, projects, tasks })
+                if (escopo) exportarMarkdown(escopo)
+              }}
+              title="Baixa esta tarefa em Markdown, com descrição, checklists e subtarefas"
+              className="w-full flex items-center justify-center gap-2 py-2 px-3 text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:text-brand-600 rounded-xl transition-all border border-transparent hover:border-gray-200">
+              <FileDown size={14} /> Exportar Markdown
+            </button>
             <button onClick={() => { setSelectedTask(null); deleteTask(task.id) }}
               className="w-full flex items-center justify-center gap-2 py-2 px-3 text-sm font-semibold text-danger-500 hover:bg-danger-50 hover:text-danger-600 rounded-xl transition-all border border-transparent hover:border-danger-100">
               <Trash2 size={14} /> Excluir tarefa

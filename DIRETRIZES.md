@@ -1360,6 +1360,37 @@ chave ali não amplia o acesso de forma relevante.
   tarefas ×1, limiar 2, sem acento e com singular/plural leve) — sugestão aparece como
   chip "✨ projeto" na linha "Mover para"; aceitar = mover.
 
+## 15.3. Exportar para IA (Markdown + anexos)
+
+Menu de 3 pontinhos de **espaço, pasta e projeto** (`Sidebar`) e rodapé da coluna de
+propriedades da **tarefa** (`TaskDetail`) → **Exportar Markdown** (`lib/exportMarkdown.ts`).
+
+- **Para que serve**: entregar o conteúdo ao Claude Code para ele executar as tarefas. Não é
+  relatório de gestão. Cada tarefa vira **título**; descrição, imagens, anexos, checklists,
+  subtarefas (com as descrições e checklists delas, recursivamente) e comentários descem
+  como corpo daquele título.
+- **Markdown e não PDF** — o pedido original era PDF. Trocado com o autor: o destino é uma
+  IA, e a extração de texto de PDF perde exatamente o que importa (nível de subtarefa, estado
+  de checkbox, limites de descrição).
+- **Anexo nunca vai embutido.** Base64 dentro do `.md` são megabytes de texto que nem uma IA
+  interpreta como imagem — só queima contexto. Com anexo, a exportação vira **`.zip`** com o
+  `.md` + pasta `anexos/`, referenciada por caminho relativo; assim o Claude Code lê o texto
+  **e** abre as imagens. Sem anexo, baixa `.md` puro.
+- **ZIP próprio** (`lib/zip.ts`), sem dependência, método "stored": o conteúdo real é PNG e
+  JPEG, já comprimidos — deflate não economizaria nada e custaria uma biblioteca.
+- **A descrição é HTML, não texto.** O `BlockEditor` é um `contentEditable`, então
+  `block.text` guarda `<ul>`, `<h1>`, `<b>` e `<img src="data:...">` — o editor **funde** a
+  imagem dentro do bloco de texto. Por isso existe `lib/htmlToMarkdown.ts`, que converte o
+  subconjunto de tags do editor e extrai cada `<img>` para a pasta de anexos. Sem ele, o
+  base64 saía cru no meio da frase. Título dentro da descrição vira **negrito**, não `#`,
+  para não quebrar a hierarquia do documento (a tarefa é `##`).
+- **Data usa `parseISO`** (`lib/dateFilter.ts`), nunca `new Date(iso)`: prazo é `YYYY-MM-DD`
+  e o construtor lê como meia-noite UTC — em UTC−3 o documento saía com o dia anterior.
+- Só tarefas **raiz** entram na lista de cada projeto (subtarefa aparece dentro do pai, não
+  repetida solta) e **projeto arquivado fica de fora**.
+
+---
+
 ## 16. Trabalhar no projeto pelo Claude Code do celular (sessões na nuvem)
 
 O repositório está preparado para ser aberto em **claude.ai/code** (navegador ou app do

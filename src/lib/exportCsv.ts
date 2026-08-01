@@ -1,5 +1,6 @@
 // Exportação de CSV do app. Fonte única — telas novas que precisarem exportar devem
 // chamar `downloadCsv` em vez de montar Blob/anchor por conta própria.
+import { baixarArquivo } from './download'
 
 /** Escapa um valor para CSV: aspas duplicadas e campo entre aspas quando necessário. */
 function cell(value: unknown): string {
@@ -15,14 +16,7 @@ function cell(value: unknown): string {
 export function downloadCsv(filename: string, headers: string[], rows: unknown[][]) {
   const content = [headers, ...rows].map(r => r.map(cell).join(';')).join('\r\n')
   const blob = new Blob(['﻿' + content], { type: 'text/csv;charset=utf-8;' })
-  const url  = URL.createObjectURL(blob)
-  const a    = document.createElement('a')
-  a.href = url
-  a.download = filename.endsWith('.csv') ? filename : `${filename}.csv`
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
+  baixarArquivo(filename.endsWith('.csv') ? filename : `${filename}.csv`, blob)
 }
 
 /** Nome de arquivo com data do dia, no formato que o Windows aceita. */
