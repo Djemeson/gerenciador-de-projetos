@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import {
-  Search, Eye, List, LayoutGrid, Table2, Calendar, PenTool, Activity, LayoutDashboard, Trash2, Check, Plus, X, Circle,
+  Search, Eye, EyeOff, SlidersHorizontal, List, LayoutGrid, Table2, Calendar, PenTool, Activity, LayoutDashboard, Trash2, Check, Plus, X, Circle,
   ChevronDown,
 } from 'lucide-react'
 import { useAppStore } from '../../stores/useAppStore'
@@ -14,6 +14,7 @@ import { FilterPanel } from '../FilterPanel'
 import { AIPanel } from '../AIPanel'
 import { NotesPanel, NotesButton } from '../NotesPanel'
 import { applyCustomViewFilter } from '../../lib/customViews'
+import { somentePendentes } from '../../lib/taskFilters'
 import { VIEW_ICON } from '../../lib/viewIcons'
 import { estaAtrasada, formatarPrazo } from '../../lib/dueDate'
 import { Select, PRIORITY_OPTIONS, STATUS_OPTIONS } from '../ui/Select'
@@ -80,7 +81,11 @@ export function TaskPanel({
   defaultGroup = 'status', views, defaultView = 'list', gut,
   taskOpenMode, onChangeTaskOpenMode,
 }: TaskPanelProps) {
-  const { selectedTaskId, getCustomViews, deleteCustomView, openNewViewModal, viewPrefs, setViewPref } = useAppStore()
+  const { selectedTaskId, getCustomViews, deleteCustomView, openNewViewModal, viewPrefs, setViewPref,
+          filterPanelOpen, toggleFilterPanel, filters } = useAppStore()
+  /** Marca no botão quando há filtro valendo, senão ele fica invisível na barra. */
+  const filtroAtivo = filters.status!=='all' || filters.priority!=='all' || !!filters.assignee
+    || filters.tags.length>0 || !!filters.datePeriod
   // `||` e não `??`: a chave antiga devolve string vazia quando não existe, e `'' ?? d`
   // resultaria em vazio em vez do padrão.
   const vGet = (k: string, d: string) => viewPrefs[k] || vLegacy(k) || d
@@ -111,6 +116,28 @@ export function TaskPanel({
   }
   const [multiSort, setMultiSort] = useState<MultiSort>(() => carregarOrdenacao(group))
   const updateMultiSort = (next: MultiSort) => { setMultiSort(next); saveMultiSort(chaveOrdenacao(group), next) }
+
+  /**
+   * "Ocultar concluídas" — **ligado por padrão**.
+   *
+   * Agrupando por prioridade, prazo ou responsável, a lista enchia de tarefas riscadas: o
+   * que já foi feito ocupava o espaço do que falta, e não havia como tirá-las da frente.
+   *
+   * **As visões organizadas por status ignoram este filtro**, porque nelas as concluídas
+   * são o ponto: a lista agrupada por Status tem o grupo "Concluído", e o Board tem a coluna
+   * "Concluído". Esconder ali esvaziaria justamente a parte que se foi ver. Nessas duas o
+   * botão aparece desativado, com a explicação no título — sumir com ele faria a barra
+   * pular de lugar a cada troca de aba.
+   */
+  const visaoPorStatus = view === 'board' || (view === 'list' && group === 'status')
+  const [ocultarConcluidas, setOcultarConcluidas] = useState<boolean>(
+    () => (viewPrefs[scopeKey+'_hideDone'] ?? '1') === '1',
+  )
+  const alternarConcluidas = () => {
+    const proximo = !ocultarConcluidas
+    setOcultarConcluidas(proximo)
+    vSet(scopeKey+'_hideDone', proximo ? '1' : '0')
+  }
 
   const selectView  = (v: ViewType) => { setView(v); vSet(scopeKey+'_view', v); setActiveCustomId(null) }
   const selectGroup = (g: GroupBy)  => {
@@ -146,6 +173,14 @@ export function TaskPanel({
   // as tarefas nessa ordem (a lista preserva a ordem dentro de cada grupo).
   const sortedTasks = useMemo(() => sortTasksMulti(filteredTasks, multiSort), [filteredTasks, multiSort])
 
+  // Conjunto que as visualizações recebem. `somentePendentes` mantém a tarefa concluída que
+  // ainda tem subtarefa pendente abaixo — senão o que falta fazer sumiria junto com o pai.
+  const visibleTasks = useMemo(
+    () => (ocultarConcluidas && !visaoPorStatus ? somentePendentes(sortedTasks) : sortedTasks),
+    [sortedTasks, ocultarConcluidas, visaoPorStatus],
+  )
+  const ocultas = sortedTasks.length - visibleTasks.length
+
   // Contagem do cabeçalho exclui concluídas — mesma convenção dos badges da sidebar
   // (espaço/pasta/projeto), que também só contam tarefas ativas.
   const activeCount = filteredTasks.filter(t => t.status !== 'done').length
@@ -172,6 +207,38 @@ export function TaskPanel({
                   <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input type="text" placeholder="Buscar..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-7 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-400 transition-all w-40" />
                 </div>
+                {/* Filtros: mora aqui e não na barra do projeto — assim pasta e espaço
+                    também têm, que era o pedido. */}
+                <button onClick={toggleFilterPanel} title="Filtros"
+                  className={`relative flex items-center gap-1 px-2 py-1 text-[10px] md:text-xs font-semibold border rounded-lg transition-colors flex-shrink-0
+                    ${filterPanelOpen || filtroAtivo
+                      ? 'bg-brand-50 border-brand-200 text-brand-700'
+                      : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-900'}`}>
+                  <SlidersHorizontal size={12}/>
+                  <span className="hidden sm:inline">Filtros</span>
+                  {filtroAtivo && <span className="w-1.5 h-1.5 rounded-full bg-brand-500 absolute top-1 right-1" />}
+                </button>
+                <button
+                  onClick={alternarConcluidas}
+                  disabled={visaoPorStatus}
+                  aria-pressed={ocultarConcluidas && !visaoPorStatus}
+                  title={visaoPorStatus
+                    ? 'Esta visão é organizada por status — as concluídas fazem parte dela e sempre aparecem'
+                    : ocultarConcluidas
+                      ? `Mostrar as concluídas${ocultas ? ` (${ocultas} oculta${ocultas > 1 ? 's' : ''})` : ''}`
+                      : 'Ocultar as concluídas'}
+                  className={`flex items-center gap-1 px-2 py-1 text-[10px] md:text-xs font-semibold border rounded-lg transition-colors flex-shrink-0
+                    ${visaoPorStatus
+                      ? 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed'
+                      : ocultarConcluidas
+                        ? 'bg-brand-50 border-brand-200 text-brand-700'
+                        : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-900'}`}>
+                  {ocultarConcluidas && !visaoPorStatus ? <EyeOff size={12}/> : <Eye size={12}/>}
+                  <span className="hidden sm:inline">Concluídas</span>
+                  {!visaoPorStatus && ocultarConcluidas && ocultas > 0 && (
+                    <span className="tabnum text-[9px] md:text-[10px] font-bold bg-brand-100 text-brand-700 px-1 rounded">{ocultas}</span>
+                  )}
+                </button>
                 <SortControl value={multiSort} onChange={updateMultiSort}/>
                 <NotesButton/>
                 {headerRight && <div className="flex items-center gap-1.5 flex-shrink-0 scale-95 origin-right">{headerRight}</div>}
@@ -247,18 +314,18 @@ export function TaskPanel({
 
         {/* Content */}
         <div className="flex flex-1 overflow-hidden">
-          {!activeCustomId && view==='overview'  && <OverviewView  tasks={sortedTasks} accent={accent} pct={pct} gut={gut}/>}
-          {!activeCustomId && view==='list'      && <TaskList tasks={sortedTasks} projectId={defaultProjectId} scopeKey={scopeKey} columns={columns} showProject={showProject} sortBy={group} subtasksCollapsed={subtasksCollapsed} expandVersion={expandVersion}/>}
-          {!activeCustomId && view==='board'     && <BoardView     tasks={sortedTasks}/>}
-          {!activeCustomId && view==='table'     && <TableView     tasks={sortedTasks} columns={columns} showProject={showProject} scopeKey={scopeKey}/>}
-          {!activeCustomId && view==='calendar'  && <CalendarInline tasks={sortedTasks}/>}
+          {!activeCustomId && view==='overview'  && <OverviewView  tasks={visibleTasks} accent={accent} pct={pct} gut={gut}/>}
+          {!activeCustomId && view==='list'      && <TaskList tasks={visibleTasks} projectId={defaultProjectId} scopeKey={scopeKey} columns={columns} showProject={showProject} sortBy={group} subtasksCollapsed={subtasksCollapsed} expandVersion={expandVersion}/>}
+          {!activeCustomId && view==='board'     && <BoardView     tasks={visibleTasks}/>}
+          {!activeCustomId && view==='table'     && <TableView     tasks={visibleTasks} columns={columns} showProject={showProject} scopeKey={scopeKey}/>}
+          {!activeCustomId && view==='calendar'  && <CalendarInline tasks={visibleTasks}/>}
           {!activeCustomId && view==='whiteboard'&& <WhiteboardView scopeKey={scopeKey}/>}
-          {!activeCustomId && view==='activity'  && <ActivityView  tasks={sortedTasks}/>}
-          {!activeCustomId && view==='dashboard' && <DashboardView tasks={sortedTasks} accent={accent}/>}
+          {!activeCustomId && view==='activity'  && <ActivityView  tasks={visibleTasks}/>}
+          {!activeCustomId && view==='dashboard' && <DashboardView tasks={visibleTasks} accent={accent}/>}
 
           {/* Custom view */}
           {activeCustomId && currentCustomView && (() => {
-            const filtered = applyCustomViewFilter(sortedTasks, currentCustomView)
+            const filtered = applyCustomViewFilter(visibleTasks, currentCustomView)
             if (currentCustomView.baseType==='board')    return <BoardView tasks={filtered}/>
             if (currentCustomView.baseType==='table')    return <TableView tasks={filtered} columns={columns} showProject={showProject} scopeKey={scopeKey+':'+currentCustomView.id}/>
             if (currentCustomView.baseType==='calendar') return <CalendarInline tasks={filtered}/>

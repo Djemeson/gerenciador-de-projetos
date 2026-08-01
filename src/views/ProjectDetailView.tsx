@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import {
   MoreHorizontal, Target, ChevronLeft, Archive, Trash2, AlertTriangle,
-  SlidersHorizontal, Sparkles, Columns, Wand2,
+  Sparkles, Columns, Wand2,
 } from 'lucide-react'
 import { useAppStore, scopeKeyForProject } from '../stores/useAppStore'
 import { TaskPanel } from '../components/tasks/TaskPanel'
@@ -33,7 +33,7 @@ export function ProjectDetailView() {
     activeProjectId, projects, tasks, setView,
     archiveProject, deleteProject, setTaskOpenMode,
     openColumnsModal, openEnrichProject, openGUT,
-    filterPanelOpen, toggleFilterPanel, aiPanelOpen, toggleAIPanel,
+    aiPanelOpen, toggleAIPanel,
   } = useAppStore()
 
   const [confirmDel, setConfirmDel] = useState(false)
@@ -53,10 +53,8 @@ export function ProjectDetailView() {
 
   const barraDoProjeto = (
     <div className="flex items-center gap-1 flex-shrink-0">
-      <button onClick={toggleFilterPanel} title="Filtros"
-        className={`p-1.5 rounded-lg transition-colors ${filterPanelOpen ? 'bg-brand-100 text-brand-600' : 'text-gray-400 hover:bg-gray-100'}`}>
-        <SlidersHorizontal size={14}/>
-      </button>
+      {/* "Filtros" saiu daqui: virou botão do próprio `TaskPanel`, para pasta e espaço
+          também terem. Manter os dois deixaria dois gatilhos para o mesmo painel. */}
       <button onClick={() => openColumnsModal(project.id, scopeKey)} title="Campos personalizados"
         className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
         <Columns size={14}/>

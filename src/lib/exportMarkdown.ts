@@ -3,6 +3,7 @@ import { STATUS_LABEL, PRIORITY_LABEL, TASK_TYPE_META } from '../types'
 import { montarZip, bytesDeDataUri, extensaoDe, type ArquivoZip } from './zip'
 import { baixarArquivo, nomeSeguro } from './download'
 import { parseISO } from './dateFilter'
+import { criarFiltroDePendentes } from './taskFilters'
 import { htmlParaMarkdown, pareceHtml } from './htmlToMarkdown'
 
 /**
@@ -198,35 +199,6 @@ function tarefaMd(t: Task, filhasDe: (id: string) => Task[], anexos: Anexos, niv
       ? `\n${hSub} Subtarefas (${filhas.length})\n\n${filhas.map(f => subtarefaMd(f, filhasDe, anexos, 1)).join('\n\n')}`
       : '',
   ].filter(l => l !== '').join('\n')
-}
-
-// ── Filtro de concluídas ─────────────────────────────────────────────────────
-
-/**
- * Decide se uma tarefa entra no documento.
- *
- * Concluída fica de fora — o arquivo existe para dizer o que **falta** fazer, e tarefa
- * pronta só gasta contexto de quem for executar.
- *
- * A exceção não é capricho: uma tarefa marcada como concluída pode ter **subtarefa
- * pendente** abaixo dela (acontece quando alguém fecha o pai antes da hora). Descartá-la
- * levaria a pendente junto, e o trabalho que falta sumiria do documento sem aviso. Nesse
- * caso ela é mantida como caminho até a pendente — e o próprio Markdown mostra `[x]` no pai
- * e `[ ]` na filha, então a situação fica visível em vez de escondida.
- */
-export function criarFiltroDePendentes(filhasDe: (id: string) => Task[]) {
-  const cache = new Map<string, boolean>()
-
-  const temPendenteAbaixo = (id: string, visitados = new Set<string>()): boolean => {
-    if (cache.has(id)) return cache.get(id)!
-    if (visitados.has(id)) return false   // guarda contra ciclo em dado corrompido
-    visitados.add(id)
-    const r = filhasDe(id).some(f => f.status !== 'done' || temPendenteAbaixo(f.id, visitados))
-    cache.set(id, r)
-    return r
-  }
-
-  return (t: Task): boolean => t.status !== 'done' || temPendenteAbaixo(t.id)
 }
 
 // ── Documento ────────────────────────────────────────────────────────────────

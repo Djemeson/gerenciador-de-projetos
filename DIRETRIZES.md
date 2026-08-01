@@ -729,6 +729,27 @@ de hoje continua menor que "agora" às 11h. Atraso é medido contra o **começo 
 
 ---
 
+## 9.3. Filtros da lista de tarefas
+
+- **"Ocultar concluídas" vem ligado** (`TaskPanel`, chave `<escopo>_hideDone` em `viewPrefs`).
+  Agrupado por prioridade, prazo ou responsável, a lista enchia de tarefas riscadas ocupando
+  o espaço do que falta.
+- **Visões organizadas por status ignoram o filtro**: a lista agrupada por Status tem o grupo
+  "Concluído" e o Board tem a coluna "Concluído" — esconder ali esvazia justamente o que se
+  foi ver. Nessas duas o botão aparece **desativado com a explicação no título**; sumir com
+  ele faria a barra pular de lugar a cada troca de aba.
+- **Concluída com pendência abaixo continua aparecendo** (`lib/taskFilters.ts`,
+  `somentePendentes`). Descartar um pai fechado cedo levaria junto a subtarefa que falta. É a
+  mesma regra da exportação em Markdown — mora em lib compartilhada porque divergir seria pior
+  que duplicar.
+- **O botão "Filtros" é do `TaskPanel`**, não da tela de projeto: espaço, pasta e projeto têm
+  o mesmo painel. Dois gatilhos para o mesmo painel seria duplicidade.
+- **O painel de filtros sobrepõe, não empurra** — mesma decisão do bloco de notas (seção
+  13.5): era `w-64 flex-shrink-0` e estreitava as colunas justamente quando se queria olhar os
+  dados. Sem scrim, fecha no X ou no Esc.
+
+---
+
 ## 10. Fluxo de trabalho
 
 - **Publicar é nos dois lugares** (29/07/2026 — substitui a regra anterior de push manual):

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { X, SlidersHorizontal, RotateCcw } from 'lucide-react'
 import { useAppStore } from '../stores/useAppStore'
 import type { TaskStatus, Priority } from '../types'
@@ -6,8 +6,27 @@ import { STATUS_LABEL, PRIORITY_LABEL } from '../types'
 import { DatePeriodPicker } from './ui/DatePeriodPicker'
 import { Select } from './ui/Select'
 
+/**
+ * Painel de filtros.
+ *
+ * **Janela flutuante desde 01/08/2026.** Era `w-64 flex-shrink-0` com borda à esquerda, ou
+ * seja, participava da linha e *empurrava* a lista: abrir o filtro reorganizava a tela e
+ * estreitava as colunas justamente quando se queria olhar os dados. Agora sobrepõe, ancorada
+ * no canto inferior direito, no mesmo padrão do bloco de notas.
+ *
+ * Sem fundo escurecido, pela mesma razão de lá: filtro se ajusta *olhando* o resultado na
+ * lista atrás. Fecha no X ou no Esc.
+ */
 export function FilterPanel() {
   const { filterPanelOpen, toggleFilterPanel, filters, setFilters, clearFilters, getAllTags, tasks, activeWorkspaceId } = useAppStore()
+
+  // Esc fecha — sem scrim, é a única saída pelo teclado.
+  useEffect(() => {
+    if (!filterPanelOpen) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') toggleFilterPanel() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [filterPanelOpen, toggleFilterPanel])
 
   if (!filterPanelOpen) return null
 
@@ -16,7 +35,11 @@ export function FilterPanel() {
   const isActive     = filters.status!=='all' || filters.priority!=='all' || filters.assignee || filters.tags.length>0 || !!filters.datePeriod
 
   return (
-    <div className="w-64 min-w-[256px] border-l border-gray-200 bg-white flex flex-col h-full flex-shrink-0">
+    <aside
+      role="dialog" aria-label="Filtros"
+      className="fixed z-[55] bg-white flex flex-col animate-window-in
+                 inset-0 md:inset-auto md:right-5 md:bottom-5 md:w-72 md:h-[min(620px,calc(100vh-7rem))]
+                 md:rounded-2xl md:border md:border-gray-200 md:shadow-2xl md:ring-1 md:ring-black/5 md:overflow-hidden">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100">
         <SlidersHorizontal size={14} className="text-gray-400"/>
         <span className="text-sm font-medium text-gray-800 flex-1">Filtros</span>
@@ -101,6 +124,6 @@ export function FilterPanel() {
           />
         </div>
       </div>
-    </div>
+    </aside>
   )
 }
