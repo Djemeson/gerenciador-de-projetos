@@ -194,18 +194,29 @@ export function TaskPanel({
         {/* Header */}
         <div className="bg-white flex-shrink-0">
           {/* Breadcrumb + title + toolbar */}
-          <div className="px-4 md:px-6 pt-2.5 md:pt-3.5 pb-0 flex items-center justify-between gap-2.5">
-            <div className="flex items-center gap-1.5 text-[13px] min-w-0">
+          <div className="px-4 md:px-6 pt-2 md:pt-2.5 pb-0 flex items-center justify-between gap-2.5">
+            <div className="flex items-center gap-1.5 text-[13px] min-w-0 flex-1">
               <span className="hidden sm:inline">{breadcrumb}</span>
               {icon}
               <h1 className="text-[16px] md:text-[20px] font-extrabold text-gray-900 tracking-[-0.02em] truncate min-w-0">{title}</h1>
               <span className="text-xs text-gray-400 font-medium flex-shrink-0">({activeCount})</span>
               <span className="md:hidden tabnum text-[10px] font-bold text-gray-500 bg-gray-100 px-1 py-0.5 rounded flex-shrink-0">{pct}%</span>
+              {/* Progresso **na linha do título**: ocupava uma faixa inteira (17px + 8 de
+                  margem) para mostrar dois dados que cabem aqui do lado.
+                  `xl` e não `md`: medido, a barra rouba ~120px e a partir de 1100px o
+                  título do escopo começava a truncar. Nome do projeto vale mais que a
+                  barrinha, então abaixo disso ela some e o número fica só na aba Overview. */}
+              <span className="hidden xl:flex items-center gap-2 ml-2 flex-shrink-0">
+                <span className="w-14 h-[3px] bg-gray-100 rounded-full overflow-hidden">
+                  <span className="block h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: accent }}/>
+                </span>
+                <span className="tabnum text-[11px] font-semibold text-gray-500">{done}/{total} · {pct}%</span>
+              </span>
             </div>
             <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
                 <div className="relative">
                   <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input type="text" placeholder="Buscar..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-7 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-400 transition-all w-40" />
+                  <input type="text" placeholder="Buscar..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-7 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-400 transition-all w-28 lg:w-40" />
                 </div>
                 {/* Filtros: mora aqui e não na barra do projeto — assim pasta e espaço
                     também têm, que era o pedido. */}
@@ -215,7 +226,7 @@ export function TaskPanel({
                       ? 'bg-brand-50 border-brand-200 text-brand-700'
                       : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-900'}`}>
                   <SlidersHorizontal size={12}/>
-                  <span className="hidden sm:inline">Filtros</span>
+                  <span className="hidden xl:inline">Filtros</span>
                   {filtroAtivo && <span className="w-1.5 h-1.5 rounded-full bg-brand-500 absolute top-1 right-1" />}
                 </button>
                 <button
@@ -234,7 +245,7 @@ export function TaskPanel({
                         ? 'bg-brand-50 border-brand-200 text-brand-700'
                         : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-900'}`}>
                   {ocultarConcluidas && !visaoPorStatus ? <EyeOff size={12}/> : <Eye size={12}/>}
-                  <span className="hidden sm:inline">Concluídas</span>
+                  <span className="hidden xl:inline">Concluídas</span>
                   {!visaoPorStatus && ocultarConcluidas && ocultas > 0 && (
                     <span className="tabnum text-[9px] md:text-[10px] font-bold bg-brand-100 text-brand-700 px-1 rounded">{ocultas}</span>
                   )}
@@ -243,14 +254,6 @@ export function TaskPanel({
                 <NotesButton/>
                 {headerRight && <div className="flex items-center gap-1.5 flex-shrink-0 scale-95 origin-right">{headerRight}</div>}
             </div>
-          </div>
-
-          {/* Progress */}
-          <div className="hidden md:flex items-center gap-2.5 px-4 md:px-6 mt-2">
-            <div className="w-40 h-[3px] bg-gray-100 rounded-full overflow-hidden flex-shrink-0">
-              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: accent }}/>
-            </div>
-            <span className="tabnum text-[11px] font-semibold text-gray-500 flex-shrink-0">{done}/{total} · {pct}%</span>
           </div>
 
           {/* View tabs */}
@@ -291,12 +294,12 @@ export function TaskPanel({
 
           {/* Group control (list only) */}
           {view==='list' && !activeCustomId && (
-            <div className="flex items-center gap-1.5 md:gap-2.5 px-4 md:px-6 py-1 md:py-1.5 flex-wrap">
+            <div className="flex items-center gap-1.5 md:gap-2.5 px-4 md:px-6 py-0.5 md:py-1 flex-wrap">
               <span className="hidden md:inline text-[11px] font-semibold text-gray-400">Agrupar por</span>
-              <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-[2px] md:p-[3px]">
+              <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-[2px]">
                 {groupOptions.map(g => (
                   <button key={g} onClick={() => selectGroup(g)}
-                    className={`px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-semibold rounded-md transition-colors ${group===g?'bg-white text-gray-900 shadow-sm':'text-gray-500 hover:text-gray-700'}`}>
+                    className={`px-2 md:px-3 py-1 text-[10px] md:text-xs font-semibold rounded-md transition-colors ${group===g?'bg-white text-gray-900 shadow-sm':'text-gray-500 hover:text-gray-700'}`}>
                     {GROUP_LABEL[g]}
                   </button>
                 ))}

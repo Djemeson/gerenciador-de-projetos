@@ -33,7 +33,8 @@ export function SortControl({ value, onChange }: SortControlProps) {
         className={`flex items-center gap-1 px-2 py-1 text-[10px] md:text-xs font-semibold border rounded-lg transition-colors
           ${value.length ? 'bg-brand-50 border-brand-200 text-brand-700' : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-900'}`}>
         <ArrowUpDown size={12}/>
-        <span>Classificar{value.length ? ` (${value.length})` : ''}</span>
+        <span className="hidden xl:inline">Classificar</span>
+        {value.length ? <span className="tabnum">({value.length})</span> : null}
       </button>
 
       {open && btnRef.current && (

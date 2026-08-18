@@ -682,6 +682,20 @@ Valores medidos a 1440x900, com as colunas padrão de "Todas as tarefas":
   adicionar. O botão "Adicionar tarefa" custava a altura de uma tarefa inteira, por grupo.
 - **No celular o alvo de toque não encolheu**: `min-h-[44px] md:min-h-[36px]`. Na prática o
   conteúdo empurra para ~60px lá, porque a linha quebra em mais de um nível.
+### Cabeçalho acima da lista (01/08/2026)
+
+Medido a 1440x900: da borda até a primeira tarefa eram **249px**; hoje são **212px**.
+
+- **O progresso não tem faixa própria.** Uma banda inteira (17px + 8 de margem) para uma
+  barrinha e "30/42 · 71%" — agora vive na linha do título. A barra é `w-14`: medido, com
+  `w-24` ela roubava ~120px e o título do escopo ficava 1px curto de caber.
+- **`hidden xl:flex` e não `md`**: abaixo de 1280px o nome do escopo vale mais que a
+  barrinha, e o número continua na aba Overview.
+- **"Agrupar por" tinha 46px para conteúdo de 28px** — hoje 36px.
+- **O título era esmagado até 1px entre 1024 e 1280.** A barra de ferramentas ocupava 769px
+  de uma linha de 828: o lado esquerdo não reivindicava espaço (`flex-1` faltando) e os
+  rótulos "Filtros", "Concluídas" e "Classificar" custavam ~165px sozinhos. Agora os rótulos
+  só aparecem a partir de `xl` e a busca encolhe antes de tudo (`w-28 lg:w-40`).
 - Se um dia isso apertar demais, o caminho é um seletor de densidade (confortável/compacto)
   guardado em `viewPrefs`, não voltar os números para todo mundo.
 
