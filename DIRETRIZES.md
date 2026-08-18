@@ -696,6 +696,23 @@ Medido a 1440x900: da borda até a primeira tarefa eram **249px**; hoje são **2
   de uma linha de 828: o lado esquerdo não reivindicava espaço (`flex-1` faltando) e os
   rótulos "Filtros", "Concluídas" e "Classificar" custavam ~165px sozinhos. Agora os rótulos
   só aparecem a partir de `xl` e a busca encolhe antes de tudo (`w-28 lg:w-40`).
+### Vale para todos os painéis
+
+"Minhas tarefas", "Todas as tarefas", espaço, pasta, projeto e relatórios **usam o
+`TaskPanel`** — compactar lá alcança todos. A **Caixa de entrada** tem lista própria
+(`InboxView`) e é a mais enxuta das telas (99px até a primeira tarefa: não tem abas nem
+barra de agrupamento).
+
+- **O cartão "Começar o dia"** (`DailyBriefingCard`, só em Minhas tarefas) foi de 82px para
+  54px com margem. Quando o dia está limpo ele é o maior bloco da tela para dizer que não há
+  nada — vale manter apertado.
+- **Grupo vazio custava 74px** (cabeçalho + botão "Adicionar tarefa" de largura inteira),
+  antes de qualquer tarefa. Com agrupamento por status, "Em progresso" costuma estar vazio.
+  Hoje o grupo vazio mostra uma **faixa fina de 27px**.
+- ⚠️ **A faixa não pode simplesmente sumir.** Tirar o botão deixava o grupo com **0px de
+  altura**, e com isso ele parava de aceitar o arraste que muda o status da tarefa —
+  regressão pega no teste, não no código. A faixa é alvo de soltura e botão ao mesmo tempo.
+
 - Se um dia isso apertar demais, o caminho é um seletor de densidade (confortável/compacto)
   guardado em `viewPrefs`, não voltar os números para todo mundo.
 

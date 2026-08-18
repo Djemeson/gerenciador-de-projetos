@@ -247,7 +247,20 @@ export function TaskList({ tasks, projectId, scopeKey, columns=[], showProject=f
                 defaultExpanded={!subtasksCollapsed} groupBy={sortBy} {...taskDragProps}/>
             ))}
             {isAdding&&<QuickAddRow projectId={resolvedPid} status={status} onDone={()=>setQuickAdd(null)}/>}
-            {!isAdding&&status!=='done'&&(
+            {/* Grupo **vazio** ganha uma faixa fina em vez do botao inteiro: ele repetia
+                o "+" do cabecalho e custava 35px — com agrupamento por status, "Em
+                progresso" costuma estar vazio e sozinho empurrava a primeira tarefa para
+                baixo. A faixa **precisa existir**: sem ela o grupo fica com 0px de altura e
+                deixa de aceitar o arraste que muda o status da tarefa. */}
+            {!isAdding&&status!=='done'&&items.length===0&&(
+              <div className="px-6 pb-1">
+                <button onClick={()=>setQuickAdd({key,status})}
+                  className="w-full flex items-center justify-center gap-1.5 py-0.5 text-[11px] text-gray-300 hover:text-brand-600 hover:bg-brand-50/20 border border-dashed border-gray-200 hover:border-brand-300 rounded-lg transition-all cursor-pointer">
+                  <Plus size={12}/> Adicionar ou arraste uma tarefa para cá
+                </button>
+              </div>
+            )}
+            {!isAdding&&status!=='done'&&items.length>0&&(
               <div className="px-6 py-0.5">
                 <button onClick={()=>setQuickAdd({key,status})}
                   className="w-full flex items-center justify-center gap-2 py-1.5 text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50/20 border border-dashed border-gray-200 hover:border-brand-300 rounded-xl transition-all duration-200 font-semibold cursor-pointer">

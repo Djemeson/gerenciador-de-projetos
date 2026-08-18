@@ -61,7 +61,7 @@ export function InboxView() {
     <div className="flex flex-1 overflow-hidden">
       <div className="flex flex-col flex-1 overflow-hidden">
         {/* Header */}
-        <div className="flex items-center gap-3 px-6 py-3.5 border-b border-gray-200 bg-white flex-shrink-0">
+        <div className="flex items-center gap-3 px-6 py-2.5 border-b border-gray-200 bg-white flex-shrink-0">
           <Inbox size={16} className="text-gray-400" />
           <h1 className="text-[20px] font-extrabold tracking-tight text-gray-900 flex-1">Caixa de entrada</h1>
           <span className="text-[11px] text-gray-500 tabnum hidden sm:inline">{pending.length} para processar</span>

@@ -58,9 +58,9 @@ export function DailyBriefingCard({ tasks }: { tasks: Task[] }) {
   if (input.goalsAtRisk.length) chips.push({ icon: Target,        label: `${input.goalsAtRisk.length} meta${input.goalsAtRisk.length > 1 ? 's' : ''} em risco`, tone: 'bg-warning-50 text-warning-700 border-warning-100' })
 
   return (
-    <div className="mx-6 mt-4 hero-card px-5 py-3.5 flex-shrink-0">
+    <div className="mx-6 mt-2 hero-card px-5 py-2 flex-shrink-0">
       <div className="flex items-center gap-2.5 flex-wrap">
-        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-brand-500 to-brand-600 text-white flex items-center justify-center flex-shrink-0 shadow-sm shadow-brand-600/30">
+        <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-brand-500 to-brand-600 text-white flex items-center justify-center flex-shrink-0 shadow-sm shadow-brand-600/30">
           <Sunrise size={14}/>
         </div>
         <div className="flex-1 min-w-0">
