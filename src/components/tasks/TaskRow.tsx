@@ -188,13 +188,14 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
         onMouseDown={handleMouseDown}
         onClick={handleClick}
         className={`flex items-center border-b border-gray-100 transition-colors group cursor-pointer pr-3 md:pr-6
+          min-h-[44px] md:min-h-[36px]
           ${dragTaskId===task.id ? 'opacity-40' : ''}
           ${dropOver ? 'border-t-2 border-t-brand-400' : ''}
           ${focused ? 'ring-1 ring-inset ring-brand-300 bg-brand-50/40' : ''}
           ${selected  ? 'bg-brand-50 ring-1 ring-inset ring-brand-200' :
             isSelected? 'bg-brand-50/60' :
             isDone    ? 'bg-gray-50/40 hover:bg-gray-50' : 'hover:bg-gray-50'}`}
-        style={{ paddingLeft:`${12+indent}px`, minHeight:'46px' }}
+        style={{ paddingLeft:`${12+indent}px` }}
       >
         {/* Expand */}
         <button onClick={e=>{e.stopPropagation();setExpanded(v=>!v)}}
@@ -277,7 +278,7 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
         {depth>0&&<GitBranch size={12} className="text-gray-300 flex-shrink-0 mr-1"/>}
 
         {/* Name */}
-        <div className="flex-1 min-w-0 py-1.5 pr-2" style={{minWidth:120}}>
+        <div className="flex-1 min-w-0 py-1 pr-2" style={{minWidth:120}}>
           {renaming ? (
             <input autoFocus value={renameDraft} onChange={e=>setRenameDraft(e.target.value)}
               onClick={e=>e.stopPropagation()}

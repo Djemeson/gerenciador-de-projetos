@@ -210,7 +210,7 @@ export function TaskList({ tasks, projectId, scopeKey, columns=[], showProject=f
     const isDropTarget = dragTaskId !== null && dragOverGroup === key
     return (
       <div key={key}>
-        <div className="flex items-center gap-2.5 px-6 pt-3.5 pb-2 bg-white md:sticky md:top-[38px] z-[9] group">
+        <div className="flex items-center gap-2.5 px-6 pt-2.5 pb-1.5 bg-white md:sticky md:top-[38px] z-[9] group">
           <button onClick={()=>toggle(key)} className="flex items-center gap-2 min-w-0" title={isCollapsed ? 'Expandir' : 'Recolher'}>
             {pill ? (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider min-w-[96px] justify-center shadow-sm border transition-all"
@@ -248,9 +248,9 @@ export function TaskList({ tasks, projectId, scopeKey, columns=[], showProject=f
             ))}
             {isAdding&&<QuickAddRow projectId={resolvedPid} status={status} onDone={()=>setQuickAdd(null)}/>}
             {!isAdding&&status!=='done'&&(
-              <div className="px-6 py-1">
+              <div className="px-6 py-0.5">
                 <button onClick={()=>setQuickAdd({key,status})}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50/20 border border-dashed border-gray-200 hover:border-brand-300 rounded-xl transition-all duration-200 font-semibold cursor-pointer">
+                  className="w-full flex items-center justify-center gap-2 py-1.5 text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50/20 border border-dashed border-gray-200 hover:border-brand-300 rounded-xl transition-all duration-200 font-semibold cursor-pointer">
                   <Plus size={14} className="transition-transform duration-200 group-hover:scale-110"/> Adicionar tarefa
                 </button>
               </div>

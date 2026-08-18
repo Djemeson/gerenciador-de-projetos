@@ -665,6 +665,28 @@ Regras:
 
 ---
 
+## 8.3. Densidade da lista de tarefas (medida, não estimada)
+
+Valores medidos a 1440x900, com as colunas padrão de "Todas as tarefas":
+
+| | Antes | Depois |
+|---|---|---|
+| Altura da linha | 46px | **36px** (computador) |
+| Cabeçalho de grupo | 47px | **41px** |
+| Bloco "Adicionar tarefa" | 46px | **34px** |
+| Tarefas visíveis (2 grupos) | 12 | **16** |
+
+- **A linha tinha 8px de espaço morto**: o conteúdo mais alto media 38px dentro de um
+  `minHeight` de 46px. Hoje são 36px com o maior filho em 34px.
+- **25% da área visível não era tarefa** com dois grupos abertos — cabeçalhos e botões de
+  adicionar. O botão "Adicionar tarefa" custava a altura de uma tarefa inteira, por grupo.
+- **No celular o alvo de toque não encolheu**: `min-h-[44px] md:min-h-[36px]`. Na prática o
+  conteúdo empurra para ~60px lá, porque a linha quebra em mais de um nível.
+- Se um dia isso apertar demais, o caminho é um seletor de densidade (confortável/compacto)
+  guardado em `viewPrefs`, não voltar os números para todo mundo.
+
+---
+
 ## 9.1. Regras que saíram da auditoria de 29/07/2026
 
 > Auditoria do projeto inteiro (88 arquivos). O que segue são **defeitos corrigidos** cuja
