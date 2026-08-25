@@ -16,6 +16,7 @@ import {
   migrateNote,
 } from '../types'
 import { matchesTrigger } from '../lib/automationEngine'
+import { mesclarPorId, registrarExclusoes, cancelarExclusoes, obterExclusoes, marcarPushConcluido, obterUltimoPushOk } from '../lib/syncMerge'
 import { useNotificationStore } from './useNotificationStore'
 import { matchesDateFilter } from '../lib/dateFilter'
 import { generateCompletionSummary } from '../lib/aiSummary'
@@ -300,23 +301,39 @@ let unsubscribeCloud: (() => void) | null = null
 async function applyRemoteSnapshot(set: (partial: any) => void, get: () => AppState, groupId: string, data: any) {
   set({ cloudSyncStatus: 'syncing' });
   try {
-    const projects = (data.projects ?? []).map(migrateProject);
-    const migratedTasks = await hydrateAttachments(groupId, (data.tasks ?? []).map(migrateTask));
+    const remoteProjects = (data.projects ?? []).map(migrateProject);
+    const remoteTasks = await hydrateAttachments(groupId, (data.tasks ?? []).map(migrateTask));
 
-    // Um documento remoto sem tarefas NÃO apaga as tarefas locais. `projects` já tinha
-    // essa proteção e `tasks` não: bastava um snapshot com a lista vazia (dispositivo
-    // recém-aberto, escrita parcial, campo ausente) para o app zerar o trabalho todo.
-    const tarefasSeguras = migratedTasks.length ? migratedTasks : get().tasks;
+    // Mescla item a item em vez de substituir a lista local pela remota. A substituição
+    // era a causa de "tarefa recém-criada some segundos depois": o snapshot (primeiro da
+    // sessão, ou o push de um dispositivo defasado) chegava sem a tarefa cujo push ainda
+    // estava no debounce — ou tinha sido engolido pela trava `cloudReady` — e a apagava
+    // do estado e do localStorage. Regras da mescla e proteção contra documento
+    // vazio/parcial: ver lib/syncMerge.ts.
+    //
+    // Importante: o estado é lido DEPOIS do await acima — o que o usuário criou enquanto
+    // os anexos hidratavam também entra na mescla, e daqui até o `set` não há mais await.
+    const gravadoEm = typeof data.updatedAt === 'number' ? data.updatedAt : 0;
+    const opts = { exclusoes: obterExclusoes(), ultimoPushOk: obterUltimoPushOk() };
+    const s = get();
+    const projects    = mesclarPorId(s.projects,    remoteProjects, gravadoEm, opts);
+    const tasks       = mesclarPorId(s.tasks,       remoteTasks,    gravadoEm, opts);
+    const spaces      = mesclarPorId(s.spaces,      ((data.spaces ?? []) as any[]).map(migrateSpace),           gravadoEm, opts);
+    const folders     = mesclarPorId(s.folders,     ((data.folders ?? []) as any[]).map(migrateFolder),         gravadoEm, opts);
+    const workspaces  = mesclarPorId(s.workspaces,  (data.workspaces ?? []) as Workspace[],                     gravadoEm, opts);
+    const automations = mesclarPorId(s.automations, ((data.automations ?? []) as any[]).map(migrateAutomation), gravadoEm, opts);
+    const goals       = mesclarPorId(s.goals,       (data.goals ?? []) as Goal[],                               gravadoEm, opts);
+    const notes       = mesclarPorId(s.notes,       ((data.notes ?? []) as any[]).map(migrateNote),             gravadoEm, opts);
 
-    localProjects.set(projects as any);
-    localTasks.set(tarefasSeguras as any);
-    if (data.spaces) localStorage.setItem(SPACES_KEY, JSON.stringify(data.spaces));
-    if (data.folders) localStorage.setItem(FOLDERS_KEY, JSON.stringify(data.folders));
-    if (data.workspaces) localStorage.setItem(WORKSPACES_KEY, JSON.stringify(data.workspaces));
+    localProjects.set(projects.itens as any);
+    localTasks.set(tasks.itens as any);
+    localStorage.setItem(SPACES_KEY, JSON.stringify(spaces.itens));
+    localStorage.setItem(FOLDERS_KEY, JSON.stringify(folders.itens));
+    localStorage.setItem(WORKSPACES_KEY, JSON.stringify(workspaces.itens));
+    localStorage.setItem(AUTOMATIONS_KEY, JSON.stringify(automations.itens));
+    localStorage.setItem(GOALS_KEY, JSON.stringify(goals.itens));
+    localStorage.setItem(NOTES_KEY, JSON.stringify(notes.itens));
     if (data.activeWorkspaceId) localStorage.setItem(ACTIVE_WS_KEY, data.activeWorkspaceId);
-    if (data.automations) localStorage.setItem(AUTOMATIONS_KEY, JSON.stringify(data.automations));
-    if (data.goals) localStorage.setItem(GOALS_KEY, JSON.stringify(data.goals));
-    if (data.notes) localStorage.setItem(NOTES_KEY, JSON.stringify(data.notes));
     if (data.viewPrefs) localStorage.setItem(VIEW_PREFS_KEY, JSON.stringify(data.viewPrefs));
     if (data.automationRuns) localStorage.setItem(AUTOMATION_RUNS_KEY, JSON.stringify(data.automationRuns));
     if (data.inboxColumns) localStorage.setItem(INBOX_COLS_KEY, JSON.stringify(data.inboxColumns));
@@ -326,22 +343,28 @@ async function applyRemoteSnapshot(set: (partial: any) => void, get: () => AppSt
     if (data.settings) useSettingsStore.getState().aplicarSettingsRemotas(data.settings);
 
     set({
-      projects: projects.length ? projects : get().projects,
-      tasks: tarefasSeguras,
-      spaces: data.spaces ?? get().spaces,
-      folders: data.folders ?? get().folders,
-      workspaces: data.workspaces ?? get().workspaces,
-      activeWorkspaceId: data.activeWorkspaceId ?? get().activeWorkspaceId,
-      automations: (data.automations ?? []).map(migrateAutomation),
-      goals: data.goals ?? get().goals,
-      notes: (data.notes ?? get().notes).map(migrateNote),
-      viewPrefs: data.viewPrefs ?? get().viewPrefs,
-      automationRuns: data.automationRuns ?? get().automationRuns,
-      inboxColumns: data.inboxColumns ?? get().inboxColumns,
-      customViewsByScope: data.customViewsByScope ?? get().customViewsByScope,
+      projects: projects.itens,
+      tasks: tasks.itens,
+      spaces: spaces.itens,
+      folders: folders.itens,
+      workspaces: workspaces.itens,
+      activeWorkspaceId: data.activeWorkspaceId ?? s.activeWorkspaceId,
+      automations: automations.itens,
+      goals: goals.itens,
+      notes: notes.itens,
+      viewPrefs: data.viewPrefs ?? s.viewPrefs,
+      automationRuns: data.automationRuns ?? s.automationRuns,
+      inboxColumns: data.inboxColumns ?? s.inboxColumns,
+      customViewsByScope: data.customViewsByScope ?? s.customViewsByScope,
       cloudSyncStatus: 'synced',
       lastSyncedAt: new Date().toLocaleTimeString('pt-BR'),
     });
+
+    // O estado mesclado difere do documento remoto (item local mantido ou exclusão local
+    // aplicada) → reenvia, para a nuvem e os outros dispositivos convergirem. É também o
+    // que resgata o push engolido pela trava `cloudReady` antes do primeiro snapshot.
+    const divergiu = [projects, tasks, spaces, folders, workspaces, automations, goals, notes].some(m => m.manteveLocal);
+    if (divergiu) triggerSyncPush();
   } catch (e) {
     console.error('Erro ao aplicar dados da nuvem:', e);
     set({ cloudSyncStatus: 'error' });
@@ -365,7 +388,9 @@ async function migrateLegacySyncCode(set: (partial: any) => void, get: () => App
     localStorage.setItem(LEGACY_MIGRATED_KEY, new Date().toISOString())
     if (!snap.exists()) return false
     await applyRemoteSnapshot(set, get, legacyCode, snap.data())
-    await get().pushToCloud()
+    // `force`: neste ponto `cloudReady` ainda é false e um push comum seria engolido pela
+    // trava — o documento da conta nova nunca nasceria.
+    await get().pushToCloud({ force: true })
     console.info(`Dados do código de sincronização ${legacyCode} migrados para a conta ${uid}.`)
     return true
   } catch (e) {
@@ -408,6 +433,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { undoStack } = get()
     if (!undoStack.length) return
     const snap = undoStack[undoStack.length - 1]
+    // O que o desfazer restaura deixa de contar como excluído — senão o próximo snapshot
+    // da nuvem derrubaria o item de novo (ver syncMerge.ts).
+    cancelarExclusoes([...snap.projects, ...snap.tasks, ...snap.spaces, ...snap.folders].map(i => i.id))
     pProjects(snap.projects, snap.tasks)
     saveJSON(SPACES_KEY, snap.spaces); saveJSON(FOLDERS_KEY, snap.folders)
     set({ projects: snap.projects, tasks: snap.tasks, spaces: snap.spaces, folders: snap.folders, undoStack: undoStack.slice(0, -1) })
@@ -450,7 +478,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     return w
   },
   updateWorkspace: (id, patch) => {
-    const workspaces = get().workspaces.map(w => w.id===id ? {...w,...patch} : w)
+    const workspaces = get().workspaces.map(w => w.id===id ? {...w,...patch,updatedAt:new Date().toISOString()} : w)
     saveJSON(WORKSPACES_KEY, workspaces); set({ workspaces })
   },
   switchWorkspace: (id) => {
@@ -470,6 +498,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   deleteSpace: (id) => {
     get().pushUndo()
+    registrarExclusoes([id, ...get().folders.filter(f => f.spaceId === id).map(f => f.id)])
     const spaces   = get().spaces.filter(s => s.id !== id)
     const folders  = get().folders.filter(f => f.spaceId !== id)
     const projects = get().projects.map(p => p.spaceId===id ? {...p,spaceId:null,folderId:null} : p)
@@ -522,6 +551,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   deleteFolder: (id) => {
     get().pushUndo()
+    registrarExclusoes([id])
     const folders  = get().folders.filter(f => f.id !== id)
     const projects = get().projects.map(p => p.folderId===id ? {...p,folderId:null} : p)
     saveJSON(FOLDERS_KEY, folders); pProjects(projects, get().tasks); set({ folders, projects })
@@ -588,8 +618,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   deleteProject: (id) => {
     get().pushUndo()
-    const projects = get().projects.filter(p => p.id !== id)
     const removidas = get().tasks.filter(t => t.projectId === id)
+    registrarExclusoes([id, ...removidas.map(t => t.id)])
+    const projects = get().projects.filter(p => p.id !== id)
     const tasks    = get().tasks.filter(t => t.projectId !== id)
     pProjects(projects, tasks); set({ projects, tasks })
     const uid = get().syncUid
@@ -619,7 +650,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     pProjects(projects, get().tasks); set({ projects })
   },
   setTaskOpenMode: (id, mode) => {
-    const projects = get().projects.map(p => p.id===id ? {...p,taskOpenMode:mode} : p)
+    const projects = get().projects.map(p => p.id===id ? {...p,taskOpenMode:mode,updatedAt:new Date().toISOString()} : p)
     pProjects(projects, get().tasks); set({ projects })
   },
   addColumn: (projectId, col) => {
@@ -628,7 +659,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       const inboxColumns = [...get().inboxColumns, newCol]
       saveJSON(INBOX_COLS_KEY, inboxColumns); set({ inboxColumns }); return
     }
-    const projects = get().projects.map(p => p.id===projectId ? {...p,columns:[...p.columns,newCol]} : p)
+    // `updatedAt` acompanha toda mudança persistida do projeto — é o critério de
+    // desempate da mescla com a nuvem (syncMerge.ts); sem ele um snapshot velho desfazia a edição.
+    const projects = get().projects.map(p => p.id===projectId ? {...p,columns:[...p.columns,newCol],updatedAt:new Date().toISOString()} : p)
     pProjects(projects, get().tasks); set({ projects })
   },
   updateColumn: (projectId, colId, patch) => {
@@ -636,7 +669,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const inboxColumns = get().inboxColumns.map(c => c.id===colId ? {...c,...patch} : c)
       saveJSON(INBOX_COLS_KEY, inboxColumns); set({ inboxColumns }); return
     }
-    const projects = get().projects.map(p => p.id!==projectId ? p : { ...p, columns:p.columns.map(c => c.id===colId ? {...c,...patch} : c) })
+    const projects = get().projects.map(p => p.id!==projectId ? p : { ...p, columns:p.columns.map(c => c.id===colId ? {...c,...patch} : c), updatedAt:new Date().toISOString() })
     pProjects(projects, get().tasks); set({ projects })
   },
   deleteColumn: (projectId, colId) => {
@@ -644,7 +677,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const inboxColumns = get().inboxColumns.filter(c => c.id!==colId)
       saveJSON(INBOX_COLS_KEY, inboxColumns); set({ inboxColumns }); return
     }
-    const projects = get().projects.map(p => p.id!==projectId ? p : { ...p, columns:p.columns.filter(c => c.id!==colId) })
+    const projects = get().projects.map(p => p.id!==projectId ? p : { ...p, columns:p.columns.filter(c => c.id!==colId), updatedAt:new Date().toISOString() })
     pProjects(projects, get().tasks); set({ projects })
   },
   getCustomViews: (scopeKey) => get().customViewsByScope[scopeKey] ?? [],
@@ -729,6 +762,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const toDelete = new Set<string>()
     const collect = (tid: string) => { toDelete.add(tid); get().tasks.filter(t => t.parentId===tid).forEach(t => collect(t.id)) }
     collect(id)
+    registrarExclusoes([...toDelete])
     const removidas = get().tasks.filter(t => toDelete.has(t.id))
     const tasks = get().tasks.filter(t => !toDelete.has(t.id))
     pProjects(get().projects, tasks)
@@ -843,10 +877,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     saveJSON(AUTOMATIONS_KEY, automations); set({ automations })
   },
   toggleAutomation: (id) => {
-    const automations = get().automations.map(a => a.id===id ? {...a,enabled:!a.enabled} : a)
+    const automations = get().automations.map(a => a.id===id ? {...a,enabled:!a.enabled,updatedAt:new Date().toISOString()} : a)
     saveJSON(AUTOMATIONS_KEY, automations); set({ automations })
   },
   deleteAutomation: (id) => {
+    registrarExclusoes([id])
     const automations = get().automations.filter(a => a.id!==id)
     saveJSON(AUTOMATIONS_KEY, automations); set({ automations })
   },
@@ -1041,11 +1076,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     saveJSON(NOTES_KEY, notes); set({ notes })
   },
   deleteNote: (id) => {
+    registrarExclusoes([id])
     const notes = get().notes.filter(n => n.id!==id)
     saveJSON(NOTES_KEY, notes); set({ notes })
   },
   toggleNotePin: (id) => {
-    const notes = get().notes.map(n => n.id===id ? {...n,pinned:!n.pinned} : n)
+    const notes = get().notes.map(n => n.id===id ? {...n,pinned:!n.pinned,updatedAt:new Date().toISOString()} : n)
     saveJSON(NOTES_KEY, notes); set({ notes })
   },
   noteToTask: (id, projectId) => {
@@ -1087,6 +1123,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     saveJSON(GOALS_KEY, goals); set({ goals })
   },
   deleteGoal: (id) => {
+    registrarExclusoes([id])
     const goals = get().goals.filter(g => g.id!==id)
     saveJSON(GOALS_KEY, goals); set({ goals })
   },
@@ -1133,6 +1170,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         updatedAt: Date.now(),
       };
       await setDoc(doc(db, 'syncGroups', uid), stateToSync);
+      marcarPushConcluido();   // ver syncMerge.ts: itens locais criados depois disto ficam protegidos na mescla
       set({ cloudSyncStatus: 'synced', lastSyncedAt: new Date().toLocaleTimeString('pt-BR') });
     } catch (e) {
       console.error('Erro ao sincronizar com a nuvem:', e);

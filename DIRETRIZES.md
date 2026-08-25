@@ -1383,6 +1383,20 @@ tarefa (corrige o bug do "trecho até dar Enter"). Não recriar um textarea/tipt
   já passava por `saveJSON`/`pProjects`, que dispara `triggerSyncPush` (debounce de 1.5s)
   → `pushToCloud()`. Ao aplicar um snapshot vindo da nuvem, `snap.metadata.hasPendingWrites`
   é checado para ignorar o eco da própria escrita (evita loop push→pull→push).
+- **Snapshot da nuvem MESCLA, nunca substitui** (25/08/2026, `src/lib/syncMerge.ts`):
+  substituir a lista local pela remota fazia uma tarefa recém-criada **sumir segundos
+  depois** — o snapshot (primeiro da sessão ou push de um dispositivo defasado) chegava sem
+  ela, e o push dela ainda estava no debounce ou tinha sido engolido pela trava `cloudReady`.
+  `applyRemoteSnapshot` agora mescla item a item (tarefas, projetos, espaços, pastas,
+  workspaces, automações, metas e notas) pelo `updatedAt`: nos dois lados vence o mais novo;
+  só no remoto entra, salvo exclusão local recente (registro `tf_exclusoes_recentes`); só no
+  local fica se for mais novo que o documento remoto ou ainda não tiver subido num push da
+  sessão. Se o resultado difere do remoto, um re-push converge a nuvem. Consequências
+  práticas: **toda mutação persistida de um item precisa atualizar o `updatedAt` dele** (é o
+  critério de desempate — colunas de projeto, pin de nota, toggle de automação etc. já
+  fazem isso), e **toda exclusão nova deve chamar `registrarExclusoes`** (o desfazer chama
+  `cancelarExclusoes`). Reordenação (posição no array) não tem carimbo próprio e segue a
+  ordem do documento remoto — limitação conhecida.
 - **Anexos e áudio** (`Task.comments[].attachment/audio`, `Task.blocks[].data`) são base64
   grandes demais para o documento único do Firestore (limite de 1 MiB). Ficam de fora dele:
   sobem como documentos próprios em `syncGroups/{uid}/attachments/{id}`

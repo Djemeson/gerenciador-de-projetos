@@ -33,6 +33,7 @@ export interface Workspace {
   color: string        // cor do avatar (letra) quando não é o workspace padrão
   icon?: string        // ícone lucide (kebab-case)
   createdAt: string
+  updatedAt?: string   // desempate na mesclagem com a nuvem (lib/syncMerge.ts)
 }
 
 export const DEFAULT_WORKSPACE_ID = 'default'
