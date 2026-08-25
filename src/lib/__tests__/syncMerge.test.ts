@@ -21,25 +21,24 @@ describe('mesclarPorId', () => {
     expect(r.manteveLocal).toBe(true)              // → dispara o re-push que leva a tarefa à nuvem
   })
 
-  it('criação desta sessão sobrevive mesmo a um doc remoto de relógio adiantado', () => {
+  it('item pendente de push sobrevive mesmo a um doc remoto de relógio adiantado', () => {
     const nova = item('nova', -20 * MIN)           // "antes" do doc só porque o outro relógio corre adiantado
-    const ultimoPushOk = T0 - 30 * MIN             // mas ela nasceu depois do último push desta sessão
-    const r = mesclarPorId([nova], [item('a', -60 * MIN)], T0, { ultimoPushOk })
+    const r = mesclarPorId([nova], [item('a', -60 * MIN)], T0, { pendentes: { nova: T0 - 20 * MIN } })
     expect(r.itens.map(i => i.id)).toContain('nova')
   })
 
-  it('item excluído noutro dispositivo cai (ausente do doc, mais velho que ele e já enviado)', () => {
+  it('item excluído noutro dispositivo cai (ausente do doc, mais velho que ele e sem pendência)', () => {
     const excluidaLa = item('x', -60 * MIN)
-    // O push desta sessão rodou depois da última edição do item → ele já estava na nuvem
-    // quando o outro dispositivo o excluiu. Aqui a ausência significa exclusão, não atraso.
-    const r = mesclarPorId([excluidaLa], [item('a', -60 * MIN)], T0, { ultimoPushOk: T0 - 1 * MIN })
+    const r = mesclarPorId([excluidaLa], [item('a', -60 * MIN)], T0)
     expect(r.itens.map(i => i.id)).toEqual(['a'])
+    expect(r.manteveLocal).toBe(false)             // o estado convergiu para o remoto — nada a subir
   })
 
-  it('edição ainda não enviada (nenhum push desde ela) não é tratada como exclusão', () => {
+  it('edição offline nunca enviada (pendência persistida) não é tratada como exclusão', () => {
     const editadaOffline = item('x', -60 * MIN)
-    const r = mesclarPorId([editadaOffline], [item('a', -60 * MIN)], T0, { ultimoPushOk: T0 - 120 * MIN })
+    const r = mesclarPorId([editadaOffline], [item('a', -60 * MIN)], T0, { pendentes: { x: T0 - 60 * MIN } })
     expect(r.itens.map(i => i.id)).toEqual(['a', 'x'])
+    expect(r.manteveLocal).toBe(true)
   })
 
   it('edição local mais nova vence o mesmo item vindo do remoto', () => {
@@ -60,14 +59,14 @@ describe('mesclarPorId', () => {
 
   it('exclusão local recente não é ressuscitada por um doc gravado antes dela', () => {
     const fantasma = item('x', -60 * MIN)
-    const r = mesclarPorId([], [fantasma], T0, { exclusoes: { x: T0 + 1 * MIN }, ultimoPushOk: T0 - 120 * MIN })
+    const r = mesclarPorId([], [fantasma], T0, { exclusoes: { x: T0 + 1 * MIN } })
     expect(r.itens).toEqual([])
     expect(r.manteveLocal).toBe(true)              // a exclusão precisa voltar para a nuvem
   })
 
   it('exclusão registrada há muito tempo não bloqueia um item legitimamente recriado', () => {
     const recriada = item('x', -1 * MIN)
-    const r = mesclarPorId([], [recriada], T0, { exclusoes: { x: T0 - MARGEM_RELOGIO_MS - 10 * MIN }, ultimoPushOk: T0 - 120 * MIN })
+    const r = mesclarPorId([], [recriada], T0, { exclusoes: { x: T0 - MARGEM_RELOGIO_MS - 10 * MIN } })
     expect(r.itens.map(i => i.id)).toEqual(['x'])
   })
 
@@ -80,16 +79,39 @@ describe('mesclarPorId', () => {
   })
 
   it('novidade remota entra normalmente', () => {
-    const r = mesclarPorId([item('a', -60 * MIN)], [item('a', -60 * MIN), item('b', -1 * MIN)], T0, { ultimoPushOk: T0 - 120 * MIN })
+    const r = mesclarPorId([item('a', -60 * MIN)], [item('a', -60 * MIN), item('b', -1 * MIN)], T0)
     expect(r.itens.map(i => i.id)).toEqual(['a', 'b'])
     expect(r.manteveLocal).toBe(false)
+  })
+
+  // ── Ordem (reordenação por arrasto) ─────────────────────────────────────
+  it('reordenação local feita depois do doc remoto vence a ordem remota', () => {
+    const a = item('a', -60 * MIN); const b = item('b', -60 * MIN)
+    const r = mesclarPorId([b, a], [a, b], T0, { ordemLocalEm: T0 + 1 * MIN })
+    expect(r.itens.map(i => i.id)).toEqual(['b', 'a'])
+    expect(r.manteveLocal).toBe(true)              // a ordem nova precisa subir
+  })
+
+  it('sem reordenação local recente, vale a ordem do documento remoto', () => {
+    const a = item('a', -60 * MIN); const b = item('b', -60 * MIN)
+    const r = mesclarPorId([b, a], [a, b], T0, { ordemLocalEm: T0 - 30 * MIN })
+    expect(r.itens.map(i => i.id)).toEqual(['a', 'b'])
+    expect(r.manteveLocal).toBe(false)
+  })
+
+  it('com a ordem local vencendo, item novo do remoto ainda entra e exclusão remota ainda vale', () => {
+    const a = item('a', -60 * MIN); const b = item('b', -60 * MIN)
+    const excluidaLa = item('x', -60 * MIN)        // só local, velha, sem pendência → excluída lá
+    const novaLa = item('c', -1 * MIN)             // só remota → entra no fim
+    const r = mesclarPorId([b, excluidaLa, a], [a, b, novaLa], T0, { ordemLocalEm: T0 + 1 * MIN })
+    expect(r.itens.map(i => i.id)).toEqual(['b', 'a', 'c'])
   })
 
   it('converge: aplicar o mesmo doc duas vezes dá o mesmo resultado', () => {
     const local  = [item('a', -60 * MIN), item('nova', +2 * MIN)]
     const remoto = [item('a', -60 * MIN), item('b', -30 * MIN)]
-    const uma  = mesclarPorId(local, remoto, T0, { ultimoPushOk: T0 - 120 * MIN })
-    const duas = mesclarPorId(uma.itens, remoto, T0, { ultimoPushOk: T0 - 120 * MIN })
+    const uma  = mesclarPorId(local, remoto, T0)
+    const duas = mesclarPorId(uma.itens, remoto, T0)
     expect(duas.itens).toEqual(uma.itens)
   })
 })

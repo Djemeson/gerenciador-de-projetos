@@ -1390,13 +1390,17 @@ tarefa (corrige o bug do "trecho até dar Enter"). Não recriar um textarea/tipt
   `applyRemoteSnapshot` agora mescla item a item (tarefas, projetos, espaços, pastas,
   workspaces, automações, metas e notas) pelo `updatedAt`: nos dois lados vence o mais novo;
   só no remoto entra, salvo exclusão local recente (registro `tf_exclusoes_recentes`); só no
-  local fica se for mais novo que o documento remoto ou ainda não tiver subido num push da
-  sessão. Se o resultado difere do remoto, um re-push converge a nuvem. Consequências
-  práticas: **toda mutação persistida de um item precisa atualizar o `updatedAt` dele** (é o
-  critério de desempate — colunas de projeto, pin de nota, toggle de automação etc. já
-  fazem isso), e **toda exclusão nova deve chamar `registrarExclusoes`** (o desfazer chama
-  `cancelarExclusoes`). Reordenação (posição no array) não tem carimbo próprio e segue a
-  ordem do documento remoto — limitação conhecida.
+  local fica se estiver **pendente de push** (registro `tf_pendencias_push`, alimentado
+  automaticamente por `saveJSON`/`pProjects` via diff de referência e limpo no push que
+  subiu — cobre edição offline e relógio adiantado) ou se for mais novo que o documento
+  remoto. A **ordem** de tarefas/projetos/espaços/pastas tem carimbo próprio
+  (`tf_ordem_alterada`, gravado nos `reorder*`): reordenação local feita depois do documento
+  remoto vence a ordem dele. Se o resultado difere do remoto, um re-push converge a nuvem.
+  Consequências práticas: **toda mutação persistida de um item precisa atualizar o
+  `updatedAt` dele** (é o critério de desempate — colunas de projeto, pin de nota, toggle de
+  automação etc. já fazem isso), **toda exclusão nova deve chamar `registrarExclusoes`** (o
+  desfazer chama `cancelarExclusoes`) e **toda lista sincronizada nova deve entrar no
+  `CAMPO_SINCRONIZADO_POR_KEY`** para ganhar o registro de pendências.
 - **Anexos e áudio** (`Task.comments[].attachment/audio`, `Task.blocks[].data`) são base64
   grandes demais para o documento único do Firestore (limite de 1 MiB). Ficam de fora dele:
   sobem como documentos próprios em `syncGroups/{uid}/attachments/{id}`

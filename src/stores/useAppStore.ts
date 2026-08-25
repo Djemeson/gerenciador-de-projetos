@@ -16,7 +16,11 @@ import {
   migrateNote,
 } from '../types'
 import { matchesTrigger } from '../lib/automationEngine'
-import { mesclarPorId, registrarExclusoes, cancelarExclusoes, obterExclusoes, marcarPushConcluido, obterUltimoPushOk } from '../lib/syncMerge'
+import {
+  mesclarPorId, registrarExclusoes, cancelarExclusoes, obterExclusoes,
+  registrarPendencias, concluirPendencias, obterPendencias,
+  registrarOrdemAlterada, obterOrdemAlterada, type ListaOrdenavel,
+} from '../lib/syncMerge'
 import { useNotificationStore } from './useNotificationStore'
 import { matchesDateFilter } from '../lib/dateFilter'
 import { generateCompletionSummary } from '../lib/aiSummary'
@@ -52,7 +56,27 @@ function loadJSON<T>(key: string, fallback: T): T {
   try { return JSON.parse(localStorage.getItem(key) ?? 'null') ?? fallback }
   catch { return fallback }
 }
-function saveJSON(key: string, val: unknown) { 
+
+// ── Registro de pendências de push (ver syncMerge.ts) ─────────────────────
+// Toda gravação local passa por `saveJSON` ou `pProjects` ANTES do `set`, então dá para
+// descobrir o que mudou comparando com o estado ainda antigo da store — por referência:
+// as ações só criam objeto novo para o item que alteram. O id registrado fica protegido
+// na mesclagem com a nuvem até subir num push bem-sucedido.
+function idsAlterados(antes: { id: string }[], depois: { id: string }[]): string[] {
+  const prev = new Map(antes.map(i => [i.id, i]))
+  return depois.filter(i => prev.get(i.id) !== i).map(i => i.id)
+}
+const CAMPO_SINCRONIZADO_POR_KEY: Record<string, 'spaces'|'folders'|'workspaces'|'automations'|'goals'|'notes'> = {
+  [SPACES_KEY]: 'spaces', [FOLDERS_KEY]: 'folders', [WORKSPACES_KEY]: 'workspaces',
+  [AUTOMATIONS_KEY]: 'automations', [GOALS_KEY]: 'goals', [NOTES_KEY]: 'notes',
+}
+
+function saveJSON(key: string, val: unknown) {
+  const campo = CAMPO_SINCRONIZADO_POR_KEY[key]
+  if (campo) {
+    try { registrarPendencias(idsAlterados(useAppStore.getState()[campo], val as { id: string }[])) }
+    catch { /* store ainda não criada — só acontece fora das ações */ }
+  }
   localStorage.setItem(key, JSON.stringify(val));
   triggerSyncPush();
 }
@@ -314,16 +338,17 @@ async function applyRemoteSnapshot(set: (partial: any) => void, get: () => AppSt
     // Importante: o estado é lido DEPOIS do await acima — o que o usuário criou enquanto
     // os anexos hidratavam também entra na mescla, e daqui até o `set` não há mais await.
     const gravadoEm = typeof data.updatedAt === 'number' ? data.updatedAt : 0;
-    const opts = { exclusoes: obterExclusoes(), ultimoPushOk: obterUltimoPushOk() };
+    const base = { exclusoes: obterExclusoes(), pendentes: obterPendencias() };
+    const opts = (lista?: ListaOrdenavel) => (lista ? { ...base, ordemLocalEm: obterOrdemAlterada(lista) } : base);
     const s = get();
-    const projects    = mesclarPorId(s.projects,    remoteProjects, gravadoEm, opts);
-    const tasks       = mesclarPorId(s.tasks,       remoteTasks,    gravadoEm, opts);
-    const spaces      = mesclarPorId(s.spaces,      ((data.spaces ?? []) as any[]).map(migrateSpace),           gravadoEm, opts);
-    const folders     = mesclarPorId(s.folders,     ((data.folders ?? []) as any[]).map(migrateFolder),         gravadoEm, opts);
-    const workspaces  = mesclarPorId(s.workspaces,  (data.workspaces ?? []) as Workspace[],                     gravadoEm, opts);
-    const automations = mesclarPorId(s.automations, ((data.automations ?? []) as any[]).map(migrateAutomation), gravadoEm, opts);
-    const goals       = mesclarPorId(s.goals,       (data.goals ?? []) as Goal[],                               gravadoEm, opts);
-    const notes       = mesclarPorId(s.notes,       ((data.notes ?? []) as any[]).map(migrateNote),             gravadoEm, opts);
+    const projects    = mesclarPorId(s.projects,    remoteProjects, gravadoEm, opts('projects'));
+    const tasks       = mesclarPorId(s.tasks,       remoteTasks,    gravadoEm, opts('tasks'));
+    const spaces      = mesclarPorId(s.spaces,      ((data.spaces ?? []) as any[]).map(migrateSpace),           gravadoEm, opts('spaces'));
+    const folders     = mesclarPorId(s.folders,     ((data.folders ?? []) as any[]).map(migrateFolder),         gravadoEm, opts('folders'));
+    const workspaces  = mesclarPorId(s.workspaces,  (data.workspaces ?? []) as Workspace[],                     gravadoEm, opts());
+    const automations = mesclarPorId(s.automations, ((data.automations ?? []) as any[]).map(migrateAutomation), gravadoEm, opts());
+    const goals       = mesclarPorId(s.goals,       (data.goals ?? []) as Goal[],                               gravadoEm, opts());
+    const notes       = mesclarPorId(s.notes,       ((data.notes ?? []) as any[]).map(migrateNote),             gravadoEm, opts());
 
     localProjects.set(projects.itens as any);
     localTasks.set(tasks.itens as any);
@@ -403,7 +428,11 @@ async function migrateLegacySyncCode(set: (partial: any) => void, get: () => App
 registrarObservadorDeSettings(triggerSyncPush)
 
 function pProjects(p: Project[], t: Task[]) {
-  localProjects.set(p as any); 
+  try {
+    const s = useAppStore.getState()
+    registrarPendencias([...idsAlterados(s.projects, p), ...idsAlterados(s.tasks, t)])
+  } catch { /* store ainda não criada — só acontece fora das ações */ }
+  localProjects.set(p as any);
   localTasks.set(t as any);
   triggerSyncPush();
 }
@@ -508,6 +537,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   reorderSpace: (draggedId, targetId) => {
     if (draggedId === targetId) return
     get().pushUndo()
+    registrarOrdemAlterada('spaces')
     const spaces = [...get().spaces]
     const from = spaces.findIndex(s => s.id===draggedId)
     const to   = spaces.findIndex(s => s.id===targetId)
@@ -559,6 +589,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   reorderFolder: (draggedId, targetId) => {
     if (draggedId === targetId) return
     get().pushUndo()
+    registrarOrdemAlterada('folders')
     const folders = [...get().folders]
     const from = folders.findIndex(f => f.id===draggedId)
     const to   = folders.findIndex(f => f.id===targetId)
@@ -603,6 +634,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   reorderProject: (draggedId, targetId) => {
     if (draggedId === targetId) return
     get().pushUndo()
+    registrarOrdemAlterada('projects')
     const projects = [...get().projects]
     const from = projects.findIndex(p => p.id===draggedId)
     const to   = projects.findIndex(p => p.id===targetId)
@@ -715,6 +747,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   reorderTask: (draggedId, targetId) => {
     if (draggedId === targetId) return
     get().pushUndo()
+    registrarOrdemAlterada('tasks')   // a posição é do array, não do item — ver syncMerge.ts
     const tasks = [...get().tasks]
     const from = tasks.findIndex(t => t.id===draggedId)
     const to   = tasks.findIndex(t => t.id===targetId)
@@ -1149,6 +1182,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!cloudReady && !force) return;   // ver `cloudReady`: nada sobe antes de ler a nuvem
     set({ cloudSyncStatus: 'syncing' });
     try {
+      // O que está pendente NESTE momento é o que o documento abaixo carrega; o que for
+      // alterado durante o envio entra no próximo debounce e continua pendente.
+      const pendentesNoEnvio = Object.keys(obterPendencias());
       const tasks = await stripAndUploadAttachments(uid, get().tasks);
       const stateToSync = {
         projects: get().projects,
@@ -1170,7 +1206,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         updatedAt: Date.now(),
       };
       await setDoc(doc(db, 'syncGroups', uid), stateToSync);
-      marcarPushConcluido();   // ver syncMerge.ts: itens locais criados depois disto ficam protegidos na mescla
+      concluirPendencias(pendentesNoEnvio);   // já estão na nuvem — deixam de precisar de proteção
       set({ cloudSyncStatus: 'synced', lastSyncedAt: new Date().toLocaleTimeString('pt-BR') });
     } catch (e) {
       console.error('Erro ao sincronizar com a nuvem:', e);
