@@ -49,12 +49,45 @@ const GOALS_KEY       = 'tf_goals'
 const NOTES_KEY       = 'tf_notes'
 const VIEW_PREFS_KEY  = 'tf_view_prefs'   // visualização/agrupamento por escopo (era 'tf_v_*' solto)
 const INBOX_COLS_KEY  = 'tf_inbox_columns'
+const OPEN_TABS_KEY   = 'tf_open_tabs'      // ids das tarefas abertas em aba (so UI: nunca vai para a nuvem)
 const CUSTOM_VIEWS_KEY= 'tf_custom_views'   // Record<scopeKey, CustomProjectView[]> — todas as visualizações personalizadas, de qualquer escopo (projeto, espaço, pasta, minhas/todas tarefas)
 export const scopeKeyForProject = (id: string) => `project:${id}`
 
 function loadJSON<T>(key: string, fallback: T): T {
   try { return JSON.parse(localStorage.getItem(key) ?? 'null') ?? fallback }
   catch { return fallback }
+}
+
+/**
+ * As abas são estado de tela, não dado do usuário: gravam direto no navegador, sem passar
+ * por `saveJSON` — que dispara push para a nuvem e marcaria pendência de sincronização a
+ * cada clique numa aba.
+ */
+function salvarAbas(ids: string[]) {
+  try { localStorage.setItem(OPEN_TABS_KEY, JSON.stringify(ids)) } catch { /* modo privado */ }
+}
+
+/**
+ * Abre (ou ativa) uma aba e devolve o pedaço de estado a aplicar. Reabrir uma tarefa que já
+ * está aberta **não** duplica a aba nem a move de lugar — só a torna a ativa.
+ */
+function abrirAba(abertas: string[], id: string): { openTaskIds: string[]; selectedTaskId: string } {
+  const openTaskIds = abertas.includes(id) ? abertas : [...abertas, id]
+  salvarAbas(openTaskIds)
+  return { openTaskIds, selectedTaskId: id }
+}
+
+/**
+ * Fecha uma aba e escolhe a vizinha (a da esquerda; se não houver, a da direita), como faz
+ * qualquer navegador. Só devolve `selectedTaskId: null` quando não sobrou nenhuma.
+ */
+function fecharAba(abertas: string[], ativa: string | null, id: string): { openTaskIds: string[]; selectedTaskId: string | null } {
+  const i = abertas.indexOf(id)
+  const openTaskIds = abertas.filter(t => t !== id)
+  salvarAbas(openTaskIds)
+  if (ativa !== id) return { openTaskIds, selectedTaskId: ativa }
+  const vizinha = openTaskIds[Math.max(0, i - 1)] ?? null
+  return { openTaskIds, selectedTaskId: vizinha }
 }
 
 // ── Registro de pendências de push (ver syncMerge.ts) ─────────────────────
@@ -116,6 +149,12 @@ interface AppState {
   activeSpaceId:   string | null
   activeFolderId:  string | null
   selectedTaskId:  string | null
+  /**
+   * Tarefas abertas em aba, na ordem da barra. `selectedTaskId` é a aba visível; sair do
+   * painel (clique fora / Esc) esconde o painel mas **mantém** as abas, que voltam pela
+   * barra flutuante — é isso que permite acompanhar várias tarefas ao mesmo tempo.
+   */
+  openTaskIds:     string[]
   filterPanelOpen: boolean
   aiPanelOpen:     boolean
   notesPanelOpen:  boolean
@@ -140,6 +179,8 @@ interface AppState {
   openSpace:       (id: string) => void
   openFolder:      (id: string) => void
   setSelectedTask: (id: string | null) => void
+  closeTaskTab:    (id: string) => void
+  closeAllTaskTabs:() => void
   toggleFilterPanel: () => void
   toggleAIPanel:   () => void
   toggleNotesPanel: () => void
@@ -445,6 +486,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   customViewsByScope: {},
   aiGeneratingKeys: [],
   activeView:VIEW_INICIAL, activeProjectId:null, activeSpaceId:null, activeFolderId:null, selectedTaskId:null,
+  openTaskIds: loadJSON<string[]>(OPEN_TABS_KEY, []),
   filterPanelOpen:false, aiPanelOpen:false, notesPanelOpen:false, quickCaptureOpen:false, mobileSidebarOpen:false, filters:EMPTY_FILTER,
   newProjectModal:false, newProjectCtx:{}, aiProjectModal:false, aiProjectCtx:{}, enrichProjectModal:null, gutModal:{open:false,projectId:null},
   columnsModal:null, columnsModalScope:null, columnsVersion:0, newViewModal:null,
@@ -472,7 +514,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   setView: (view, projectId) => set({ activeView:view, activeProjectId:projectId??null, activeSpaceId:null, activeFolderId:null, selectedTaskId:null, mobileSidebarOpen:false }),
   openSpace:  (id) => set({ activeView:'space_detail',  activeSpaceId:id, activeFolderId:null, activeProjectId:null, selectedTaskId:null, mobileSidebarOpen:false }),
   openFolder: (id) => set({ activeView:'folder_detail', activeFolderId:id, activeSpaceId:null, activeProjectId:null, selectedTaskId:null, mobileSidebarOpen:false }),
-  setSelectedTask: (id) => set({ selectedTaskId:id }),
+  // Abrir uma tarefa **cria a aba**; fechar o painel (id null) só esconde, preservando as abas.
+  setSelectedTask: (id) => set(id ? abrirAba(get().openTaskIds, id) : { selectedTaskId:null }),
+  closeTaskTab: (id) => set(fecharAba(get().openTaskIds, get().selectedTaskId, id)),
+  closeAllTaskTabs: () => { salvarAbas([]); set({ openTaskIds: [], selectedTaskId: null }) },
   toggleFilterPanel: () => set(s => ({ filterPanelOpen:!s.filterPanelOpen })),
   toggleAIPanel:     () => set(s => ({ aiPanelOpen:!s.aiPanelOpen })),
   toggleNotesPanel:  () => set(s => ({ notesPanelOpen:!s.notesPanelOpen })),
@@ -512,7 +557,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   switchWorkspace: (id) => {
     saveJSON(ACTIVE_WS_KEY, id)
-    set({ activeWorkspaceId: id, activeView:VIEW_INICIAL, activeProjectId:null, activeSpaceId:null, activeFolderId:null, selectedTaskId:null, mobileSidebarOpen:false })
+    // Abas são do workspace que estava aberto — carregar de um grupo para outro mostraria
+    // tarefas que a nova tela nem lista.
+    salvarAbas([])
+    set({ activeWorkspaceId: id, activeView:VIEW_INICIAL, activeProjectId:null, activeSpaceId:null, activeFolderId:null, selectedTaskId:null, openTaskIds:[], mobileSidebarOpen:false })
   },
 
   // ── Spaces ───────────────────────────────────────────────────────────
@@ -799,7 +847,18 @@ export const useAppStore = create<AppState>((set, get) => ({
     const removidas = get().tasks.filter(t => toDelete.has(t.id))
     const tasks = get().tasks.filter(t => !toDelete.has(t.id))
     pProjects(get().projects, tasks)
-    set({ tasks, selectedTaskId: toDelete.has(get().selectedTaskId??'') ? null : get().selectedTaskId })
+    // Tarefa excluída não pode continuar como aba aberta — nem ela, nem as subtarefas
+    // que foram junto (por isso o filtro usa o conjunto inteiro, não só o id pedido).
+    const abasAntes = get().openTaskIds
+    const abasVivas = abasAntes.filter(id => !toDelete.has(id))
+    salvarAbas(abasVivas)
+    // Excluir a tarefa que estava na tela cai na aba vizinha, como fechar a aba na mão —
+    // fechar o painel inteiro faria perder as outras tarefas que estavam sendo acompanhadas.
+    const ativa = get().selectedTaskId
+    const vizinha = ativa && toDelete.has(ativa)
+      ? (abasVivas[Math.max(0, abasAntes.indexOf(ativa) - 1)] ?? null)
+      : ativa
+    set({ tasks, openTaskIds: abasVivas, selectedTaskId: vizinha })
     // Limpa os anexos na nuvem — antes eles ficavam órfãos para sempre.
     const uid = get().syncUid
     if (uid) deleteAttachmentsOf(uid, removidas)

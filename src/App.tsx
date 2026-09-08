@@ -16,6 +16,7 @@ import { InboxView }                from './views/InboxView'
 import { AutomationsView }          from './views/AutomationsView'
 import { AgentsView }               from './views/AgentsView'
 import { GoalsView }                from './views/GoalsView'
+import { TaskTabs }                 from './components/tasks/TaskTabs'
 import { NewProjectModal }          from './components/projects/NewProjectModal'
 import { AIProjectModal }           from './components/projects/AIProjectModal'
 import { EnrichProjectModal }       from './components/projects/EnrichProjectModal'
@@ -156,6 +157,10 @@ export default function App() {
             Capturar
           </button>
         </div>
+
+        {/* Abas das tarefas abertas — ficam acima do conteúdo, em qualquer tela, para a
+            tarefa voltar depois que o painel é fechado. */}
+        <TaskTabs variant="app"/>
 
         <div className="flex flex-1 overflow-hidden min-w-0 rounded-2xl bg-white shadow-[0_1px_2px_rgba(23,24,28,.04),0_14px_32px_-10px_rgba(23,24,28,.12)]">
           {view()}

@@ -211,6 +211,24 @@ Regras:
   (marca) em vez de avatar com inicial — é o único tratado como "workspace principal".
   Dados antigos (antes desta migração) são todos migrados para ele em `init()`.
 
+### Abas de tarefa (`components/tasks/TaskTabs.tsx`)
+
+Abrir uma tarefa **empilha** em vez de substituir: cada tarefa aberta vira uma aba, para
+acompanhar várias ao mesmo tempo. Estado único na store — `openTaskIds` (ordem da barra)
++ `selectedTaskId` (a aba visível). Nunca manter uma segunda lista de tarefas abertas.
+
+- **Duas aparências, o mesmo estado**: `variant="app"` é a faixa acima do conteúdo (em
+  qualquer tela, é o que traz a tarefa de volta depois de fechar o painel);
+  `variant="panel"` é a mesma faixa dentro do painel de detalhe, e só aparece com 2+ abas.
+- **Fechar ≠ sair**: o `X` (na aba ou no cabeçalho do painel) **fecha a aba**; clique fora
+  do painel e `Esc` só **escondem** o painel — a aba continua na barra. Sem essa
+  diferença, ou não haveria como largar uma aba, ou um clique fora perderia todas.
+- Fechar a aba ativa cai na **vizinha da esquerda** (como em navegador), inclusive quando
+  a tarefa é excluída.
+- As abas são **estado de tela**: gravam em `tf_open_tabs` direto no navegador (nunca por
+  `saveJSON`, que dispara sincronização), sobrevivem ao recarregar e são zeradas ao trocar
+  de workspace. Aba de tarefa que não existe mais é ignorada ao desenhar.
+
 ---
 
 ## 4. Painel de tarefas unificado (`TaskPanel`)

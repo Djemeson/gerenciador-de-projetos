@@ -24,6 +24,7 @@ import { nanoid } from '../../lib/nanoid'
 import { generateChecklistItems, generateProjectEnrichment } from '../../lib/aiProjectGen'
 import { createTaskTree } from '../../lib/aiTaskCreate'
 import { SubtaskTreeItem, SectionHeader, humanSize, blockTypeForFile, getAvatarBg } from './taskDetailParts'
+import { TaskTabs } from './TaskTabs'
 
 interface Props {
   mode?: TaskOpenMode
@@ -42,7 +43,7 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
     addChecklist, renameChecklist, removeChecklist, addChecklistItem, renameChecklistItem,
     toggleChecklistItem, removeChecklistItem,
     addComment, removeComment,
-    getSubtasks, setTaskOpenMode,
+    getSubtasks, setTaskOpenMode, closeTaskTab,
   } = useAppStore()
   const { openAIKey, geminiApiKey } = useSettingsStore()
 
@@ -60,6 +61,20 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
+
+  // Esc sai do painel **sem** fechar a aba (a tarefa continua na barra). Ignora quando o
+  // foco está num campo — lá o Esc já tem dono (cancelar edição, fechar menu).
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      const alvo = e.target as HTMLElement | null
+      const editando = alvo?.tagName === 'INPUT' || alvo?.tagName === 'TEXTAREA' || alvo?.tagName === 'SELECT' || alvo?.isContentEditable
+      if (editando) return
+      setSelectedTask(null)
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [setSelectedTask])
 
   const titleTextareaRef = useRef<HTMLTextAreaElement>(null)
   useEffect(() => {
@@ -463,6 +478,9 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
 
   const content = (
     <>
+      {/* Abas — trocar de tarefa sem fechar o painel */}
+      <TaskTabs variant="panel"/>
+
       {/* Draggable divider (side mode only) */}
       {activeMode === 'side' && (
         <div onMouseDown={onDragStart}
@@ -582,7 +600,10 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
             )}
           </button>
 
-          <button onClick={() => setSelectedTask(null)} className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 flex-shrink-0 transition-colors cursor-pointer">
+          {/* O X **fecha a aba** (some da barra); sair pelo clique fora só esconde o painel
+              e mantém a tarefa aberta — sem essa diferença não haveria como largar uma aba. */}
+          <button onClick={() => closeTaskTab(task.id)} title="Fechar tarefa"
+            className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 flex-shrink-0 transition-colors cursor-pointer">
             <X size={18} />
           </button>
         </div>
@@ -1222,7 +1243,7 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
               className="w-full flex items-center justify-center gap-2 py-2 px-3 text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:text-brand-600 rounded-xl transition-all border border-transparent hover:border-gray-200">
               <FileDown size={14} /> Exportar Markdown
             </button>
-            <button onClick={() => { setSelectedTask(null); deleteTask(task.id) }}
+            <button onClick={() => deleteTask(task.id)}
               className="w-full flex items-center justify-center gap-2 py-2 px-3 text-sm font-semibold text-danger-500 hover:bg-danger-50 hover:text-danger-600 rounded-xl transition-all border border-transparent hover:border-danger-100">
               <Trash2 size={14} /> Excluir tarefa
             </button>
