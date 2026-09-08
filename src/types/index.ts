@@ -2,6 +2,13 @@ export type Priority   = 'low' | 'medium' | 'high' | 'urgent'
 export type TaskStatus = 'todo' | 'in_progress' | 'done'
 export type View       = 'my_tasks' | 'all_tasks' | 'projects' | 'project_detail' | 'space_detail' | 'folder_detail' | 'calendar' | 'reports' | 'inbox' | 'automations' | 'goals' | 'agents'
 
+/**
+ * Tela em que o app abre — e para a qual ele volta ao trocar de workspace.
+ * Fonte única: mudar aqui muda o estado inicial da store **e** o fallback do
+ * roteador, que antes eram dois lugares independentes ('my_tasks' nos dois).
+ */
+export const VIEW_INICIAL: View = 'all_tasks'
+
 // ── Agentes de IA (estilo "superagentes": instruções próprias + execução sob demanda) ──
 export interface Agent {
   id: string

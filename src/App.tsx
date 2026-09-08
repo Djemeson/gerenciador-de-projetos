@@ -129,7 +129,7 @@ export default function App() {
       case 'automations':    return <AutomationsView/>
       case 'agents':         return <AgentsView/>
       case 'goals':          return <GoalsView/>
-      default:               return <MyTasksView/>
+      default:               return <AllTasksView/>
     }
   }
 

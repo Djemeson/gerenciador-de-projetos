@@ -184,8 +184,12 @@ Regras:
   workspace — herdam do espaço/projeto. `addSpace`/`addProject` atribuem automaticamente
   `activeWorkspaceId` — nunca passar workspace na mão.
 - Cabeçalho da sidebar é clicável e abre o **seletor de workspace** (lista + "Criar
-  workspace"). Trocar de workspace zera a navegação (`switchWorkspace` já chama o
-  equivalente de `setView('my_tasks')` e limpa seleção ativa).
+  workspace"). Trocar de workspace zera a navegação (`switchWorkspace` volta para a tela
+  inicial e limpa seleção ativa).
+- **Tela inicial = "Todas as tarefas"**, definida em `VIEW_INICIAL` (`types/index.ts`).
+  É o estado inicial da store, o destino do `switchWorkspace` e o fallback do roteador
+  em `App.tsx` — os três leem a mesma constante, então mudar a tela de entrada é mudar
+  uma linha. A navegação não é persistida: toda abertura do app começa por ela.
 - **Isolamento total por workspace** (14/07/2026): `Task` e `Automation` também têm
   `workspaceId` (como `Space`/`Project` já tinham) — `addTask`/`quickAddTask`/
   `addAutomation` atribuem `get().activeWorkspaceId` automaticamente, sem precisar

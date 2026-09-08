@@ -13,7 +13,7 @@ import type {
 import {
   calcGUT, migrateTask, migrateProject, migrateSpace, migrateFolder, migrateAutomation,
   INBOX_PROJECT_ID, DEFAULT_WORKSPACE_ID, ANY, STATUS_LABEL, PRIORITY_LABEL,
-  migrateNote,
+  migrateNote, VIEW_INICIAL,
 } from '../types'
 import { matchesTrigger } from '../lib/automationEngine'
 import {
@@ -444,7 +444,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   agents: loadJSON<Agent[]>(AGENTS_KEY, []), agentRuns: loadJSON<AgentRun[]>(AGENT_RUNS_KEY, []),
   customViewsByScope: {},
   aiGeneratingKeys: [],
-  activeView:'my_tasks', activeProjectId:null, activeSpaceId:null, activeFolderId:null, selectedTaskId:null,
+  activeView:VIEW_INICIAL, activeProjectId:null, activeSpaceId:null, activeFolderId:null, selectedTaskId:null,
   filterPanelOpen:false, aiPanelOpen:false, notesPanelOpen:false, quickCaptureOpen:false, mobileSidebarOpen:false, filters:EMPTY_FILTER,
   newProjectModal:false, newProjectCtx:{}, aiProjectModal:false, aiProjectCtx:{}, enrichProjectModal:null, gutModal:{open:false,projectId:null},
   columnsModal:null, columnsModalScope:null, columnsVersion:0, newViewModal:null,
@@ -512,7 +512,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   switchWorkspace: (id) => {
     saveJSON(ACTIVE_WS_KEY, id)
-    set({ activeWorkspaceId: id, activeView:'my_tasks', activeProjectId:null, activeSpaceId:null, activeFolderId:null, selectedTaskId:null, mobileSidebarOpen:false })
+    set({ activeWorkspaceId: id, activeView:VIEW_INICIAL, activeProjectId:null, activeSpaceId:null, activeFolderId:null, selectedTaskId:null, mobileSidebarOpen:false })
   },
 
   // ── Spaces ───────────────────────────────────────────────────────────
