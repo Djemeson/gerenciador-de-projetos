@@ -11,6 +11,7 @@ import { useAppStore } from '../../stores/useAppStore'
 import { QuickAddRow } from './QuickAddRow'
 import { CustomFieldCell } from './CustomFieldCell'
 import { TaskGutBadge } from './TaskGutBadge'
+import { TaskMetaIcons } from './TaskMetaIcons'
 import { Select, PRIORITY_OPTIONS, STATUS_OPTIONS, STATUS_COLOR } from '../ui/Select'
 import { DueDatePicker } from '../ui/DueDatePicker'
 import { AssigneePicker } from '../ui/AssigneePicker'
@@ -298,11 +299,15 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
               className={`inline-block max-w-full text-[13px] font-medium truncate cursor-text ${isDone?'line-through text-gray-400':'text-gray-800'}`}>{task.title}</span>
           )}
           {task.description&&!isDone&&<span className="block text-[11px] text-gray-400 truncate">{task.description}</span>}
-          {hasChildren&&(
-            <span className="inline-flex items-center gap-0.5 text-[10px] text-gray-400">
-              <GitBranch size={12}/>{subtasks.filter(s=>s.status==='done').length}/{subtasks.length}
-            </span>
-          )}
+          {/* Selos discretos da linha: progresso de subtarefas + anexos/comentários */}
+          <span className="inline-flex items-center gap-2 text-[10px] text-gray-400 empty:hidden">
+            {hasChildren&&(
+              <span className="inline-flex items-center gap-0.5">
+                <GitBranch size={12}/>{subtasks.filter(s=>s.status==='done').length}/{subtasks.length}
+              </span>
+            )}
+            <TaskMetaIcons task={task}/>
+          </span>
 
           {/* Mobile Info Badges */}
           <div className="flex md:hidden flex-wrap items-center gap-1.5 mt-1">

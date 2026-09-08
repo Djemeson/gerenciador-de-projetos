@@ -401,6 +401,12 @@ mesmo componente serve a escopos diferentes (ex.: espaços), para remontar e rec
 - Mapa de ícones: **fonte única** em `lib/taskTypeIcons.ts` (`TYPE_ICON` + `TYPE_ICON_COLOR`).
   `TaskRow` **e** `TaskDetail` usam o mesmo mapa — os ícones da lista e do painel são idênticos.
   Novos tipos entram lá.
+- **Selos de anexo e comentário** (`components/tasks/TaskMetaIcons.tsx`): clipe de papel e
+  balão, 11px cinza com a contagem ao lado, aparecendo só quando há o quê contar. Fonte
+  única usada na **lista**, no **quadro**, na **tabela** e na **atividade recente** — nenhum
+  layout recalcula por conta própria. Anexo = qualquer bloco não-texto (arquivo, imagem ou
+  áudio), esteja na seção "Anexos" ou solto no corpo, **mais** os arquivos/áudios enviados
+  dentro de comentários; comentário = total de comentários da tarefa.
 
 ---
 

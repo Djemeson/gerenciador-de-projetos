@@ -7,6 +7,7 @@ import { useAppStore } from '../../stores/useAppStore'
 import { TaskList } from './TaskList'
 import { CustomFieldCell } from './CustomFieldCell'
 import { SortControl } from './SortControl'
+import { TaskMetaIcons } from './TaskMetaIcons'
 import { loadMultiSort, saveMultiSort, sortTasksMulti, type MultiSort } from '../../lib/taskColumns'
 import { TaskDetail } from './TaskDetail'
 import { WhiteboardView } from './WhiteboardView'
@@ -615,6 +616,7 @@ function BoardView({ tasks }: { tasks: Task[] }) {
                           </span>
                         )}
                         <span className="w-5 h-5 rounded-full bg-brand-50 text-brand-700 text-[10px] font-semibold flex items-center justify-center border border-brand-100">{t.assignee.slice(0,2)}</span>
+                        <TaskMetaIcons task={t}/>
                       </div>
                       {t.tags.length>0 && (
                         <div className="flex flex-wrap gap-1 mt-2.5 pt-2 border-t border-gray-50">
@@ -715,7 +717,12 @@ function TableView({ tasks, columns, showProject, scopeKey }: { tasks: Task[]; c
               <tr key={t.id} onClick={()=>setSelectedTask(t.id)}
                 className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors">
                 <td className={`${cellPad} text-gray-400 tabnum`}>{i+1}</td>
-                <td className={`${cellPad} font-medium text-gray-800 truncate`}>{t.title}</td>
+                <td className={`${cellPad} font-medium text-gray-800 truncate`}>
+                  <span className="inline-flex items-center gap-2 max-w-full">
+                    <span className="truncate">{t.title}</span>
+                    <TaskMetaIcons task={t} className="flex-shrink-0"/>
+                  </span>
+                </td>
                 {showProject && (
                   <td className={cellPad}>
                     {pr && <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full max-w-full truncate" style={{background:pr.color+'18',color:pr.color}}>
@@ -825,7 +832,10 @@ function ActivityView({ tasks }: { tasks: Task[] }) {
                   onClick={() => setSelectedTask(t.id)}>
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm text-gray-800 truncate font-medium">{t.title}</span>
-                    <span className="text-[10px] text-gray-400 flex-shrink-0">{formatRelative(t.updatedAt)}</span>
+                    <span className="flex items-center gap-2 flex-shrink-0">
+                      <TaskMetaIcons task={t}/>
+                      <span className="text-[10px] text-gray-400">{formatRelative(t.updatedAt)}</span>
+                    </span>
                   </div>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
