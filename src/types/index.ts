@@ -153,7 +153,7 @@ export interface ColumnDef {
 // tags/assignee/dueDate/priority/project = sempre disponíveis (podem ser ocultadas).
 // createdAt/updatedAt/taskType = propriedades extras, ocultas por padrão até serem ligadas
 // no painel "Adicionar um existente".
-export type SystemColumnKey = 'tags' | 'assignee' | 'dueDate' | 'priority' | 'project' | 'createdAt' | 'updatedAt' | 'taskType' | 'gut' | 'progress'
+export type SystemColumnKey = 'tags' | 'assignee' | 'dueDate' | 'priority' | 'project' | 'status' | 'createdAt' | 'updatedAt' | 'taskType' | 'gut' | 'progress'
 export interface ListColumn {
   key:    string                 // chave estável (sistema) ou id da coluna personalizada
   label:  string

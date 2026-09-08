@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import {
   Check, ChevronRight, ChevronDown, GitBranch, Trash2, Search,
 } from 'lucide-react'
-import type { Task, Project, Priority, ColumnDef, TaskType, ListColumn } from '../../types'
+import type { Task, Project, Priority, TaskStatus, ColumnDef, TaskType, ListColumn } from '../../types'
 import { PRIORITY_LABEL, PRIORITY_COLOR, PRIORITY_TEXT_COLOR, priorityTint, TASK_TYPE_META } from '../../types'
 import { TYPE_ICON, TYPE_ICON_COLOR } from '../../lib/taskTypeIcons'
 import { TIPO_ARRASTE_TAREFA } from '../../lib/dragTypes'
@@ -11,7 +11,7 @@ import { useAppStore } from '../../stores/useAppStore'
 import { QuickAddRow } from './QuickAddRow'
 import { CustomFieldCell } from './CustomFieldCell'
 import { TaskGutBadge } from './TaskGutBadge'
-import { Select, PRIORITY_OPTIONS, STATUS_COLOR } from '../ui/Select'
+import { Select, PRIORITY_OPTIONS, STATUS_OPTIONS, STATUS_COLOR } from '../ui/Select'
 import { DueDatePicker } from '../ui/DueDatePicker'
 import { AssigneePicker } from '../ui/AssigneePicker'
 import { TagsCell } from '../ui/TagsCell'
@@ -122,6 +122,14 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
           <Select variant="inline" stop colorText pill value={task.priority}
             options={PRIORITY_OPTIONS} ariaLabel="Prioridade"
             onChange={v=>updateTask(task.id,{priority:v as Priority})}/>
+        )
+      // Mesmo seletor da prioridade (um só padrão de célula editável na lista). Agrupando
+      // por Status a coluna é redundante, por isso ela é opcional — ver taskColumns.ts.
+      case 'status':
+        return (
+          <Select variant="inline" stop colorText pill value={task.status}
+            options={STATUS_OPTIONS} ariaLabel="Status"
+            onChange={v=>updateTask(task.id,{status:v as TaskStatus})}/>
         )
       case 'project':
         return project ? <span className="flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full font-semibold truncate max-w-full"

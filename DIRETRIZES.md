@@ -879,8 +879,12 @@ de hoje continua menor que "agora" às 11h. Atraso é medido contra o **começo 
   (`lib/taskColumns.ts`) se for ordenável.
 - "Adicionar um existente" lista: colunas base sempre disponíveis (Tags, Responsável,
   Prazo, Prioridade), colunas personalizadas já criadas (com renomear/excluir) e a
-  seção **"Propriedades"** com colunas do sistema ocultas por padrão (Data de criação,
-  Data de atualização, Tipo de tarefa) — ligadas por toggle.
+  seção **"Propriedades"** com colunas do sistema ocultas por padrão (**Status**, Data de
+  criação, Data de atualização, Tipo de tarefa, GUT, Progresso) — ligadas por toggle.
+- **Status é coluna opcional, não fixa** (08/09/2026): o agrupamento padrão da lista é por
+  status, e ali a coluna repetiria o cabeçalho do grupo. Agrupando por Prioridade, Prazo ou
+  Responsável ela faz falta — antes não existia nem para ligar. A célula reusa o mesmo
+  `Select` inline da Prioridade (um só padrão de célula editável na lista).
 - Visibilidade é **por escopo** (`scopeKey`), guardada em `localStorage`
   (`tf_colhidden_${scope}` para ocultas, `tf_colextra_${scope}` para propriedades
   extras ligadas), via `lib/taskColumns.ts` (`toggleColumnHidden`,
@@ -1284,8 +1288,16 @@ tarefa (corrige o bug do "trecho até dar Enter"). Não recriar um textarea/tipt
   e salva. Estilo em `.rich-text .todo-*` no `index.css`.
 - **Mídia inline** vive como elemento nativo no HTML (`<img>`, `<audio controls>`,
   `<a class="file-chip">`), tudo `contenteditable=false`, e faz round-trip pelo `innerHTML`.
-  Inserir imagem (menu "+"/"Imagem"/**colar**/**arrastar** imagem) coloca `<img>` no cursor;
+  Inserir imagem (menu "+"/"Imagem" ou **arrastar** imagem) coloca `<img>` no cursor;
   **áudio** grava e insere `<audio>` inline (para comentar um trecho específico).
+- **Colar (Ctrl+V) manda arquivo para os Anexos, nunca para o corpo** (08/09/2026). Soltar
+  uma imagem sobre o texto é um gesto de posição ("quero ela aqui") e continua indo inline;
+  colar não tem essa intenção de lugar e quase sempre é captura de tela de apoio. Vale para
+  qualquer arquivo da área de transferência; colar texto continua colando texto.
+- **Toda escrita de bloco sai de `blocksRef`, nunca da lista da renderização.** O corpo é
+  salvo a cada tecla e um arquivo colado chega por callback assíncrono (`FileReader`) no meio
+  disso: usar a lista da renderização apagava o anexo recém-colado no primeiro caractere
+  digitado depois dele, e perdia todos menos o último ao colar/soltar vários de uma vez.
 - **Clicar na imagem** abre o **lightbox** (`Lightbox`): sobrepõe tudo, **zoom in/out** por
   botões, roda e teclas `+`/`-`, `1:1` e `Esc`/clique-fora. **Clicar no chip de arquivo/PDF**
   abre **em nova aba** via blob (`openData`) — limitação web: sem invocar o app do SO direto.
@@ -1405,8 +1417,23 @@ tarefa (corrige o bug do "trecho até dar Enter"). Não recriar um textarea/tipt
   grandes demais para o documento único do Firestore (limite de 1 MiB). Ficam de fora dele:
   sobem como documentos próprios em `syncGroups/{uid}/attachments/{id}`
   (`src/lib/cloudAttachments.ts`, `stripAndUploadAttachments`/`hydrateAttachments`).
-  **Anexos acima de ~900KB não sincronizam** (ficam só no dispositivo onde foram criados) —
-  é uma limitação conhecida do plano gratuito do Firestore, não um bug.
+- **Imagem embutida no HTML da descrição também sai do documento** (08/09/2026). Este era o
+  vazamento da regra acima: o corpo da tarefa é HTML (`block.text`), e uma imagem colada ou
+  arrastada vira `<img src="data:...">` **dentro** desse HTML — não em `block.data`, o único
+  campo que era extraído. O base64 inteiro ia junto, uma captura de tela estourava o limite
+  de 1 MiB, o `setDoc` falhava e **a conta inteira parava de sincronizar**: era o "colei a
+  imagem na descrição e ela desapareceu" (a descrição voltava ao que a nuvem ainda tinha).
+  Agora `mapearImagensDoHtml` troca cada `src` por `cloudref:<id>~<partes>~<impressão>` e a
+  reidratação desfaz a troca. Regra para daqui em diante: **campo novo que possa carregar
+  base64 (inclusive dentro de HTML) precisa entrar no strip/hydrate** — o documento de
+  sincronização só carrega texto e referências.
+- **Blob maior que um documento é fatiado**, não descartado: `{id}__p0`, `{id}__p1`… (teto de
+  12 partes, ~10 MB). Isso substitui a limitação antiga de "anexo acima de ~900KB não
+  sincroniza". Só acima do teto o arquivo fica apenas no aparelho de origem.
+- **Id do blob é posicional; o cache é por conteúdo.** A n-ésima imagem do corpo tem id
+  `{blockId}__inline{n}`, então trocar a 1ª imagem por outra mantém o id e muda só o
+  conteúdo — por isso as chaves de cache (envio e leitura) levam a **impressão do conteúdo**,
+  senão o outro aparelho continuaria mostrando a imagem antiga.
 - **IA (`/api/insights`)**: lógica compartilhada em `api/_lib/insights.ts`, usada tanto pelo
   `server.ts` (dev local, Express) quanto por `api/insights.ts` (função serverless da Vercel
   em produção) — não duplicar essa lógica entre os dois.

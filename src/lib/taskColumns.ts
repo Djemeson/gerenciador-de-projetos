@@ -13,6 +13,10 @@ const PROJECT_COL = { key: 'project', label: 'Projeto', width: 168, system: 'pro
 
 // Propriedades extras do sistema — ocultas por padrão, ligadas em "Adicionar um existente" → Propriedades.
 export const EXTRA_SYSTEM: { key: string; label: string; width: number; system: ListColumn['system'] }[] = [
+  // Status é opcional (não fixa) porque o agrupamento padrão da lista é justamente por
+  // status — ali a coluna repetiria o cabeçalho do grupo. Agrupando por Prioridade, Prazo
+  // ou Responsável ela faz falta, e é aqui que ela passa a poder ser ligada (08/09/2026).
+  { key: 'status',    label: 'Status',               width: 128, system: 'status'    },
   { key: 'createdAt', label: 'Data de criação',     width: 116, system: 'createdAt' },
   { key: 'updatedAt', label: 'Data de atualização', width: 116, system: 'updatedAt' },
   { key: 'taskType',  label: 'Tipo de tarefa',       width: 132, system: 'taskType'  },

@@ -66,8 +66,8 @@ export function BlockEditor({ blocks, onChange, placeholder = 'Adicione notas, c
   const [recording, setRecording] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const [lightbox, setLightbox] = useState<{ src: string; name?: string } | null>(null)
-  const [anexosCollapsed, setAnexosCollapsed] = useState(false)
-  const [attachEditMode, setAttachEditMode] = useState(false)
+  // A lista de anexos em si é desenhada pelo TaskDetail (seção "Anexos"); aqui ficou só o
+  // caminho de entrada (colar/soltar/escolher arquivo).
   const [toolbar, setToolbar] = useState<{ x: number; y: number } | null>(null)
   const [adjustedLeft, setAdjustedLeft] = useState<number>(0)
   const [plusTop, setPlusTop] = useState<number | null>(0)
@@ -85,6 +85,12 @@ export function BlockEditor({ blocks, onChange, placeholder = 'Adicione notas, c
   const savedRange = useRef<Range | null>(null)
   const imgInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  // Espelho dos blocos para uso dentro de callbacks assíncronos (FileReader). Sem ele,
+  // soltar/colar/escolher vários arquivos de uma vez perdia todos menos o último: cada
+  // leitura terminava com a mesma lista `blocks` da renderização e sobrescrevia a anterior.
+  const blocksRef = useRef(blocks)
+  useEffect(() => { blocksRef.current = blocks }, [blocks])
+  const aplicarBlocos = (novos: ContentBlock[]) => { blocksRef.current = novos; onChange(novos) }
 
   useLayoutEffect(() => {
     if (!toolbar) return
@@ -110,17 +116,19 @@ export function BlockEditor({ blocks, onChange, placeholder = 'Adicione notas, c
   // ── Blocos: corpo (texto rico único) + anexos ──
   const bodyTextIdx = blocks.findIndex(b => b.type === 'text' && (b.region ?? 'body') === 'body')
   const leadHtml = bodyTextIdx >= 0 ? (blocks[bodyTextIdx].text ?? '') : ''
-  const attachments = blocks
-    .map((b, idx) => ({ b, idx }))
-    .filter(({ b }) => (b.region ?? 'body') === 'attachment')
 
+  // Sempre a partir de `blocksRef`, nunca da lista da renderização: o corpo é salvo a cada
+  // tecla e um anexo colado chega por callback assíncrono no meio disso — usar a lista velha
+  // aqui apagaria o anexo recém-colado no primeiro caractere digitado depois dele.
   const setBodyHtml = (html: string) => {
-    if (bodyTextIdx >= 0) onChange(blocks.map((b, i) => (i === bodyTextIdx ? { ...b, text: html } : b)))
-    else onChange([{ id: nanoid(), type: 'text', text: html, region: 'body' }, ...blocks])
+    const atuais = blocksRef.current
+    const idx = atuais.findIndex(b => b.type === 'text' && (b.region ?? 'body') === 'body')
+    if (idx >= 0) aplicarBlocos(atuais.map((b, i) => (i === idx ? { ...b, text: html } : b)))
+    else aplicarBlocos([{ id: nanoid(), type: 'text', text: html, region: 'body' }, ...atuais])
   }
   const updateAttach = (idx: number, patch: Partial<ContentBlock>) =>
-    onChange(blocks.map((b, i) => (i === idx ? { ...b, ...patch } : b)))
-  const removeBlock = (idx: number) => onChange(blocks.filter((_, i) => i !== idx))
+    aplicarBlocos(blocksRef.current.map((b, i) => (i === idx ? { ...b, ...patch } : b)))
+  const removeBlock = (idx: number) => aplicarBlocos(blocksRef.current.filter((_, i) => i !== idx))
 
   // ── Migração: dobra mídia solta do corpo (modelo antigo) para dentro do texto ──
   useEffect(() => {
@@ -351,14 +359,17 @@ export function BlockEditor({ blocks, onChange, placeholder = 'Adicione notas, c
   const addAttachment = (file: File) => {
     const type = blockTypeForFile(file)
     const reader = new FileReader()
-    reader.onload = () => onChange([...blocks, {
+    reader.onload = () => aplicarBlocos([...blocksRef.current, {
       id: nanoid(), type, data: reader.result as string, name: file.name,
       mimeType: file.type, size: file.size, region: 'attachment', display: defaultDisplay(type),
     }])
     reader.readAsDataURL(file)
   }
 
-  // ── Arrastar-soltar / colar → imagens inline; outros → anexos ──
+  // ── Arrastar-soltar → imagem no corpo; colar → anexo ──
+  // Soltar uma imagem sobre o texto é um gesto de posição ("quero ela aqui"), então continua
+  // indo para o corpo. Colar não tem essa intenção de lugar e quase sempre é captura de tela
+  // de apoio: vai para os anexos, sem inchar a descrição (pedido de 08/09/2026).
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault(); setDragOver(false)
     Array.from(e.dataTransfer.files || []).forEach(f => f.type.startsWith('image/') ? insertFileInline(f) : addAttachment(f))
@@ -367,8 +378,9 @@ export function BlockEditor({ blocks, onChange, placeholder = 'Adicione notas, c
     if (Array.from(e.dataTransfer.types).includes('Files')) { e.preventDefault(); setDragOver(true) }
   }
   const onPaste = (e: React.ClipboardEvent) => {
-    const imgs = Array.from(e.clipboardData.files).filter(f => f.type.startsWith('image/'))
-    if (imgs.length) { e.preventDefault(); imgs.forEach(insertFileInline) }
+    const arquivos = Array.from(e.clipboardData.files)
+    // Só intercepta quando há arquivo: colar texto continua sendo colar texto.
+    if (arquivos.length) { e.preventDefault(); arquivos.forEach(addAttachment) }
   }
 
   // ── Cliques dentro do editor (checkbox / imagem / chip de arquivo) ──
