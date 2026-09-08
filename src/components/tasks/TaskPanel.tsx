@@ -718,9 +718,9 @@ function TableView({ tasks, columns, showProject, scopeKey }: { tasks: Task[]; c
                 className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors">
                 <td className={`${cellPad} text-gray-400 tabnum`}>{i+1}</td>
                 <td className={`${cellPad} font-medium text-gray-800 truncate`}>
-                  <span className="inline-flex items-center gap-2 max-w-full">
-                    <span className="truncate">{t.title}</span>
-                    <TaskMetaIcons task={t} className="flex-shrink-0"/>
+                  <span className="flex items-center gap-2 min-w-0">
+                    <span className="min-w-0 truncate">{t.title}</span>
+                    <TaskMetaIcons task={t} className="ml-auto flex-shrink-0"/>
                   </span>
                 </td>
                 {showProject && (

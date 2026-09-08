@@ -404,7 +404,9 @@ mesmo componente serve a escopos diferentes (ex.: espaços), para remontar e rec
 - **Selos de anexo e comentário** (`components/tasks/TaskMetaIcons.tsx`): clipe de papel e
   balão, 11px cinza com a contagem ao lado, aparecendo só quando há o quê contar. Fonte
   única usada na **lista**, no **quadro**, na **tabela** e na **atividade recente** — nenhum
-  layout recalcula por conta própria. Anexo = qualquer bloco não-texto (arquivo, imagem ou
+  layout recalcula por conta própria. Os selos ficam **encostados na direita** da coluna
+  Nome (lista e tabela), nunca colados no fim do título — colados, mudavam de posição a
+  cada linha conforme o tamanho do texto. Anexo = qualquer bloco não-texto (arquivo, imagem ou
   áudio), esteja na seção "Anexos" ou solto no corpo, **mais** os arquivos/áudios enviados
   dentro de comentários; comentário = total de comentários da tarefa.
 

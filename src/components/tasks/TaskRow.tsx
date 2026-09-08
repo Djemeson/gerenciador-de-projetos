@@ -288,26 +288,30 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
 
         {/* Name */}
         <div className="flex-1 min-w-0 py-1 pr-2" style={{minWidth:120}}>
-          {renaming ? (
-            <input autoFocus value={renameDraft} onChange={e=>setRenameDraft(e.target.value)}
-              onClick={e=>e.stopPropagation()}
-              onBlur={()=>{ const v=renameDraft.trim(); if (v) updateTask(task.id,{title:v}); setRenaming(false) }}
-              onKeyDown={e=>{ if(e.key==='Enter') (e.target as HTMLInputElement).blur(); if(e.key==='Escape') setRenaming(false) }}
-              className="w-full text-[13px] font-medium text-gray-800 border border-brand-400 rounded-md px-1.5 py-0.5 outline-none bg-white"/>
-          ) : (
-            <span onDoubleClick={e=>{e.stopPropagation();setRenameDraft(task.title);setRenaming(true)}}
-              className={`inline-block max-w-full text-[13px] font-medium truncate cursor-text ${isDone?'line-through text-gray-400':'text-gray-800'}`}>{task.title}</span>
-          )}
-          {task.description&&!isDone&&<span className="block text-[11px] text-gray-400 truncate">{task.description}</span>}
-          {/* Selos discretos da linha: progresso de subtarefas + anexos/comentários */}
-          <span className="inline-flex items-center gap-2 text-[10px] text-gray-400 empty:hidden">
-            {hasChildren&&(
-              <span className="inline-flex items-center gap-0.5">
-                <GitBranch size={12}/>{subtasks.filter(s=>s.status==='done').length}/{subtasks.length}
-              </span>
+          {/* Título + selos: os selos ficam **encostados na direita** da coluna Nome, numa
+              coluna invisível — colados no fim do título eles dançavam de linha para linha
+              conforme o tamanho do texto, e a lista perdia o alinhamento. */}
+          <div className="flex items-center gap-2 min-w-0">
+            {renaming ? (
+              <input autoFocus value={renameDraft} onChange={e=>setRenameDraft(e.target.value)}
+                onClick={e=>e.stopPropagation()}
+                onBlur={()=>{ const v=renameDraft.trim(); if (v) updateTask(task.id,{title:v}); setRenaming(false) }}
+                onKeyDown={e=>{ if(e.key==='Enter') (e.target as HTMLInputElement).blur(); if(e.key==='Escape') setRenaming(false) }}
+                className="flex-1 min-w-0 text-[13px] font-medium text-gray-800 border border-brand-400 rounded-md px-1.5 py-0.5 outline-none bg-white"/>
+            ) : (
+              <span onDoubleClick={e=>{e.stopPropagation();setRenameDraft(task.title);setRenaming(true)}}
+                className={`min-w-0 text-[13px] font-medium truncate cursor-text ${isDone?'line-through text-gray-400':'text-gray-800'}`}>{task.title}</span>
             )}
-            <TaskMetaIcons task={task}/>
-          </span>
+            <span className="ml-auto flex-shrink-0 inline-flex items-center gap-2 text-[10px] text-gray-400 empty:hidden">
+              {hasChildren&&(
+                <span className="inline-flex items-center gap-0.5">
+                  <GitBranch size={12}/>{subtasks.filter(s=>s.status==='done').length}/{subtasks.length}
+                </span>
+              )}
+              <TaskMetaIcons task={task}/>
+            </span>
+          </div>
+          {task.description&&!isDone&&<span className="block text-[11px] text-gray-400 truncate">{task.description}</span>}
 
           {/* Mobile Info Badges */}
           <div className="flex md:hidden flex-wrap items-center gap-1.5 mt-1">
