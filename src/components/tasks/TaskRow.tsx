@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import {
   Check, ChevronRight, ChevronDown, GitBranch, Trash2, Search,
 } from 'lucide-react'
-import type { Task, Project, Priority, TaskStatus, ColumnDef, TaskType, ListColumn } from '../../types'
+import type { Task, Project, Priority, TaskStatus, TaskType, ListColumn } from '../../types'
 import { PRIORITY_LABEL, PRIORITY_COLOR, PRIORITY_TEXT_COLOR, priorityTint, TASK_TYPE_META } from '../../types'
 import { TYPE_ICON, TYPE_ICON_COLOR } from '../../lib/taskTypeIcons'
 import { TIPO_ARRASTE_TAREFA } from '../../lib/dragTypes'
@@ -33,8 +33,7 @@ interface TaskRowProps {
   project?:       Project
   showProject?:   boolean
   depth?:         number
-  columns?:       ColumnDef[]
-  orderedColumns?: ListColumn[]
+  orderedColumns: ListColumn[]
   selected?:      boolean
   focused?:       boolean
   onSelect?:      (id: string, e: React.MouseEvent) => void
@@ -45,7 +44,7 @@ interface TaskRowProps {
   groupBy?:       'status' | 'priority' | 'dueDate' | 'project' | 'assignee'
 }
 
-export function TaskRow({ task, project, showProject=false, depth=0, columns=[], orderedColumns, selected=false, focused=false, onSelect, dragTaskId, onDragStartTask, onDropTask, defaultExpanded=true, groupBy }: TaskRowProps) {
+export function TaskRow({ task, project, showProject=false, depth=0, orderedColumns, selected=false, focused=false, onSelect, dragTaskId, onDragStartTask, onDropTask, defaultExpanded=true, groupBy }: TaskRowProps) {
   const { updateTask, deleteTask, setSelectedTask, selectedTaskId, tasks } = useAppStore()
   const [dropOver, setDropOver] = useState(false)
   const [expanded,      setExpanded]      = useState(defaultExpanded)
@@ -97,15 +96,11 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
     return dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})
   }
 
-  // Colunas a renderizar (ordem vem de cima; fallback = padrão do sistema)
-  const cols: ListColumn[] = orderedColumns ?? [
-    { key:'tags',     label:'Tags',        width:112, kind:'system', system:'tags' },
-    { key:'assignee', label:'Responsável', width:104, kind:'system', system:'assignee' },
-    { key:'dueDate',  label:'Prazo',       width:104, kind:'system', system:'dueDate' },
-    { key:'priority', label:'Prioridade',  width:100, kind:'system', system:'priority' },
-    ...(showProject ? [{ key:'project', label:'Projeto', width:112, kind:'system' as const, system:'project' as const }] : []),
-    ...columns.map(c => ({ key:c.id, label:c.name, width:c.width ?? 100, kind:'custom' as const, col:c })),
-  ]
+  // Quem chama **decide** as colunas (`useListColumns`). Aqui já existiu um fallback com as
+  // quatro colunas cravadas: era ele que fazia a caixa de entrada ignorar em silêncio o que
+  // o usuário configurava no modal de colunas. Sem fallback, esquecer de passar não some com
+  // a configuração — nem compila.
+  const cols: ListColumn[] = orderedColumns
 
 
   // Conteúdo das células — editável inline (clicar edita o campo, não abre a tarefa)
@@ -381,7 +376,7 @@ export function TaskRow({ task, project, showProject=false, depth=0, columns=[],
           <div className="absolute top-0 bottom-0 border-l border-gray-200 pointer-events-none" style={{ left:`${12+(depth+1)*20+7}px` }}/>
           {subtasks.map(s=>(
             <TaskRow key={s.id} task={s} project={project} showProject={showProject}
-              depth={depth+1} columns={columns} orderedColumns={orderedColumns} onSelect={onSelect} selected={selected}
+              depth={depth+1} orderedColumns={orderedColumns} onSelect={onSelect} selected={selected}
               defaultExpanded={defaultExpanded} groupBy={groupBy}/>
           ))}
           {addingSubtask&&task.projectId&&(

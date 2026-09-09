@@ -730,8 +730,8 @@ Medido a 1440x900: da borda até a primeira tarefa eram **249px**; hoje são **2
 
 "Minhas tarefas", "Todas as tarefas", espaço, pasta, projeto e relatórios **usam o
 `TaskPanel`** — compactar lá alcança todos. A **Caixa de entrada** tem lista própria
-(`InboxView`) e é a mais enxuta das telas (99px até a primeira tarefa: não tem abas nem
-barra de agrupamento).
+(`InboxView`) e é a mais enxuta das telas (não tem abas nem barra de agrupamento), mas o
+**cabeçalho de colunas é o mesmo** das outras listas.
 
 - **O cartão "Começar o dia"** (`DailyBriefingCard`, só em Minhas tarefas) foi de 82px para
   54px com margem. Quando o dia está limpo ele é o maior bloco da tela para dizer que não há
@@ -888,9 +888,15 @@ de hoje continua menor que "agora" às 11h. Atraso é medido contra o **começo 
 - A renderização das células é **dirigida pela ordem das colunas** (`ListColumn[]`):
   `TaskRow` e `ColumnHeaders` recebem `orderedColumns` de `TaskList`. Nunca cravar colunas
   no JSX de novo — adicionar tipos de coluna em `taskColumns.ts` + `renderCellContent` do `TaskRow`.
-- A caixa de entrada usa o `ColumnHeaders` em **modo legado** (sem reordenar/ordenar), mas
-  **com colunas personalizadas e botão de adicionar** (as colunas da inbox ficam em
-  `inboxColumns` no store, persistidas em `tf_inbox_columns`).
+- **Toda a configuração de coluna vem de `useListColumns` (`components/tasks/`)** — o hook
+  monta `orderedColumns` (visibilidade, ordem, rótulo, largura) e devolve a ordenação e a
+  fiação do cabeçalho. `TaskList` e a **caixa de entrada** leem dele; tela que lista tarefa
+  nunca reimplementa isso. Foi essa duplicação que fazia a caixa de entrada ignorar em
+  silêncio o que era configurado no modal de colunas.
+- `ColumnHeaders` e `TaskRow` **exigem** `orderedColumns` (sem valor padrão, sem modo
+  legado): esquecer de passar não some com a configuração do usuário — não compila.
+- As colunas personalizadas da caixa de entrada continuam em `inboxColumns` no store
+  (`tf_inbox_columns`); o escopo das preferências dela é `"inbox"`.
 - **Clicar numa célula edita o campo inline** (prioridade, prazo, responsável, campos
   personalizados) — nunca abrir a tarefa. As células têm `stopPropagation`; só o nome abre a tarefa.
 - O alinhamento é sagrado: cada valor fica **exatamente sob o cabeçalho da sua coluna**.
@@ -957,6 +963,13 @@ de hoje continua menor que "agora" às 11h. Atraso é medido contra o **começo 
 
 ## 13. Caixa de entrada (Inbox)
 
+- **Colunas: mesmo comportamento das outras listas** (ver seção 11) — adicionar, esconder,
+  ligar propriedade extra, reordenar, renomear, redimensionar e ordenar clicando no
+  cabeçalho, no escopo `"inbox"`. A tela tem lista própria por causa da faixa "Mover para"
+  em cada linha, **não** para ter regras de coluna próprias.
+- O que ela **não** tem, por não existir na tela: filtros (não há painel de filtro aqui),
+  seleção múltipla com ações em massa, navegação por teclado (j/k/e/espaço) e arrastar para
+  reordenar — tudo isso mora no `TaskList`.
 - O menu "Mover para" mostra **apenas projetos ativos** (não arquivados / que ainda existem).
 - Ao mover, a tarefa recebe o projeto e volta para "A fazer".
 - Tarefas da caixa de entrada **não aparecem** em "Todas as tarefas" nem "Minhas tarefas"

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { Plus, Trash2, CheckCircle2, Clock, Circle } from 'lucide-react'
 import { useAppStore } from '../../stores/useAppStore'
 import { TaskRow } from './TaskRow'
@@ -14,11 +14,8 @@ const STATUS_PILL: Record<TaskStatus, { color: string; Icon: React.ElementType }
   in_progress: { color: '#378ADD', Icon: Clock },
   done:        { color: '#1D9E75', Icon: CheckCircle2 },
 }
-import {
-  buildColumns, loadSort, saveSort, loadOrder, saveOrder, loadLabels, saveLabels, sortTasks,
-  loadWidths, saveWidths,
-  type ColumnSort,
-} from '../../lib/taskColumns'
+import { sortTasks } from '../../lib/taskColumns'
+import { useListColumns } from './useListColumns'
 
 const STATUS_ORDER: TaskStatus[] = ['in_progress', 'todo', 'done']
 
@@ -33,16 +30,8 @@ interface TaskListProps {
   expandVersion?:     number
 }
 
-/** Agrupamento → chave da coluna que ele torna redundante. `status` não tem coluna. */
-const COLUNA_DO_AGRUPAMENTO: Record<string, string | undefined> = {
-  priority: 'priority',
-  dueDate:  'dueDate',
-  assignee: 'assignee',
-  project:  'project',
-}
-
 export function TaskList({ tasks, projectId, scopeKey, columns=[], showProject=false, sortBy='status', subtasksCollapsed=false, expandVersion=0 }: TaskListProps) {
-  const { projects, activeProjectId, deleteTask, updateTask, reorderTask, filteredTasks, columnsVersion: storeColumnsVersion } = useAppStore()
+  const { projects, activeProjectId, deleteTask, updateTask, reorderTask, filteredTasks } = useAppStore()
   const [collapsed,    setCollapsed]    = useState<Set<string>>(new Set(['done']))
   const [quickAdd,     setQuickAdd]     = useState<{key:string;status:TaskStatus}|null>(null)
   const [selectedIds,  setSelectedIds]  = useState<string[]>([])
@@ -138,48 +127,7 @@ export function TaskList({ tasks, projectId, scopeKey, columns=[], showProject=f
   }
 
   const scope = scopeKey ?? (projectId ? 'project:'+projectId : 'global')
-  const [colSort,    setColSort]    = useState<ColumnSort|null>(() => loadSort(scope))
-  const [colVersion, setColVersion] = useState(0)
-
-  /**
-   * A coluna do campo agrupado sai da lista.
-   *
-   * Agrupando por prioridade, o cabeçalho de cada grupo já diz "Alta"/"Média" — repetir isso
-   * em toda linha é ruído e rouba largura das colunas que ainda informam algo. Vale para
-   * prioridade, prazo, responsável e projeto; `status` não tem coluna (aparece no círculo da
-   * linha), então agrupar por status não remove nada.
-   */
-  const orderedColumns = useMemo(() => {
-    const todas = buildColumns(scope, columns, showProject)
-    const redundante = COLUNA_DO_AGRUPAMENTO[sortBy]
-    return redundante ? todas.filter(c => c.key !== redundante) : todas
-  }, [scope, columns, showProject, colVersion, storeColumnsVersion, sortBy])
-
-  const cycleSort = (key: string) => {
-    setColSort(prev => {
-      let next: ColumnSort | null
-      if (!prev || prev.key !== key) next = { key, dir: 'asc' }
-      else if (prev.dir === 'asc')   next = { key, dir: 'desc' }
-      else                            next = null
-      saveSort(scope, next)
-      return next
-    })
-  }
-  const reorderCol = (fromKey: string, toKey: string) => {
-    const keys = orderedColumns.map(c => c.key)
-    const from = keys.indexOf(fromKey), to = keys.indexOf(toKey)
-    if (from < 0 || to < 0) return
-    keys.splice(to, 0, keys.splice(from, 1)[0])
-    saveOrder(scope, keys); setColVersion(v => v + 1)
-  }
-  const renameCol = (key: string, label: string) => {
-    const labels = loadLabels(scope); labels[key] = label
-    saveLabels(scope, labels); setColVersion(v => v + 1)
-  }
-  const resizeCol = (key: string, width: number) => {
-    const widths = loadWidths(scope); widths[key] = width
-    saveWidths(scope, widths); setColVersion(v => v + 1)
-  }
+  const { orderedColumns, sort: colSort, headerProps } = useListColumns(scope, columns, showProject, sortBy)
 
   const rootTasks    = filteredTasks(tasks.filter(t=>!t.parentId))
   rootIdsRef.current = rootTasks.map(t=>t.id)
@@ -242,7 +190,7 @@ export function TaskList({ tasks, projectId, scopeKey, columns=[], showProject=f
             onDrop={e=>handleDropOnGroup(e, groupValue)}>
             {sortTasks(items, colSort).map(t=>(
               <TaskRow key={t.id+':'+expandVersion} task={t} project={projects.find(p=>p.id===t.projectId)}
-                showProject={showProject} columns={columns} orderedColumns={orderedColumns}
+                showProject={showProject} orderedColumns={orderedColumns}
                 selected={selectedIds.includes(t.id)} focused={focusId===t.id} onSelect={handleSelect}
                 defaultExpanded={!subtasksCollapsed} groupBy={sortBy} {...taskDragProps}/>
             ))}
@@ -289,15 +237,13 @@ export function TaskList({ tasks, projectId, scopeKey, columns=[], showProject=f
   } else {
     const base=[...rootTasks].sort((a,b)=>{if(!a.dueDate)return 1;if(!b.dueDate)return-1;return new Date(a.dueDate).getTime()-new Date(b.dueDate).getTime()})
     const sorted=colSort?sortTasks(base,colSort):base
-    content = sorted.map(t=><TaskRow key={t.id+':'+expandVersion} task={t} project={projects.find(p=>p.id===t.projectId)} showProject={showProject} columns={columns} orderedColumns={orderedColumns} selected={selectedIds.includes(t.id)} focused={focusId===t.id} onSelect={handleSelect} defaultExpanded={!subtasksCollapsed} groupBy={sortBy} {...taskDragProps}/>)
+    content = sorted.map(t=><TaskRow key={t.id+':'+expandVersion} task={t} project={projects.find(p=>p.id===t.projectId)} showProject={showProject} orderedColumns={orderedColumns} selected={selectedIds.includes(t.id)} focused={focusId===t.id} onSelect={handleSelect} defaultExpanded={!subtasksCollapsed} groupBy={sortBy} {...taskDragProps}/>)
   }
 
   return (
     <div className="flex-1 overflow-y-auto flex flex-col">
       {/* Column headers */}
-      <ColumnHeaders projectId={resolvedPid} scope={scope} columns={columns} showProject={showProject}
-        orderedColumns={orderedColumns} sort={colSort}
-        onSort={cycleSort} onReorder={reorderCol} onRename={renameCol} onResize={resizeCol}/>
+      <ColumnHeaders projectId={resolvedPid} scope={scope} {...headerProps}/>
       <div className="flex-1">{content}</div>
 
       {/* Multi-select action bar */}

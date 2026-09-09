@@ -6,6 +6,7 @@ import { TaskDetail } from '../components/tasks/TaskDetail'
 import { TaskRow } from '../components/tasks/TaskRow'
 import { QuickAddRow } from '../components/tasks/QuickAddRow'
 import { ColumnHeaders } from '../components/tasks/ColumnHeaders'
+import { useListColumns } from '../components/tasks/useListColumns'
 import { ProjectIcon } from '../components/ui/EntityBadges'
 import { INBOX_PROJECT_ID } from '../types'
 import { Select } from '../components/ui/Select'
@@ -54,8 +55,12 @@ export function InboxView() {
   const suggestionFor = (taskId: string): string | null =>
     aiMap.get(taskId) ?? localSuggestions.get(taskId)?.projectId ?? null
 
-  // Colunas personalizadas da caixa de entrada (persistidas no store)
+  // Colunas da caixa de entrada: as personalizadas vêm do store (`inboxColumns`); a
+  // visibilidade, a ordem, os rótulos, as larguras e a ordenação saem do mesmo lugar que
+  // as outras listas usam — antes esta tela cravava as quatro colunas no JSX e ignorava
+  // calado tudo que fosse configurado no modal de colunas.
   const columns = inboxColumns
+  const { headerProps, ordenar } = useListColumns('inbox', columns, false)
 
   return (
     <div className="flex flex-1 overflow-hidden">
@@ -78,8 +83,9 @@ export function InboxView() {
           </button>
         </div>
 
-        {/* Column headers — agora com colunas personalizadas e botão de adicionar */}
-        <ColumnHeaders projectId={INBOX_PROJECT_ID} scope="inbox" columns={columns} showProject={false} />
+        {/* Cabeçalho no mesmo modo das demais listas: ordenar, reordenar, renomear e
+            redimensionar coluna, além de adicionar/esconder pelo modal. */}
+        <ColumnHeaders projectId={INBOX_PROJECT_ID} scope="inbox" {...headerProps} />
 
         <div className="flex-1 overflow-y-auto">
           {/* Empty state */}
@@ -100,9 +106,9 @@ export function InboxView() {
           )}
 
           {/* Pending tasks */}
-          {pending.map(t => (
+          {ordenar(pending).map(t => (
             <div key={t.id}>
-              <TaskRow task={t} showProject={false} columns={columns} />
+              <TaskRow task={t} showProject={false} orderedColumns={headerProps.orderedColumns} />
               {/* Processar é a ação principal desta tela. Estava dentro de `group-hover`,
                   então no celular — que não tem hover — era impossível processar uma
                   captura. E listava todos os projetos como pílulas: não sobrevive a 30. */}
@@ -153,8 +159,8 @@ export function InboxView() {
               <p className="text-[10px] text-gray-400 uppercase tracking-wider font-medium mb-2">
                 Processados ({processed.length})
               </p>
-              {processed.map(t => (
-                <TaskRow key={t.id} task={t} showProject={false} columns={columns} />
+              {ordenar(processed).map(t => (
+                <TaskRow key={t.id} task={t} showProject={false} orderedColumns={headerProps.orderedColumns} />
               ))}
             </div>
           )}
