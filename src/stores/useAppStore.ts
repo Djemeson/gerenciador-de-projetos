@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { nanoid } from '../lib/nanoid'
-import { localProjects, localTasks } from '../lib/localStore'
+import { localProjects, localTasks, gravarComAviso } from '../lib/localStore'
 import { SEED_PROJECTS, SEED_TASKS } from '../lib/seed'
 import { db, doc, setDoc, getDoc, onSnapshot } from '../lib/firebase'
 import { stripAndUploadAttachments, hydrateAttachments, deleteAttachmentsOf } from '../lib/cloudAttachments'
@@ -110,7 +110,7 @@ function saveJSON(key: string, val: unknown) {
     try { registrarPendencias(idsAlterados(useAppStore.getState()[campo], val as { id: string }[])) }
     catch { /* store ainda não criada — só acontece fora das ações */ }
   }
-  localStorage.setItem(key, JSON.stringify(val));
+  gravarComAviso(key, JSON.stringify(val));
   triggerSyncPush();
 }
 
@@ -344,6 +344,13 @@ interface AppState {
 const LEGACY_SYNC_CODE_KEY = 'tf_sync_code'
 const LEGACY_MIGRATED_KEY  = 'tf_sync_code_migrated'
 
+// Enquanto os anexos não voltam do cofre local, as tarefas em memória têm só a referência
+// (`lref`) no lugar do conteúdo. Subir isso para a nuvem publicaria anexos vazios para os
+// outros aparelhos, então todo envio espera aqui. É rápido: uma leitura de IndexedDB no
+// início da sessão, bem dentro do debounce de 1,5 s do push.
+let hidratacaoLocal: Promise<void> = Promise.resolve()
+const aguardarHidratacaoLocal = () => hidratacaoLocal
+
 let syncDebounceTimeout: any = null;
 function triggerSyncPush() {
   if (syncDebounceTimeout) clearTimeout(syncDebounceTimeout);
@@ -393,17 +400,17 @@ async function applyRemoteSnapshot(set: (partial: any) => void, get: () => AppSt
 
     localProjects.set(projects.itens as any);
     localTasks.set(tasks.itens as any);
-    localStorage.setItem(SPACES_KEY, JSON.stringify(spaces.itens));
-    localStorage.setItem(FOLDERS_KEY, JSON.stringify(folders.itens));
-    localStorage.setItem(WORKSPACES_KEY, JSON.stringify(workspaces.itens));
-    localStorage.setItem(AUTOMATIONS_KEY, JSON.stringify(automations.itens));
-    localStorage.setItem(GOALS_KEY, JSON.stringify(goals.itens));
-    localStorage.setItem(NOTES_KEY, JSON.stringify(notes.itens));
-    if (data.activeWorkspaceId) localStorage.setItem(ACTIVE_WS_KEY, data.activeWorkspaceId);
-    if (data.viewPrefs) localStorage.setItem(VIEW_PREFS_KEY, JSON.stringify(data.viewPrefs));
-    if (data.automationRuns) localStorage.setItem(AUTOMATION_RUNS_KEY, JSON.stringify(data.automationRuns));
-    if (data.inboxColumns) localStorage.setItem(INBOX_COLS_KEY, JSON.stringify(data.inboxColumns));
-    if (data.customViewsByScope) localStorage.setItem(CUSTOM_VIEWS_KEY, JSON.stringify(data.customViewsByScope));
+    gravarComAviso(SPACES_KEY, JSON.stringify(spaces.itens));
+    gravarComAviso(FOLDERS_KEY, JSON.stringify(folders.itens));
+    gravarComAviso(WORKSPACES_KEY, JSON.stringify(workspaces.itens));
+    gravarComAviso(AUTOMATIONS_KEY, JSON.stringify(automations.itens));
+    gravarComAviso(GOALS_KEY, JSON.stringify(goals.itens));
+    gravarComAviso(NOTES_KEY, JSON.stringify(notes.itens));
+    if (data.activeWorkspaceId) gravarComAviso(ACTIVE_WS_KEY, data.activeWorkspaceId);
+    if (data.viewPrefs) gravarComAviso(VIEW_PREFS_KEY, JSON.stringify(data.viewPrefs));
+    if (data.automationRuns) gravarComAviso(AUTOMATION_RUNS_KEY, JSON.stringify(data.automationRuns));
+    if (data.inboxColumns) gravarComAviso(INBOX_COLS_KEY, JSON.stringify(data.inboxColumns));
+    if (data.customViewsByScope) gravarComAviso(CUSTOM_VIEWS_KEY, JSON.stringify(data.customViewsByScope));
     // Documento antigo (gravado antes de a configuração sincronizar) não tem `settings` —
     // nesse caso o aparelho mantém a sua e o próximo push é que semeia a nuvem.
     if (data.settings) useSettingsStore.getState().aplicarSettingsRemotas(data.settings);
@@ -1241,6 +1248,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!cloudReady && !force) return;   // ver `cloudReady`: nada sobe antes de ler a nuvem
     set({ cloudSyncStatus: 'syncing' });
     try {
+      await aguardarHidratacaoLocal();
       // O que está pendente NESTE momento é o que o documento abaixo carrega; o que for
       // alterado durante o envio entra no próximo debounce e continua pendente.
       const pendentesNoEnvio = Object.keys(obterPendencias());
@@ -1360,5 +1368,19 @@ export const useAppStore = create<AppState>((set, get) => ({
         projects, tasks, spaces, folders, workspaces, activeWorkspaceId, automations, automationRuns, goals, notes, viewPrefs, inboxColumns, customViewsByScope,
       })
     }
+
+    // Os anexos ficam no cofre IndexedDB e voltam logo depois da primeira pintura — ler o
+    // disco antes de mostrar a tela atrasaria a abertura do app por causa de arquivos que
+    // quase nunca estão à vista. A mescla é por id: tarefa criada ou alterada nesse
+    // intervalo não é atropelada pelo estado antigo.
+    const carregadas = new Map(tasks.map(t => [t.id, t as any]))
+    hidratacaoLocal = localTasks.reidratar(tasks as any).then(comAnexos => {
+      const porId = new Map(comAnexos.map(t => [t.id, t]))
+      // Só repõe na tarefa que ninguém tocou desde a carga (comparação por referência, como
+      // em `idsAlterados`): uma edição feita durante a leitura do disco vale mais que o
+      // anexo, que continua guardado e reaparece na próxima abertura.
+      set({ tasks: useAppStore.getState().tasks.map(t =>
+        (carregadas.get(t.id) === t && porId.get(t.id)) || t) })
+    }).catch(e => { console.warn('Não foi possível carregar os anexos guardados neste aparelho:', e) })
   },
 }))

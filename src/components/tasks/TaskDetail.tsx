@@ -20,6 +20,7 @@ import { ProjectIcon } from '../ui/EntityBadges'
 import { taskProgress } from '../../lib/taskProgress'
 import { QuickAddRow } from './QuickAddRow'
 import { BlockEditor, openData } from './BlockEditor'
+import { LIMITE_SINCRONIZACAO } from '../../lib/cloudAttachments'
 import { nanoid } from '../../lib/nanoid'
 import { generateChecklistItems, generateProjectEnrichment } from '../../lib/aiProjectGen'
 import { createTaskTree } from '../../lib/aiTaskCreate'
@@ -394,27 +395,43 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
   const attachments = task.blocks.filter(b => (b.region ?? 'body') === 'attachment')
 
   const pickAttachment = () => attachmentFileRef.current?.click()
-  const onAttachmentPicked = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || [])
-    files.forEach(file => {
-      const type = blockTypeForFile(file)
-      const reader = new FileReader()
-      reader.onload = () => {
-        const newBlock: ContentBlock = {
-          id: nanoid(),
-          type,
-          data: reader.result as string,
-          name: file.name,
-          mimeType: file.type,
-          size: file.size,
-          region: 'attachment',
-          display: type === 'image' ? 'full' : 'title'
-        }
-        updateBlocks(task.id, [...task.blocks, newBlock])
-      }
-      reader.readAsDataURL(file)
+  const lerArquivo = (file: File) => new Promise<ContentBlock | null>(resolve => {
+    const type = blockTypeForFile(file)
+    const reader = new FileReader()
+    reader.onload = () => resolve({
+      id: nanoid(),
+      type,
+      data: reader.result as string,
+      name: file.name,
+      mimeType: file.type,
+      size: file.size,
+      region: 'attachment',
+      display: type === 'image' ? 'full' : 'title',
     })
+    reader.onerror = () => { console.error('Falha ao ler o arquivo:', file.name, reader.error); resolve(null) }
+    reader.readAsDataURL(file)
+  })
+
+  const onAttachmentPicked = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
     e.target.value = ''
+    if (!files.length) return
+    // Acima disso o arquivo não cabe no documento de sincronização e fica só neste
+    // aparelho — dizer isso na hora evita a surpresa de não achá-lo no celular depois.
+    const soAqui = files.filter(f => f.size > LIMITE_SINCRONIZACAO).map(f => f.name)
+    const blocos = (await Promise.all(files.map(lerArquivo))).filter(Boolean) as ContentBlock[]
+    if (!blocos.length) return
+    // O estado é lido agora, não no fechamento da função: a leitura dos arquivos é
+    // assíncrona e `task` aqui já pode estar velha — com dois arquivos, só o último
+    // sobrevivia, porque cada um partia da mesma lista antiga de blocos.
+    const atual = useAppStore.getState().tasks.find(t => t.id === task.id)
+    updateBlocks(task.id, [...(atual?.blocks ?? task.blocks), ...blocos])
+    if (soAqui.length) {
+      alert(`${soAqui.length === 1 ? 'O arquivo' : 'Os arquivos'} ${soAqui.join(', ')} ` +
+            `${soAqui.length === 1 ? 'passa' : 'passam'} de ${Math.round(LIMITE_SINCRONIZACAO / 1024 / 1024)} MB ` +
+            'e fica' + (soAqui.length === 1 ? '' : 'm') + ' salvo' + (soAqui.length === 1 ? '' : 's') +
+            ' só neste aparelho — não aparecerá nos outros.')
+    }
   }
 
   const startAttachmentRecording = async () => {

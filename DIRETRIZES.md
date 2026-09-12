@@ -1473,6 +1473,27 @@ tarefa (corrige o bug do "trecho até dar Enter"). Não recriar um textarea/tipt
 - **Blob maior que um documento é fatiado**, não descartado: `{id}__p0`, `{id}__p1`… (teto de
   12 partes, ~10 MB). Isso substitui a limitação antiga de "anexo acima de ~900KB não
   sincroniza". Só acima do teto o arquivo fica apenas no aparelho de origem.
+- **Anexo não mora no `localStorage` — mora no cofre IndexedDB** (12/09/2026,
+  `src/lib/blobStore.ts` + `src/lib/localAttachments.ts`). O teto do `localStorage` é de
+  poucos MB para a **origem inteira**, e o base64 de um PDF sozinho passava disso: o
+  `setItem` lançava `QuotaExceededError` dentro do callback do `FileReader`, a ação da store
+  morria antes do `set` e **o anexo não aparecia nem dava erro** — era o "anexei um PDF e
+  não foi". Agora `localTasks.set` troca todo base64 por `lref` (mesma ideia do `cloudref`
+  da nuvem) e grava o conteúdo no IndexedDB; `localTasks.reidratar` devolve na abertura.
+  Regra: **campo novo que carregue base64 precisa entrar no extrair/reidratar local**, além
+  do strip/hydrate da nuvem — são dois cofres, com o mesmo motivo.
+- **Nenhuma gravação em `localStorage` pode ser feita sem rede de proteção**: usar
+  `gravarComAviso` (`lib/localStore.ts`), nunca `localStorage.setItem` direto. Espaço cheio
+  vira aviso ao usuário e `console.error`, não desaparecimento silencioso.
+- **A abertura não espera o disco**: o `init` pinta a tela com as tarefas do `localStorage`
+  e reidrata os anexos logo depois, repondo **apenas nas tarefas que ninguém tocou** nesse
+  intervalo (comparação por referência, como em `idsAlterados`). O push para a nuvem espera
+  essa hidratação (`aguardarHidratacaoLocal`) — sem isso um aparelho recém-aberto publicaria
+  anexos vazios por cima dos bons.
+- **Acima de `LIMITE_SINCRONIZACAO` (~8 MB) o anexo é aceito e avisado.** Ele cabe no cofre
+  local mas não na nuvem (teto de 12 partes), então a interface diz na hora que o arquivo
+  fica só naquele aparelho, em vez de deixar a descoberta para o dia em que o usuário
+  procurar o arquivo no celular.
 - **Id do blob é posicional; o cache é por conteúdo.** A n-ésima imagem do corpo tem id
   `{blockId}__inline{n}`, então trocar a 1ª imagem por outra mantém o id e muda só o
   conteúdo — por isso as chaves de cache (envio e leitura) levam a **impressão do conteúdo**,

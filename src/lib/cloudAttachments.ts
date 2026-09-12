@@ -18,8 +18,13 @@ import type { Task } from '../types'
 
 const ATTACHMENT_LIMIT = 900_000 // ~900KB de string base64 (folga sob o limite de 1 MiB/doc)
 const MAX_PARTES = 12            // teto por blob (~10 MB); acima disso continua só no aparelho
+/** Maior arquivo que ainda sobe para a nuvem, em bytes (base64 ocupa 4/3 do original). */
+export const LIMITE_SINCRONIZACAO = Math.floor(MAX_PARTES * ATTACHMENT_LIMIT * 3 / 4)
 /** Marca uma imagem do HTML cujo base64 foi para um documento próprio: `cloudref:<id>~<partes>~<impressão>`. */
 const PREFIXO_REF = 'cloudref:'
+/** Marcador do cofre IndexedDB deste aparelho (ver localAttachments). Mora aqui para que o
+ *  envio à nuvem possa reconhecê-lo sem importar aquele módulo — que importa este. */
+export const PREFIXO_LOCAL = 'localref:'
 // Os caches são chaveados por grupo + id: o mesmo anexo pode existir em dois grupos
 // diferentes (é o caso durante a migração do código antigo para a conta Google), e uma
 // chave só com o id faria o segundo grupo ser pulado por "já enviado nesta sessão".
@@ -191,9 +196,14 @@ export async function stripAndUploadAttachments(group: string, tasks: Task[]): P
           ? { ...bloco, data: '', ref: refId(b.id, 'block'), parts: enviado.partes, fp: enviado.fp }
           : { ...bloco, data: '', tooLargeToSync: true }
       }
+      // `lref` aponta para o cofre deste aparelho: não tem sentido no documento comum.
+      if (bloco.lref) { const { lref, ...semLref } = bloco; bloco = semLref }
       // Imagens embutidas no HTML do corpo — a origem do bug de sincronização.
-      if (typeof bloco.text === 'string' && bloco.text.includes('data:')) {
+      if (typeof bloco.text === 'string' && (bloco.text.includes('data:') || bloco.text.includes(PREFIXO_LOCAL))) {
         bloco = { ...bloco, text: mapearImagensDoHtml(bloco.text, (src, k) => {
+          // Marcador do cofre deste aparelho (ver localAttachments): só faz sentido aqui —
+          // publicá-lo daria uma imagem quebrada nos outros dispositivos.
+          if (src.startsWith(PREFIXO_LOCAL)) return ''
           if (!src.startsWith('data:')) return null
           const id = refId(b.id, `inline${k}`)
           const enviado = enviar(id, src)
