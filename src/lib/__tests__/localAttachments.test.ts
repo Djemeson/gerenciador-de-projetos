@@ -2,8 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // Cofre de mentira no lugar do IndexedDB: um Map id → base64.
 const cofre = new Map<string, string>()
+let gravacoes = 0
 vi.mock('../blobStore', () => ({
-  guardarBlobs: async (entradas: { id: string; data: string }[]) => { entradas.forEach(e => cofre.set(e.id, e.data)); return true },
+  guardarBlobs: async (entradas: { id: string; data: string }[]) => { gravacoes += entradas.length; entradas.forEach(e => cofre.set(e.id, e.data)); return true },
   lerBlobs: async (ids: string[]) => new Map(ids.filter(i => cofre.has(i)).map(i => [i, cofre.get(i)!])),
   manterApenas: async (vivos: Set<string>) => { [...cofre.keys()].forEach(k => { if (!vivos.has(k)) cofre.delete(k) }) },
   cofreDisponivel: async () => true,
@@ -20,7 +21,7 @@ const tarefa = (over: Record<string, any> = {}): any => ({
   createdAt: '2026-09-12T12:00:00.000Z', updatedAt: '2026-09-12T12:00:00.000Z', ...over,
 })
 
-beforeEach(() => cofre.clear())
+beforeEach(() => { cofre.clear(); gravacoes = 0 })
 
 describe('extrairBlobs', () => {
   it('tira o anexo do JSON e devolve o conteúdo separado', () => {
@@ -100,5 +101,22 @@ describe('faxina do cofre', () => {
     const comUm = tarefa({ blocks: [{ id: 'b1', type: 'file', region: 'attachment', data: '', lref: 'b1__block' }] })
     await sincronizarCofre(extrairBlobs([comUm]))
     expect([...cofre.keys()]).toEqual(['b1__block'])
+  })
+})
+
+describe('não reescrever o que não mudou', () => {
+  it('grava o anexo uma vez, mesmo com a tarefa sendo salva de novo', async () => {
+    const pdf = b64(9000)
+    const t = tarefa({ blocks: [{ id: 'b1', type: 'file', region: 'attachment', data: pdf }] })
+    await sincronizarCofre(extrairBlobs([t]))
+    expect(gravacoes).toBe(1)
+
+    // usuário só renomeia a tarefa: o anexo é o mesmo e não pode ir ao disco outra vez
+    await sincronizarCofre(extrairBlobs([{ ...t, title: 'Outro nome' }]))
+    expect(gravacoes).toBe(1)
+
+    // trocou o arquivo: aí sim grava
+    await sincronizarCofre(extrairBlobs([tarefa({ blocks: [{ id: 'b1', type: 'file', region: 'attachment', data: b64(9000, 'Z') }] })]))
+    expect(gravacoes).toBe(2)
   })
 })

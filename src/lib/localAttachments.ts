@@ -4,7 +4,7 @@
 // (teto de 1 MiB por documento); aqui eles saem do localStorage (teto de poucos MB para a
 // origem inteira) e vão para o cofre IndexedDB. O estado em memória continua sempre com o
 // conteúdo real — a troca por referência acontece só na hora de gravar.
-import { mapearImagensDoHtml, PREFIXO_LOCAL } from './cloudAttachments'
+import { mapearImagensDoHtml, impressaoDeConteudo, PREFIXO_LOCAL } from './cloudAttachments'
 import { guardarBlobs, lerBlobs, manterApenas } from './blobStore'
 import type { Task } from '../types'
 
@@ -79,6 +79,11 @@ export function extrairBlobs(tasks: Task[]): Extracao {
   return { enxutas, blobs, vivos }
 }
 
+// Impressão do que já está gravado, por id. Sem isto cada alteração de tarefa — uma tecla
+// na descrição, um clique em concluir — reescreveria todos os anexos do app no disco:
+// com poucos MB de anexos a interface já engasgava por segundos a cada gravação.
+const gravados = new Map<string, string>()
+
 /** Devolve o base64 de volta às tarefas lidas do localStorage. */
 export async function reidratarBlobs(tasks: Task[]): Promise<Task[]> {
   const ids: string[] = []
@@ -99,6 +104,9 @@ export async function reidratarBlobs(tasks: Task[]): Promise<Task[]> {
   if (!ids.length) return tasks
 
   const encontrados = await lerBlobs([...new Set(ids)])
+  // O que veio do cofre já está gravado: anotar a impressão evita reescrever tudo de novo
+  // na primeira alteração de qualquer tarefa depois de abrir o app.
+  encontrados.forEach((data, id) => gravados.set(id, impressaoDeConteudo(data)))
   if (!encontrados.size) return tasks
 
   const repor = (alvo: any) => {
@@ -122,8 +130,12 @@ export async function reidratarBlobs(tasks: Task[]): Promise<Task[]> {
   })) as Task[]
 }
 
-/** Grava os blobs extraídos e limpa os que nenhuma tarefa usa mais. */
+/** Grava os blobs que mudaram e limpa os que nenhuma tarefa usa mais. */
 export async function sincronizarCofre(extracao: Extracao): Promise<void> {
-  await guardarBlobs(extracao.blobs)
+  const novos = extracao.blobs.filter(b => gravados.get(b.id) !== impressaoDeConteudo(b.data))
+  if (novos.length && await guardarBlobs(novos)) {
+    novos.forEach(b => gravados.set(b.id, impressaoDeConteudo(b.data)))
+  }
   await manterApenas(extracao.vivos)
+  gravados.forEach((_v, id) => { if (!extracao.vivos.has(id)) gravados.delete(id) })
 }

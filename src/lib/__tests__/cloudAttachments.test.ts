@@ -97,3 +97,15 @@ describe('sincronização de imagem colada/embutida na descrição', () => {
     expect([...nuvem.keys()].some(k => k.startsWith(caminho('g5', '')))).toBe(false)
   })
 })
+
+describe('marcador do cofre local', () => {
+  it('não vai para o documento da nuvem', async () => {
+    nuvem.clear()
+    const t: any = tarefaComImagemNoCorpo('localref:b1__inline0')
+    t.blocks.push({ id: 'b2', type: 'file', region: 'attachment', name: 'x.pdf', data: '', lref: 'b2__block' })
+    const [enviada] = await stripAndUploadAttachments('g1', [t])
+    const json = JSON.stringify(enviada)
+    expect(json).not.toContain('localref:')
+    expect(json).not.toContain('lref')
+  })
+})
