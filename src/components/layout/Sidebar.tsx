@@ -10,7 +10,7 @@ import { useAppStore } from '../../stores/useAppStore'
 import { useSettingsStore } from '../../stores/useSettingsStore'
 import { useAuthStore } from '../../stores/useAuthStore'
 import { useNotificationStore } from '../../stores/useNotificationStore'
-import { INBOX_PROJECT_ID, DEFAULT_WORKSPACE_ID, DEFAULT_FOLDER_COLOR } from '../../types'
+import { INBOX_PROJECT_ID, DEFAULT_WORKSPACE_ID, DEFAULT_FOLDER_COLOR, gutTier } from '../../types'
 import type { View, Project } from '../../types'
 import { SpaceBadge, FolderBadgeIcon, ProjectIcon } from '../ui/EntityBadges'
 import { IconColorPicker } from '../ui/IconColorPicker'
@@ -93,7 +93,11 @@ export function Sidebar() {
   }
 
   const wsSpaces      = spaces.filter(s => s.workspaceId === activeWorkspaceId)
-  const activeProjects = projects.filter(p => !p.archived && p.workspaceId === activeWorkspaceId)
+  // O GUT é o classificador da barra lateral: maior pontuação primeiro. O sort é estável,
+  // então projetos empatados mantêm a ordem manual (arrastar continua valendo no empate).
+  const activeProjects = projects
+    .filter(p => !p.archived && p.workspaceId === activeWorkspaceId)
+    .sort((a, b) => (b.gut?.score ?? 0) - (a.gut?.score ?? 0))
   const inboxCount     = tasks.filter(t => t.projectId===INBOX_PROJECT_ID && t.status!=='done').length
   const taskCount      = (pid: string) => tasks.filter(t => t.projectId===pid && t.status!=='done').length
   const spaceTaskCount = (spaceId: string) => activeProjects.filter(p => p.spaceId === spaceId).reduce((sum, p) => sum + taskCount(p.id), 0)
@@ -391,6 +395,7 @@ export function Sidebar() {
   const renderProject = (p: Project, inFolder: boolean, isLastInFolder = false) => {
     const isActive = activeView==='project_detail' && activeProjectId===p.id
     const count    = taskCount(p.id)
+    const gut      = gutTier(p.gut?.score ?? 0)
     const isRenaming = renaming?.kind==='project' && renaming.id===p.id
     const isLastCls = isLastInFolder ? (dark ? 'folder-line-item-last-dark' : 'folder-line-item-last-light') : ''
     return (
@@ -418,6 +423,11 @@ export function Sidebar() {
         >
           <span className="iconpick-trigger transition-[filter] hover:brightness-125" onClick={e => { e.stopPropagation(); const anchor=e.currentTarget; setIconPicker(t => (t?.kind==='project'&&t.id===p.id) ? null : {kind:'project',id:p.id,anchor}) }}>
             <ProjectIcon project={p}/>
+          </span>
+          <span title={`GUT ${p.gut?.score ?? 0} · ${gut.label}`}
+            className="flex-shrink-0 min-w-[26px] h-[18px] px-1 rounded-md text-[10px] font-bold tabnum flex items-center justify-center"
+            style={{ background: gut.bg, color: gut.color }}>
+            {p.gut?.score ?? 0}
           </span>
           {isRenaming ? renameInput : (
             <span className="flex-1 truncate cursor-text" onDoubleClick={e => { e.stopPropagation(); startRename({kind:'project',id:p.id}, p.name) }}>{p.name}</span>

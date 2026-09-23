@@ -149,6 +149,11 @@ Regras:
   abre uma segunda tela no mesmo popover (botão "← Mover para") listando espaços/pastas do
   **workspace ativo**. **Pontuação GUT saiu do menu da sidebar** — o ponto de acesso
   permanece a tela "Projetos" (`ProjectsListView`, botão "Editar GUT"), que já existia.
+- **GUT na linha do projeto e como classificador** (23/09/2026): entre o ícone e o nome vai
+  um selo com a pontuação GUT do projeto, nas cores de `gutTier` (fonte única; o rótulo do
+  tier fica no `title`). Os projetos de cada pasta/espaço são **ordenados por GUT, maior
+  primeiro** — o sort é estável, então no empate vale a ordem manual (arrastar só reordena
+  entre projetos de mesma pontuação; mover para outra pasta continua normal).
   **Duplicar** é uma ação real de store (`duplicateSpace`/`duplicateFolder`/`duplicateProject`
   em `useAppStore.ts`) — duplica a hierarquia (pasta duplica seus projetos; espaço duplica
   pastas+projetos), mas **nunca duplica tarefas** (evita explosão de dados; é uma cópia do
