@@ -1,23 +1,21 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react'
-import { Plus, Trash2, CheckCircle2, Clock, Circle } from 'lucide-react'
+import { Plus, Trash2, CheckCircle2, Clock, Circle, Hourglass, PauseCircle } from 'lucide-react'
 import { useAppStore } from '../../stores/useAppStore'
 import { TaskRow } from './TaskRow'
 import { QuickAddRow } from './QuickAddRow'
 import { ColumnHeaders } from './ColumnHeaders'
 import { Select, PRIORITY_OPTIONS, STATUS_OPTIONS } from '../ui/Select'
 import type { Task, TaskStatus, Priority, ColumnDef } from '../../types'
-import { STATUS_LABEL, PRIORITY_LABEL } from '../../types'
+import { STATUS_LABEL, STATUS_COLOR, STATUS_ORDER, PRIORITY_LABEL } from '../../types'
 
 // Pílula colorida por status (estilo ClickUp) — cabeçalho de grupo
-const STATUS_PILL: Record<TaskStatus, { color: string; Icon: React.ElementType }> = {
-  todo:        { color: '#888780', Icon: Circle },
-  in_progress: { color: '#378ADD', Icon: Clock },
-  done:        { color: '#1D9E75', Icon: CheckCircle2 },
+const STATUS_ICON: Record<TaskStatus, React.ElementType> = {
+  todo: Circle, in_progress: Clock, waiting: Hourglass, paused: PauseCircle, done: CheckCircle2,
 }
+const STATUS_PILL = (s: TaskStatus) => ({ color: STATUS_COLOR[s], Icon: STATUS_ICON[s] })
 import { sortTasks } from '../../lib/taskColumns'
 import { useListColumns } from './useListColumns'
 
-const STATUS_ORDER: TaskStatus[] = ['in_progress', 'todo', 'done']
 
 interface TaskListProps {
   tasks:        Task[]
@@ -224,7 +222,7 @@ export function TaskList({ tasks, projectId, scopeKey, columns=[], showProject=f
 
   let content: React.ReactNode
   if (sortBy==='status') {
-    content = STATUS_ORDER.map(s=>renderGroup(s,STATUS_LABEL[s],rootTasks.filter(t=>t.status===s),s,undefined,STATUS_PILL[s],s))
+    content = STATUS_ORDER.map(s=>renderGroup(s,STATUS_LABEL[s],rootTasks.filter(t=>t.status===s),s,undefined,STATUS_PILL(s),s))
   } else if (sortBy==='priority') {
     // Sempre renderiza os 4 grupos (mesmo vazios) para servirem de alvo de arraste, como o status.
     const po=['urgent','high','medium','low'] as Priority[]

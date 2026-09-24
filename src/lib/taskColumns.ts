@@ -1,5 +1,6 @@
 import type { ColumnDef, ListColumn, Task, Priority, TaskStatus } from '../types'
 import { parseISO } from './dateFilter'
+import { STATUS_ORDER } from '../types'
 
 // Colunas de sistema padrão (sem "Nome", que fica fixo à esquerda) — sempre disponíveis,
 // visíveis por padrão (podem ser ocultadas em "Adicionar um existente").
@@ -102,7 +103,7 @@ export function buildColumns(scope: string, custom: ColumnDef[], showProject: bo
 }
 
 const PRIO_ORDER:   Record<Priority, number>   = { urgent: 0, high: 1, medium: 2, low: 3 }
-const STATUS_ORDER: Record<TaskStatus, number> = { in_progress: 0, todo: 1, done: 2 }
+const STATUS_RANK = Object.fromEntries(STATUS_ORDER.map((s, i) => [s, i])) as Record<TaskStatus, number>
 
 // Valor comparável de uma tarefa para uma chave de coluna
 function cmpValue(t: Task, key: string): string | number {
@@ -110,7 +111,7 @@ function cmpValue(t: Task, key: string): string | number {
     case 'title':     return t.title.toLowerCase()
     case 'assignee':  return (t.assignee || '').toLowerCase()
     case 'priority':  return PRIO_ORDER[t.priority]
-    case 'status':    return STATUS_ORDER[t.status]
+    case 'status':    return STATUS_RANK[t.status] ?? 99
     case 'dueDate':   return t.dueDate ? parseISO(t.dueDate).getTime() : Number.POSITIVE_INFINITY
     case 'tags':      return (t.tags[0] || '').toLowerCase()
     case 'createdAt': return new Date(t.createdAt).getTime()

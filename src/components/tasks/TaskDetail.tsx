@@ -488,7 +488,7 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
     ? { width: '1200px', maxWidth: '96vw', height: '90vh', maxHeight: '900px' }
     : { width }
 
-  const statusColor = task.status==='done' ? '#1D9E75' : task.status==='in_progress' ? '#378ADD' : '#888780'
+  const statusColor = STATUS_COLOR[task.status] ?? '#888780'
 
   const projectOptions = projects.map(p => ({ value: p.id, label: p.name, color: p.color }))
   const priorityOptions = PRIORITY_OPTIONS.map(o => ({ ...o, icon: Flag }))

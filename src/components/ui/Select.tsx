@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronDown, Check, Search } from 'lucide-react'
-import { PRIORITY_COLOR, PRIORITY_TEXT_COLOR, PRIORITY_LABEL, STATUS_LABEL } from '../../types'
+import { PRIORITY_COLOR, PRIORITY_TEXT_COLOR, PRIORITY_LABEL, STATUS_LABEL, STATUS_COLOR, STATUS_FLOW } from '../../types'
 import type { Priority, TaskStatus } from '../../types'
 
 // ── Dropdown premium reutilizável ────────────────────────────────────────────
@@ -202,11 +202,8 @@ export function Select({
 export const PRIORITY_OPTIONS: SelectOption[] = (['urgent','high','medium','low'] as Priority[])
   .map(p => ({ value: p, label: PRIORITY_LABEL[p], color: PRIORITY_COLOR[p], textColor: PRIORITY_TEXT_COLOR[p] }))
 
-// Mesmas cores de status usadas no ícone da tarefa (seção 5 das diretrizes).
-export const STATUS_COLOR: Record<TaskStatus, string> = {
-  todo:        '#888780',
-  in_progress: '#378ADD',
-  done:        '#1D9E75',
-}
-export const STATUS_OPTIONS: SelectOption[] = (['todo','in_progress','done'] as TaskStatus[])
+// Cor de status tem fonte única em types/index.ts; reexportada aqui por conveniência.
+export { STATUS_COLOR }
+// Seletor na ordem do fluxo de trabalho (A fazer primeiro), não na ordem de exibição dos grupos.
+export const STATUS_OPTIONS: SelectOption[] = STATUS_FLOW
   .map(s => ({ value: s, label: STATUS_LABEL[s], color: STATUS_COLOR[s] }))

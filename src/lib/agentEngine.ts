@@ -28,12 +28,13 @@ export function buildWorkspaceDigest({ tasks, projects, goals, now = new Date() 
   const atrasadas = abertas.filter(t => t.dueDate && parseISO(t.dueDate) < now)
   const urgentes = abertas.filter(t => t.priority === 'urgent')
   const emProgresso = abertas.filter(t => t.status === 'in_progress')
+  const aguardando = abertas.filter(t => t.status === 'waiting')
   const seteDias = new Date(now); seteDias.setDate(seteDias.getDate() - 7)
   const concluidas7d = roots.filter(t => t.status === 'done' && t.completedAt && new Date(t.completedAt) >= seteDias)
 
   const lines: string[] = []
   lines.push(`Data de hoje: ${now.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}`)
-  lines.push(`Panorama: ${abertas.length} tarefas abertas (${emProgresso.length} em progresso), ${atrasadas.length} em atraso, ${urgentes.length} urgentes, ${concluidas7d.length} concluídas nos últimos 7 dias.`)
+  lines.push(`Panorama: ${abertas.length} tarefas abertas (${emProgresso.length} em progresso, ${aguardando.length} aguardando alguém), ${atrasadas.length} em atraso, ${urgentes.length} urgentes, ${concluidas7d.length} concluídas nos últimos 7 dias.`)
 
   for (const p of projects.filter(pr => !pr.archived)) {
     const pt = abertas.filter(t => t.projectId === p.id)
@@ -41,7 +42,7 @@ export function buildWorkspaceDigest({ tasks, projects, goals, now = new Date() 
     lines.push(`\nProjeto "${p.name}" (GUT ${p.gut.score}) — ${pt.length} abertas:`)
     for (const t of pt.slice(0, 8)) {
       const marca = [
-        t.status === 'in_progress' ? 'em progresso' : null,
+        t.status === 'in_progress' ? 'em progresso' : t.status === 'waiting' ? 'aguardando alguém' : t.status === 'paused' ? 'pausada' : null,
         t.priority !== 'medium' ? t.priority : null,
         t.dueDate ? `prazo ${fmtDia(t.dueDate)}${parseISO(t.dueDate) < now ? ' (ATRASADA)' : ''}` : null,
       ].filter(Boolean).join(', ')

@@ -1,5 +1,10 @@
 export type Priority   = 'low' | 'medium' | 'high' | 'urgent'
-export type TaskStatus = 'todo' | 'in_progress' | 'done'
+/**
+ * `waiting` = a bola está com outra pessoa (resposta, aprovação, peça) — é o que se cobra.
+ * `paused`  = parada por decisão sua (outra prioridade, fora de época) — não se cobra ninguém.
+ * Ambos contam como **abertos**: só `done` fecha a tarefa.
+ */
+export type TaskStatus = 'todo' | 'in_progress' | 'waiting' | 'paused' | 'done'
 export type View       = 'my_tasks' | 'all_tasks' | 'projects' | 'project_detail' | 'space_detail' | 'folder_detail' | 'calendar' | 'reports' | 'inbox' | 'automations' | 'goals' | 'agents'
 
 /**
@@ -199,7 +204,7 @@ export interface CustomProjectView {
   name: string
   icon: string
   baseType: 'list' | 'board' | 'table' | 'calendar'
-  /** 'open' = tudo que não está Concluído (A fazer + Em progresso). */
+  /** 'open' = tudo que não está Concluído (inclui Aguardando e Pausado). */
   filterStatus?: TaskStatus | 'all' | 'open'
   filterPriority?: Priority | 'all'
   filterAssignee?: string
@@ -425,7 +430,26 @@ export const PRIORITY_TEXT_COLOR: Record<Priority, string> = {
   medium: '#215B98',
   low:    '#5C5F68',
 }
-export const STATUS_LABEL:   Record<TaskStatus, string> = { todo:'A fazer', in_progress:'Em progresso', done:'Concluído' }
+export const STATUS_LABEL:   Record<TaskStatus, string> = {
+  todo:'A fazer', in_progress:'Em progresso', waiting:'Aguardando', paused:'Pausado', done:'Concluído',
+}
+/**
+ * Cor de cada status — **fonte única** (antes redigitada em seis telas). `Select.tsx`
+ * reexporta como `STATUS_COLOR`; quadro, painel, atividade e detalhe leem daqui.
+ */
+export const STATUS_COLOR: Record<TaskStatus, string> = {
+  todo:        '#888780',
+  in_progress: '#378ADD',
+  waiting:     '#D89A18',
+  paused:      '#8B7EC8',
+  done:        '#1D9E75',
+}
+/** Ordem do fluxo de trabalho (seletores, colunas do quadro, barras de contagem). */
+export const STATUS_FLOW: TaskStatus[] = ['todo', 'in_progress', 'waiting', 'paused', 'done']
+/** Estados que só aparecem no quadro/painel quando têm tarefa. */
+export const STATUS_OPTIONAL: TaskStatus[] = ['waiting', 'paused']
+/** Ordem de exibição dos grupos da lista e da ordenação por status (ativo primeiro). */
+export const STATUS_ORDER: TaskStatus[] = ['in_progress', 'waiting', 'todo', 'paused', 'done']
 
 export const GUT_LABEL_G: Record<number,string> = { 1:'Sem gravidade',2:'Pouco grave',3:'Grave',4:'Muito grave',5:'Extremamente grave' }
 export const GUT_LABEL_U: Record<number,string> = { 1:'Pode esperar',2:'Pouco urgente',3:'Urgente',4:'Muito urgente',5:'Ação imediata' }

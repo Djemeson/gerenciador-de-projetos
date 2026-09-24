@@ -2,7 +2,7 @@ import React, { useEffect } from 'react'
 import { X, SlidersHorizontal, RotateCcw } from 'lucide-react'
 import { useAppStore } from '../stores/useAppStore'
 import type { TaskStatus, Priority } from '../types'
-import { STATUS_LABEL, PRIORITY_LABEL } from '../types'
+import { STATUS_LABEL, STATUS_FLOW, PRIORITY_LABEL } from '../types'
 import { DatePeriodPicker } from './ui/DatePeriodPicker'
 import { Select } from './ui/Select'
 
@@ -56,7 +56,7 @@ export function FilterPanel() {
         <div>
           <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-2">Status</label>
           <div className="space-y-1">
-            {['all','todo','in_progress','done'].map(s=>(
+            {['all',...STATUS_FLOW].map(s=>(
               <label key={s} className="flex items-center gap-2 cursor-pointer group">
                 <input type="radio" name="status" value={s} checked={filters.status===s} onChange={()=>setFilters({status:s as TaskStatus|'all'})}
                   className="text-brand-600"/>

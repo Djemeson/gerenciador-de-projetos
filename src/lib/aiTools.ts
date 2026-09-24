@@ -47,7 +47,7 @@ export const AI_TOOLS = [
         type: 'object',
         properties: {
           projectName: { type: 'string', description: 'Nome (ou parte do nome) do projeto para filtrar' },
-          status: { type: 'string', enum: ['todo', 'in_progress', 'done', 'all'] },
+          status: { type: 'string', enum: ['todo', 'in_progress', 'waiting', 'paused', 'done', 'all'], description: 'waiting = aguardando outra pessoa; paused = pausada por decisão própria' },
           priority: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'] },
           assignee: { type: 'string' },
           overdueOnly: { type: 'boolean', description: 'Só tarefas com prazo vencido e não concluídas' },
@@ -88,7 +88,7 @@ export const AI_TOOLS = [
           taskTitle: { type: 'string', description: 'Título (ou parte dele) da tarefa a atualizar' },
           projectName: { type: 'string', description: 'Nome do projeto, para desambiguar se houver tarefas com título parecido em projetos diferentes' },
           newTitle: { type: 'string' },
-          status: { type: 'string', enum: ['todo', 'in_progress', 'done'] },
+          status: { type: 'string', enum: ['todo', 'in_progress', 'waiting', 'paused', 'done'], description: 'waiting = aguardando outra pessoa; paused = pausada por decisão própria' },
           priority: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'] },
           dueDate: { type: 'string', description: 'AAAA-MM-DD, ou "null" para remover o prazo' },
           assignee: { type: 'string' },

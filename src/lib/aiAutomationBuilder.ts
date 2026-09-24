@@ -45,6 +45,8 @@ export function parseAutomationLocal(texto: string, projects: ProjectRef[]): Aut
   else if (/prazo chegar|no dia do prazo|prazo vencer|vencimento|prazo estourar/.test(t)) trigger = { type: 'due_date_reached', daysBefore: 0 }
   else if (/for concluida|ficar concluida|quando concluir|for finalizada|terminar uma tarefa/.test(t)) trigger = { type: 'status_changed', from: ANY, to: 'done' }
   else if (/entrar em progresso|entrar em andamento|for iniciada|comecar uma tarefa/.test(t)) trigger = { type: 'status_changed', from: ANY, to: 'in_progress' }
+  else if (/ficar aguardando|entrar em espera|ficar esperando|for bloqueada/.test(t)) trigger = { type: 'status_changed', from: ANY, to: 'waiting' }
+  else if (/for pausada|ficar pausada|pausar uma tarefa/.test(t)) trigger = { type: 'status_changed', from: ANY, to: 'paused' }
   else if (/(ficar|virar|for marcada como|prioridade virar|prioridade for)\s*(urgente|alta|baixa)/.test(t)) {
     const p = t.match(/(urgente|alta|baixa)/)![1]
     trigger = { type: 'priority_changed', from: ANY, to: PRIORITY_WORD[p] }
@@ -73,6 +75,8 @@ export function parseAutomationLocal(texto: string, projects: ProjectRef[]): Aut
   else if (comentar)                                       action = { type: 'add_comment', value: comentar[1] }
   else if (/(conclua|marque? como concluida|finalize)/.test(t)) action = { type: 'change_status', value: 'done' }
   else if (/(inicie|coloque em progresso|mova para progresso)/.test(t)) action = { type: 'change_status', value: 'in_progress' }
+  else if (/(coloque em espera|marque como aguardando|mova para aguardando)/.test(t)) action = { type: 'change_status', value: 'waiting' }
+  else if (/(pause a tarefa|coloque em pausa|marque como pausada)/.test(t)) action = { type: 'change_status', value: 'paused' }
   else if (/avis|notifi|alert|lembr/.test(t)) {
     const msg = raw.match(/"([^"]+)"/)
     action = { type: 'notify', value: msg ? msg[1] : 'Atenção nesta tarefa' }
@@ -101,7 +105,7 @@ export async function buildAutomation(texto: string, projects: ProjectRef[], gem
 
   const prompt = `Converta a frase do usuário numa regra de automação de tarefas. Responda SOMENTE com JSON válido:
 {"name": "nome curto da regra", "projectName": "nome do projeto ou vazio",
- "trigger": {"type": "task_created|status_changed|priority_changed|assignee_changed|due_date_reached", "to": "done|in_progress|todo|urgent|high|medium|low ou vazio", "daysBefore": 0},
+ "trigger": {"type": "task_created|status_changed|priority_changed|assignee_changed|due_date_reached", "to": "done|in_progress|waiting|paused|todo|urgent|high|medium|low ou vazio", "daysBefore": 0},
  "action": {"type": "change_status|change_priority|assign|add_tag|set_due_date|move_project|add_comment|notify|ai_enrich", "value": "valor da ação"}}
 Projetos existentes: ${projects.map(p => p.name).join('; ') || 'nenhum'}
 Frase: "${texto.trim()}"`

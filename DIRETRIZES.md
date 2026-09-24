@@ -532,9 +532,19 @@ Regras:
     — o `EmojiPicker` foi removido. Se uma tela nova precisar de "ícone escolhido pelo
     usuário", usar `IconColorPicker` (`components/ui/IconColorPicker.tsx`), não recriar
     um seletor de emoji.
-- Cores de status: A fazer `#888780` · Em progresso `#378ADD` · Concluído `#1D9E75`.
+- Cores de status: A fazer `#888780` · Em progresso `#378ADD` · Aguardando `#D89A18` ·
+  Pausado `#8B7EC8` · Concluído `#1D9E75`. **Fonte única**: `STATUS_LABEL`,
+  `STATUS_COLOR`, `STATUS_FLOW` (ordem do fluxo, para seletores/quadro/barras) e
+  `STATUS_ORDER` (ordem dos grupos da lista: ativo primeiro) em `types/index.ts`.
+  Nunca redigitar hex ou rótulo de status numa tela — antes havia seis cópias.
+- **Aguardando × Pausado** (24/09/2026): são dois porque pedem ações diferentes.
+  *Aguardando* = a bola está com outra pessoa (resposta, aprovação, peça) — é o que se
+  cobra. *Pausado* = parada por decisão própria — não se cobra ninguém. Os dois contam
+  como **abertos** (só `done` fecha; atraso continua valendo). No quadro e nas barras do
+  painel, os dois (`STATUS_OPTIONAL`) só aparecem quando têm tarefa, para não empurrar
+  Concluído para fora da tela; na lista agrupada os grupos aparecem sempre (alvo de arraste).
 - **Cabeçalho de grupo**: pílula colorida sólida branco-em-maiúsculas, estilo ClickUp —
-  Status (`STATUS_PILL`, com ícone: `Circle`/`Clock`/`CheckCircle2`), **Prioridade**
+  Status (`STATUS_PILL`, com ícone: `Circle`/`Clock`/`Hourglass`/`PauseCircle`/`CheckCircle2`), **Prioridade**
   (cores de `PRIORITY_OPTIONS`) e **Projeto** (cor do próprio projeto) usam essa pílula
   (seção 4.8). Só **Responsável** segue com ponto colorido + rótulo (sem pílula — o
   protótipo original também não cobria esse agrupamento).

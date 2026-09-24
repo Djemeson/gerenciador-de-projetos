@@ -22,7 +22,7 @@ import { Select, PRIORITY_OPTIONS, STATUS_OPTIONS } from '../ui/Select'
 import { AssigneePicker } from '../ui/AssigneePicker'
 import { DueDatePicker } from '../ui/DueDatePicker'
 import type { Task, ColumnDef, ViewType, Priority, TaskStatus, TaskOpenMode } from '../../types'
-import { PRIORITY_LABEL, STATUS_LABEL, migrateViewType } from '../../types'
+import { PRIORITY_LABEL, STATUS_LABEL, STATUS_COLOR, STATUS_ORDER, STATUS_FLOW, STATUS_OPTIONAL, migrateViewType } from '../../types'
 
 export type GroupBy = 'status' | 'priority' | 'dueDate' | 'assignee' | 'project'
 
@@ -363,11 +363,9 @@ function NotesPanelMaybe() {
 
 // ── Overview (reestruturada — clean, informativa) ────────────────────────────
 const OV_CARD = 'bg-white border border-gray-200/70 rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03)]'
-const STATUS_META = [
-  { key:'todo',        label:'A fazer',      color:'#888780' },
-  { key:'in_progress', label:'Em progresso', color:'#378ADD' },
-  { key:'done',        label:'Concluído',    color:'#1D9E75' },
-] as const
+// Ordem de trabalho: A fazer → … → Concluído (barra empilhada da visão geral).
+const STATUS_META = STATUS_FLOW
+  .map(key => ({ key, label: STATUS_LABEL[key], color: STATUS_COLOR[key] }))
 
 function ProgressRing({ pct, accent, size = 132 }: { pct: number; accent: string; size?: number }) {
   const stroke = 11
@@ -394,7 +392,7 @@ function OverviewView({ tasks, accent, pct, gut }: { tasks: Task[]; accent: stri
   const root     = tasks.filter(t => !t.parentId)
   const total    = root.length
   const now      = new Date()
-  const statusCounts = { todo:0, in_progress:0, done:0 } as Record<string, number>
+  const statusCounts = {} as Record<string, number>
   root.forEach(t => { statusCounts[t.status] = (statusCounts[t.status] ?? 0) + 1 })
   const overdue  = root.filter(t => estaAtrasada(t.dueDate, t.status, now))
   const noDate   = root.filter(t => !t.dueDate && t.status!=='done').length
@@ -465,7 +463,7 @@ function OverviewView({ tasks, accent, pct, gut }: { tasks: Task[]; accent: stri
               {[
                 { label:'Atrasadas', value: overdue.length, color: overdue.length ? '#E24B4A' : '#9CA3AF' },
                 { label:'Sem prazo', value: noDate, color: '#9CA3AF' },
-                gut ? { label:'GUT', value: gut.score, color: accent } : { label:'Ativas', value: (statusCounts.todo ?? 0)+(statusCounts.in_progress ?? 0), color: accent },
+                gut ? { label:'GUT', value: gut.score, color: accent } : { label:'Ativas', value: total - (statusCounts.done ?? 0), color: accent },
               ].map(m => (
                 <div key={m.label} className="rounded-xl bg-gray-50/70 border border-gray-100 px-3 py-2.5">
                   <p className="text-2xl font-extrabold tracking-tight tabnum" style={{ color: m.color }}>{m.value}</p>
@@ -540,7 +538,7 @@ function OverviewView({ tasks, accent, pct, gut }: { tasks: Task[]; accent: stri
               {recent.map(t=>(
                 <button key={t.id} onClick={()=>setSelectedTask(t.id)}
                   className="w-full flex items-center gap-2.5 text-left hover:bg-gray-50 px-2 py-1.5 rounded-lg transition-colors">
-                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: t.status==='done'?'#1D9E75':t.status==='in_progress'?'#378ADD':'#C7C7C7' }}/>
+                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: STATUS_COLOR[t.status] ?? '#C7C7C7' }}/>
                   <span className={`flex-1 text-[13px] font-medium truncate ${t.status==='done'?'text-gray-400 line-through':'text-gray-700'}`}>{t.title}</span>
                   <span className="text-[10px] text-gray-500 flex-shrink-0 tabnum">{fmtDate(t.updatedAt)}</span>
                 </button>
@@ -558,11 +556,11 @@ function OverviewView({ tasks, accent, pct, gut }: { tasks: Task[]; accent: stri
 function BoardView({ tasks }: { tasks: Task[] }) {
   const { updateTask, deleteTask, setSelectedTask } = useAppStore()
   const [sel, setSel] = useState<string[]>([])
-  const cols: { status: 'todo'|'in_progress'|'done'; label: string; color: string }[] = [
-    { status:'todo',        label:'A fazer',      color:'#888780' },
-    { status:'in_progress', label:'Em progresso', color:'#378ADD' },
-    { status:'done',        label:'Concluído',    color:'#1D9E75' },
-  ]
+  // Quadro na ordem do fluxo (esquerda para a direita). Aguardando/Pausado só aparecem
+  // quando têm tarefa: cinco colunas fixas empurravam Concluído para fora da tela.
+  const cols = STATUS_FLOW
+    .filter(s => !STATUS_OPTIONAL.includes(s) || tasks.some(t => t.status === s && !t.parentId))
+    .map(s => ({ status: s, label: STATUS_LABEL[s], color: STATUS_COLOR[s] }))
   const toggle = (id: string) => setSel(p => p.includes(id) ? p.filter(x=>x!==id) : [...p, id])
   const clear  = () => setSel([])
   const bulkStatus   = (s: TaskStatus) => { sel.forEach(id=>updateTask(id,{status:s})); clear() }
@@ -803,8 +801,8 @@ function CalendarInline({ tasks }: { tasks: Task[] }) {
 function ActivityView({ tasks }: { tasks: Task[] }) {
   const { setSelectedTask } = useAppStore()
   const sorted = [...tasks].sort((a,b) => new Date(b.updatedAt).getTime()-new Date(a.updatedAt).getTime())
-  const statusColor: Record<string,string> = { todo:'#888780', in_progress:'#378ADD', done:'#1D9E75' }
-  const statusLabel: Record<string,string> = { todo:'A fazer', in_progress:'Em progresso', done:'Concluído' }
+  const statusColor: Record<string,string> = STATUS_COLOR
+  const statusLabel: Record<string,string> = STATUS_LABEL
   const formatRelative = (d: string) => {
     const diff = Date.now() - new Date(d).getTime()
     const mins = Math.floor(diff/60000), hrs = Math.floor(diff/3600000), days = Math.floor(diff/86400000)
@@ -859,11 +857,7 @@ function ActivityView({ tasks }: { tasks: Task[] }) {
 // ── Dashboard ───────────────────────────────────────────────────────────────
 function DashboardView({ tasks, accent }: { tasks: Task[]; accent: string }) {
   const root = tasks.filter(t => !t.parentId)
-  const byStatus = {
-    todo:        root.filter(t=>t.status==='todo').length,
-    in_progress: root.filter(t=>t.status==='in_progress').length,
-    done:        root.filter(t=>t.status==='done').length,
-  }
+  const byStatus = Object.fromEntries(STATUS_ORDER.map(s => [s, root.filter(t=>t.status===s).length])) as Record<TaskStatus, number>
   const byPriority = {
     urgent: root.filter(t=>t.priority==='urgent').length,
     high:   root.filter(t=>t.priority==='high').length,
@@ -885,11 +879,9 @@ function DashboardView({ tasks, accent }: { tasks: Task[]; accent: string }) {
         <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
           <h3 className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-4">Por status</h3>
           <div className="space-y-3">
-            {[
-              {label:'A fazer',      val:byStatus.todo,        color:'#888780'},
-              {label:'Em progresso', val:byStatus.in_progress, color:'#378ADD'},
-              {label:'Concluído',    val:byStatus.done,        color:'#1D9E75'},
-            ].map(s=>(
+            {STATUS_FLOW
+              .filter(s => byStatus[s] > 0 || !STATUS_OPTIONAL.includes(s))
+              .map(s => ({ label: STATUS_LABEL[s], val: byStatus[s], color: STATUS_COLOR[s] })).map(s=>(
               <div key={s.label}>
                 <div className="flex justify-between text-[11px] text-gray-500 mb-1"><span>{s.label}</span><span>{Math.round((s.val/total)*100)}%</span></div>
                 <Bar value={s.val} max={total} color={s.color}/>

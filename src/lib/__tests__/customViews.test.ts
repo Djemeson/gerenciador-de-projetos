@@ -23,11 +23,13 @@ describe('applyCustomViewFilter — status', () => {
     tarefa({ id: 'a', status: 'todo' }),
     tarefa({ id: 'b', status: 'in_progress' }),
     tarefa({ id: 'c', status: 'done', completedAt: emDias(-1) }),
+    tarefa({ id: 'd', status: 'waiting' }),
+    tarefa({ id: 'e', status: 'paused' }),
   ]
 
   it('sem filtro (ou "all") devolve tudo', () => {
-    expect(applyCustomViewFilter(lista, visao())).toHaveLength(3)
-    expect(applyCustomViewFilter(lista, visao({ filterStatus: 'all' }))).toHaveLength(3)
+    expect(applyCustomViewFilter(lista, visao())).toHaveLength(5)
+    expect(applyCustomViewFilter(lista, visao({ filterStatus: 'all' }))).toHaveLength(5)
   })
 
   it('status exato filtra por igualdade', () => {
@@ -35,9 +37,9 @@ describe('applyCustomViewFilter — status', () => {
     expect(r.map(t => t.id)).toEqual(['c'])
   })
 
-  it('"open" = tudo que não está concluído (A fazer + Em progresso)', () => {
+  it('"open" = tudo que não está concluído (Aguardando e Pausado contam como abertos)', () => {
     const r = applyCustomViewFilter(lista, visao({ filterStatus: 'open' }))
-    expect(r.map(t => t.id)).toEqual(['a', 'b'])
+    expect(r.map(t => t.id)).toEqual(['a', 'b', 'd', 'e'])
   })
 })
 
