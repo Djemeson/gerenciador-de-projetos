@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { nanoid } from '../lib/nanoid'
 import { localProjects, localTasks, gravarComAviso } from '../lib/localStore'
-import { SEED_PROJECTS, SEED_TASKS } from '../lib/seed'
+import { removerExemplosAntigos } from '../lib/exemplosAntigos'
 import { db, doc, setDoc, getDoc, onSnapshot } from '../lib/firebase'
 import { stripAndUploadAttachments, hydrateAttachments, deleteAttachmentsOf } from '../lib/cloudAttachments'
 import type {
@@ -397,6 +397,15 @@ async function applyRemoteSnapshot(set: (partial: any) => void, get: () => AppSt
     const automations = mesclarPorId(s.automations, ((data.automations ?? []) as any[]).map(migrateAutomation), gravadoEm, opts());
     const goals       = mesclarPorId(s.goals,       (data.goals ?? []) as Goal[],                               gravadoEm, opts());
     const notes       = mesclarPorId(s.notes,       ((data.notes ?? []) as any[]).map(migrateNote),             gravadoEm, opts());
+
+    // Exemplos antigos que ficaram na conta (ver lib/exemplosAntigos.ts) saem aqui também:
+    // um aparelho que já os apagou pode receber de volta a cópia de outro que ainda os tem.
+    const limpeza = removerExemplosAntigos(projects.itens, tasks.itens);
+    if (limpeza.removidos.length) {
+      registrarExclusoes(limpeza.removidos);
+      projects.itens = limpeza.projects; projects.manteveLocal = true;
+      tasks.itens = limpeza.tasks;       tasks.manteveLocal = true;
+    }
 
     localProjects.set(projects.itens as any);
     localTasks.set(tasks.itens as any);
@@ -1356,25 +1365,25 @@ export const useAppStore = create<AppState>((set, get) => ({
     })
     if (migrated) saveJSON(CUSTOM_VIEWS_KEY, customViewsByScope)
 
-    if (projects.length===0) {
-      const seeded = SEED_PROJECTS.map(p => ({ ...p, folderId:null, taskOpenMode:'center' as const, customViews:[] }))
-      const seededTasks = SEED_TASKS.map(t => ({ ...t, taskType:'task' as const }))
-      pProjects(seeded as any, seededTasks as any)
-      set({
-        projects: seeded as any, tasks: seededTasks as any, spaces, folders, workspaces, activeWorkspaceId, automations, automationRuns, goals, notes, viewPrefs, inboxColumns, customViewsByScope,
-      })
-    } else {
-      set({
-        projects, tasks, spaces, folders, workspaces, activeWorkspaceId, automations, automationRuns, goals, notes, viewPrefs, inboxColumns, customViewsByScope,
-      })
+    // Lista vazia fica vazia. O app semeava projetos de exemplo aqui, e era por isso que eles
+    // voltavam depois de excluídos — ver lib/exemplosAntigos.ts, que limpa os que sobraram.
+    const limpeza = removerExemplosAntigos(projects, tasks)
+    if (limpeza.removidos.length) {
+      registrarExclusoes(limpeza.removidos)
+      localProjects.set(limpeza.projects as any)
+      localTasks.set(limpeza.tasks as any)
+      triggerSyncPush()
     }
+    set({
+      projects: limpeza.projects, tasks: limpeza.tasks, spaces, folders, workspaces, activeWorkspaceId, automations, automationRuns, goals, notes, viewPrefs, inboxColumns, customViewsByScope,
+    })
 
     // Os anexos ficam no cofre IndexedDB e voltam logo depois da primeira pintura — ler o
     // disco antes de mostrar a tela atrasaria a abertura do app por causa de arquivos que
     // quase nunca estão à vista. A mescla é por id: tarefa criada ou alterada nesse
     // intervalo não é atropelada pelo estado antigo.
-    const carregadas = new Map(tasks.map(t => [t.id, t as any]))
-    hidratacaoLocal = localTasks.reidratar(tasks as any).then(comAnexos => {
+    const carregadas = new Map(limpeza.tasks.map(t => [t.id, t as any]))
+    hidratacaoLocal = localTasks.reidratar(limpeza.tasks as any).then(comAnexos => {
       const porId = new Map(comAnexos.map(t => [t.id, t]))
       // Só repõe na tarefa que ninguém tocou desde a carga (comparação por referência, como
       // em `idsAlterados`): uma edição feita durante a leitura do disco vale mais que o

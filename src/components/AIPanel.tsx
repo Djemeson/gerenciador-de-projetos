@@ -271,9 +271,9 @@ export function AIPanel() {
 
   const SUGGESTIONS = [
     'Quais tarefas estão atrasadas?',
-    'Resuma o projeto Lançamento v2.0',
+    'Resuma o projeto mais urgente',
     'Crie uma tarefa urgente para revisar o contrato',
-    'Marque a tarefa "Escrever testes de integração" como concluída',
+    'O que concluí esta semana?',
   ]
 
   const modeLabel: Record<Mode, string> = {

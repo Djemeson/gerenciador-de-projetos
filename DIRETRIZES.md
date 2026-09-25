@@ -771,6 +771,11 @@ Medido a 1440x900: da borda até a primeira tarefa eram **249px**; hoje são **2
 - **Nada sobe para a nuvem antes do primeiro snapshot** (`cloudReady`, `useAppStore`). Em
   navegador novo o `init()` cria os projetos de exemplo, e o push levava esse **seed** por
   cima dos dados reais da conta. Semear grupo vazio é explícito (`pushToCloud({force:true})`).
+- **O app não cria dados sozinho** (25/09/2026). A semeadura de projetos de exemplo saiu do
+  `init()`: ela marcava os exemplos como pendentes de push, então cada lista vazia os
+  recriava e a nuvem os devolvia depois de excluídos. Lista vazia fica vazia. Os exemplos
+  que já estavam nas contas saem por `lib/exemplosAntigos.ts` (só o intocado: id e nome
+  originais, nenhuma tarefa real dentro).
 - **Snapshot remoto vazio não apaga o local.** `tasks` ganhou a mesma guarda que `projects`
   já tinha; sem ela um campo ausente zerava o trabalho todo.
 - **Excluir tarefa ou projeto apaga os anexos na nuvem** (`deleteAttachmentsOf`). Antes o
