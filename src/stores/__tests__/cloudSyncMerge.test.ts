@@ -58,7 +58,7 @@ describe('sincronização com conta vinculada (mescla de snapshots)', () => {
     mem.clear()
     setDocMock.mockClear()
     useAppStore.getState().stopCloudSync()
-    useAppStore.setState({ projects: [], tasks: [], spaces: [], folders: [], workspaces: [], notes: [], goals: [], automations: [] })
+    useAppStore.setState({ projects: [], tasks: [], spaces: [], folders: [], workspaces: [], notes: [], goals: [], automations: [], seqCounters: { task: 0, project: 0 } })
   })
   afterEach(() => { vi.useRealTimers() })
 
@@ -126,6 +126,36 @@ describe('sincronização com conta vinculada (mescla de snapshots)', () => {
       updatedAt: Date.now() - 10 * 60_000,
     })
     expect(useAppStore.getState().tasks.map(t => t.id)).toEqual(['t1'])
+  })
+
+  it('IDs curtos: numera, sobe o contador e não perde o número para um aparelho com versão antiga', async () => {
+    const antes = new Date(Date.now() - 60 * 60_000).toISOString()
+    const depois = new Date(Date.now() - 50 * 60_000).toISOString()
+    useAppStore.getState().startCloudSync('uid-teste')
+    await chegaSnapshot({
+      projects: [projetoRemoto(antes)],
+      tasks: [{ ...tarefaRemota('t1', 'Primeira', antes), seq: 1 }, tarefaRemota('t2', 'Sem número', depois)],
+      seqCounters: { task: 4, project: 0 },   // T-2..T-4 já existiram e foram excluídas
+      updatedAt: Date.now() - 30 * 60_000,
+    })
+    const porId = () => new Map(useAppStore.getState().tasks.map(t => [t.id, t.seq]))
+    expect(porId().get('t1')).toBe(1)
+    expect(porId().get('t2')).toBe(5)           // não reaproveita os excluídos
+    expect(useAppStore.getState().projects[0].seq).toBe(1)
+
+    await vi.advanceTimersByTimeAsync(2000)
+    const chamadas = setDocMock.mock.calls
+    const doc = chamadas[chamadas.length - 1][1] as { seqCounters: { task: number } }
+    expect(doc.seqCounters.task).toBe(5)
+
+    // Aparelho com versão antiga edita t1 e sobe sem o `seq`: o número conhecido volta.
+    const agora = new Date().toISOString()
+    await chegaSnapshot({
+      projects: [projetoRemoto(antes)],
+      tasks: [{ ...tarefaRemota('t1', 'Editada lá', antes), updatedAt: agora }, { ...tarefaRemota('t2', 'Sem número', depois), seq: 5 }],
+      updatedAt: Date.now(),
+    })
+    expect(useAppStore.getState().tasks.find(t => t.id === 't1')).toMatchObject({ title: 'Editada lá', seq: 1 })
   })
 })
 

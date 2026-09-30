@@ -1,3 +1,4 @@
+import { IdCurto } from '../ui/IdCurto'
 import React, { useState, useRef, useCallback, useEffect } from 'react'
 import {
   X, Flag, Calendar, User, CheckSquare, Trash2, Plus, ListChecks, GitBranch, Tag,
@@ -560,6 +561,7 @@ export function TaskDetail({ mode: propMode, onChangeMode }: Props) {
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
+          <IdCurto tipo="task" seq={task.seq}/>
           {/* Menu de ferramentas de IA */}
           <div className="relative" ref={aiMenuRef}>
             <button

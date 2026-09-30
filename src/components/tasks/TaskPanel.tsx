@@ -1,3 +1,5 @@
+import { IdCurto } from '../ui/IdCurto'
+import { lerIdCurto } from '../../lib/shortIds'
 import React, { useState, useMemo } from 'react'
 import {
   Search, Eye, EyeOff, SlidersHorizontal, List, LayoutGrid, Table2, Calendar, PenTool, Activity, LayoutDashboard, Trash2, Check, Plus, X, Circle,
@@ -53,6 +55,8 @@ export interface TaskPanelProps {
   scopeKey:          string
   tasks:             Task[]
   title:             string
+  /** Número curto do escopo (P-12), mostrado ao lado do título. Só o projeto tem. */
+  projectSeq?:       number
   accent?:           string
   icon?:             React.ReactNode
   breadcrumb?:       React.ReactNode
@@ -76,7 +80,7 @@ export interface TaskPanelProps {
 }
 
 export function TaskPanel({
-  scopeKey, tasks, title, accent = '#6366F1', icon, breadcrumb, headerRight, toolbarExtra,
+  scopeKey, tasks, title, projectSeq, accent = '#6366F1', icon, breadcrumb, headerRight, toolbarExtra,
   columns = [], defaultProjectId, showProject = false,
   groupOptions = ['status','priority','dueDate','assignee'],
   defaultGroup = 'status', views, defaultView = 'list', gut,
@@ -157,7 +161,10 @@ export function TaskPanel({
   const filteredTasks = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
     if (!q) return tasks
-    const matches = tasks.filter(t => t.title.toLowerCase().includes(q) || t.description.toLowerCase().includes(q))
+    // "T-142" (ou "t142") acha a tarefa pelo número curto, além do texto.
+    const porId = lerIdCurto(q)
+    const matches = tasks.filter(t => t.title.toLowerCase().includes(q) || t.description.toLowerCase().includes(q)
+      || (porId?.tipo === 'task' && t.seq === porId.seq))
     // Inclui os ancestrais de cada correspondência — senão uma subtarefa que bate na busca,
     // mas cujo pai não bate, nunca apareceria (a lista renderiza subtarefas só a partir do pai).
     const byId = new Map(tasks.map(t => [t.id, t]))
@@ -200,6 +207,7 @@ export function TaskPanel({
               <span className="hidden sm:inline">{breadcrumb}</span>
               {icon}
               <h1 className="text-[16px] md:text-[20px] font-extrabold text-gray-900 tracking-[-0.02em] truncate min-w-0">{title}</h1>
+              <IdCurto tipo="project" seq={projectSeq}/>
               <span className="text-xs text-gray-400 font-medium flex-shrink-0">({activeCount})</span>
               <span className="md:hidden tabnum text-[10px] font-bold text-gray-500 bg-gray-100 px-1 py-0.5 rounded flex-shrink-0">{pct}%</span>
               {/* Progresso **na linha do título**: ocupava uma faixa inteira (17px + 8 de

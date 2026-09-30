@@ -128,6 +128,7 @@ export function ProjectDetailView() {
       scopeKey={scopeKey}
       tasks={projectTasks}
       title={project.name}
+      projectSeq={project.seq}
       accent={project.color}
       icon={<ProjectIcon project={project} size={16}/>}
       breadcrumb={trilha}

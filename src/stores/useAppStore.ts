@@ -22,6 +22,7 @@ import {
   registrarOrdemAlterada, obterOrdemAlterada, type ListaOrdenavel,
 } from '../lib/syncMerge'
 import { useNotificationStore } from './useNotificationStore'
+import { numerar, mesclarContadores, CONTADORES_VAZIOS, type Contadores } from '../lib/shortIds'
 import { matchesDateFilter } from '../lib/dateFilter'
 import { generateCompletionSummary } from '../lib/aiSummary'
 import { useSettingsStore, lerSettings, registrarObservadorDeSettings } from './useSettingsStore'
@@ -50,6 +51,7 @@ const NOTES_KEY       = 'tf_notes'
 const VIEW_PREFS_KEY  = 'tf_view_prefs'   // visualização/agrupamento por escopo (era 'tf_v_*' solto)
 const INBOX_COLS_KEY  = 'tf_inbox_columns'
 const OPEN_TABS_KEY   = 'tf_open_tabs'      // ids das tarefas abertas em aba (so UI: nunca vai para a nuvem)
+const SEQ_KEY         = 'tf_seq_counters'   // contadores dos IDs curtos T-/P- (lib/shortIds.ts)
 const CUSTOM_VIEWS_KEY= 'tf_custom_views'   // Record<scopeKey, CustomProjectView[]> — todas as visualizações personalizadas, de qualquer escopo (projeto, espaço, pasta, minhas/todas tarefas)
 export const scopeKeyForProject = (id: string) => `project:${id}`
 
@@ -141,6 +143,8 @@ interface AppState {
   goals:       Goal[]
   inboxColumns: ColumnDef[]
   undoStack:   Snapshot[]
+  /** Próximo número de T-/P- menos um. Só anda para a frente: ver lib/shortIds.ts. */
+  seqCounters: Contadores
   customViewsByScope: Record<string, CustomProjectView[]>   // visualizações personalizadas por escopo (projeto/espaço/pasta/minhas/todas)
   aiGeneratingKeys: string[]   // chaves `${taskId}:${colId}` de campos de IA em geração no momento
 
@@ -400,6 +404,14 @@ async function applyRemoteSnapshot(set: (partial: any) => void, get: () => AppSt
 
     // Exemplos antigos que ficaram na conta (ver lib/exemplosAntigos.ts) saem aqui também:
     // um aparelho que já os apagou pode receber de volta a cópia de outro que ainda os tem.
+    // Um aparelho com versão antiga do app descarta o `seq` ao migrar e pode subir a tarefa
+    // sem ele; se a mescla escolheu essa cópia, o número conhecido aqui volta para ela.
+    // Sem isto o item seria renumerado e o ID que você já citou apontaria para outro lugar.
+    projects.itens = restaurarNumeros(s.projects, projects.itens);
+    tasks.itens    = restaurarNumeros(s.tasks,    tasks.itens);
+    const seqCounters = mesclarContadores(s.seqCounters, data.seqCounters);
+    gravarComAviso(SEQ_KEY, JSON.stringify(seqCounters));
+
     const limpeza = removerExemplosAntigos(projects.itens, tasks.itens);
     if (limpeza.removidos.length) {
       registrarExclusoes(limpeza.removidos);
@@ -438,6 +450,7 @@ async function applyRemoteSnapshot(set: (partial: any) => void, get: () => AppSt
       automationRuns: data.automationRuns ?? s.automationRuns,
       inboxColumns: data.inboxColumns ?? s.inboxColumns,
       customViewsByScope: data.customViewsByScope ?? s.customViewsByScope,
+      seqCounters,
       cloudSyncStatus: 'synced',
       lastSyncedAt: new Date().toLocaleTimeString('pt-BR'),
     });
@@ -445,7 +458,9 @@ async function applyRemoteSnapshot(set: (partial: any) => void, get: () => AppSt
     // O estado mesclado difere do documento remoto (item local mantido ou exclusão local
     // aplicada) → reenvia, para a nuvem e os outros dispositivos convergirem. É também o
     // que resgata o push engolido pela trava `cloudReady` antes do primeiro snapshot.
-    const divergiu = [projects, tasks, spaces, folders, workspaces, automations, goals, notes].some(m => m.manteveLocal);
+    const contadoresRemotos = mesclarContadores(data.seqCounters, undefined);
+    const divergiu = [projects, tasks, spaces, folders, workspaces, automations, goals, notes].some(m => m.manteveLocal)
+      || seqCounters.task !== contadoresRemotos.task || seqCounters.project !== contadoresRemotos.project;
     if (divergiu) triggerSyncPush();
   } catch (e) {
     console.error('Erro ao aplicar dados da nuvem:', e);
@@ -484,6 +499,12 @@ async function migrateLegacySyncCode(set: (partial: any) => void, get: () => App
 // Mudou a configuração (chave de IA, atalho) → entra na mesma fila de push das tarefas.
 registrarObservadorDeSettings(triggerSyncPush)
 
+/** Devolve o `seq` conhecido localmente ao item mesclado que chegou sem ele. */
+function restaurarNumeros<T extends { id: string; seq?: number }>(locais: T[], mesclados: T[]): T[] {
+  const conhecido = new Map(locais.filter(i => typeof i.seq === 'number').map(i => [i.id, i.seq!]))
+  return mesclados.map(i => (typeof i.seq !== 'number' && conhecido.has(i.id) ? { ...i, seq: conhecido.get(i.id) } : i))
+}
+
 function pProjects(p: Project[], t: Task[]) {
   try {
     const s = useAppStore.getState()
@@ -500,6 +521,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   automations: [], automationRuns: [], goals: [], notes: [], viewPrefs: {}, inboxColumns: [], undoStack: [],
   agents: loadJSON<Agent[]>(AGENTS_KEY, []), agentRuns: loadJSON<AgentRun[]>(AGENT_RUNS_KEY, []),
   customViewsByScope: {},
+  seqCounters: loadJSON<Contadores>(SEQ_KEY, CONTADORES_VAZIOS),
   aiGeneratingKeys: [],
   activeView:VIEW_INICIAL, activeProjectId:null, activeSpaceId:null, activeFolderId:null, selectedTaskId:null,
   openTaskIds: loadJSON<string[]>(OPEN_TABS_KEY, []),
@@ -622,7 +644,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     })
     const origProjects = get().projects.filter(p => p.spaceId===id)
     const newProjects = origProjects.map(p => ({
-      ...p, id:nanoid(), spaceId:newSpace.id,
+      ...p, id:nanoid(), seq:undefined, spaceId:newSpace.id,
       folderId: p.folderId ? (folderIdMap.get(p.folderId) ?? null) : null,
       createdAt:now, updatedAt:now,
     }))
@@ -669,7 +691,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const now = new Date().toISOString()
     const newFolder: Folder = { ...original, id:nanoid(), name:`${original.name} (cópia)`, createdAt:now, updatedAt:now }
     const origProjects = get().projects.filter(p => p.folderId===id)
-    const newProjects = origProjects.map(p => ({ ...p, id:nanoid(), folderId:newFolder.id, createdAt:now, updatedAt:now }))
+    const newProjects = origProjects.map(p => ({ ...p, id:nanoid(), seq:undefined, folderId:newFolder.id, createdAt:now, updatedAt:now }))
     const idx = get().folders.findIndex(f => f.id===id)
     const folders = [...get().folders]; folders.splice(idx + 1, 0, newFolder)
     const projects = [...get().projects, ...newProjects]
@@ -725,7 +747,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   duplicateProject: (id) => {
     const original = get().projects.find(p => p.id===id); if (!original) return
     const now = new Date().toISOString()
-    const clone: Project = { ...original, id:nanoid(), name:`${original.name} (cópia)`, createdAt:now, updatedAt:now }
+    const clone: Project = { ...original, id:nanoid(), seq:undefined, name:`${original.name} (cópia)`, createdAt:now, updatedAt:now }
     const idx = get().projects.findIndex(p => p.id===id)
     const projects = [...get().projects]; projects.splice(idx + 1, 0, clone)
     pProjects(projects, get().tasks); set({ projects })
@@ -789,7 +811,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // ── Tasks ─────────────────────────────────────────────────────────────
   addTask: (task) => {
-    const t: Task = { ...task, id:nanoid(), workspaceId:get().activeWorkspaceId, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString() }
+    const t: Task = { ...task, id:nanoid(), seq:undefined, workspaceId:get().activeWorkspaceId, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString() }
     const tasks = [...get().tasks, t]
     pProjects(get().projects, tasks); set({ tasks })
     get().runAutomations('task_created', t.id)
@@ -935,7 +957,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     pProjects(get().projects,tasks); set({tasks})
   },
   toggleChecklistItem: (taskId, clId, itemId) => {
-    const tasks = get().tasks.map(t => t.id!==taskId ? t : { ...t, updatedAt:new Date().toISOString(), checklists:t.checklists.map(c => c.id!==clId ? c : {...c,items:c.items.map(i => i.id===itemId ? {...i,done:!i.done} : i)}) })
+    const tasks = get().tasks.map(t => t.id!==taskId ? t : { ...t, updatedAt:new Date().toISOString(), checklists:t.checklists.map(c => c.id!==clId ? c : {...c,items:c.items.map(i => i.id===itemId ? {...i,done:!i.done,doneAt:!i.done ? new Date().toISOString() : null} : i)}) })
     pProjects(get().projects,tasks); set({tasks})
   },
   removeChecklistItem: (taskId, clId, itemId) => {
@@ -1276,6 +1298,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         automationRuns: get().automationRuns,
         inboxColumns: get().inboxColumns,
         customViewsByScope: get().customViewsByScope,
+        seqCounters: get().seqCounters,
         // Chaves de IA e atalho viajam junto (ver DIRETRIZES, seção 13.8). Ficam sob o uid
         // do dono, que é o único a ler o documento pelas regras do Firestore.
         settings: lerSettings(),
@@ -1393,3 +1416,27 @@ export const useAppStore = create<AppState>((set, get) => ({
     }).catch(e => { console.warn('Não foi possível carregar os anexos guardados neste aparelho:', e) })
   },
 }))
+
+// ── IDs curtos (T-142 / P-12) ─────────────────────────────────────────────
+// Numera num lugar só, depois de qualquer mudança nas listas, em vez de em cada ação que
+// cria item (criar, duplicar, captura por IA, nota → tarefa, mescla com a nuvem...). Assim
+// nenhum caminho de criação novo fica sem número. Roda também sobre o que já existe:
+// é o backfill da primeira abertura desta versão.
+function garantirNumeros() {
+  const s = useAppStore.getState()
+  const t = numerar(s.tasks, s.seqCounters.task)
+  const p = numerar(s.projects, s.seqCounters.project)
+  if (!t.mudou && !p.mudou) return
+  const seqCounters = { task: t.contador, project: p.contador }
+  gravarComAviso(SEQ_KEY, JSON.stringify(seqCounters))
+  // Grava sem passar por `pProjects`: numerar não é edição local, e marcar os itens como
+  // "pendentes" os protegeria de uma exclusão feita noutro aparelho (ver syncMerge.ts) —
+  // no backfill, isso seria a conta inteira. O push leva o documento todo de qualquer jeito.
+  localProjects.set(p.itens as any)
+  localTasks.set(t.itens as any)
+  triggerSyncPush()
+  useAppStore.setState({ tasks: t.itens, projects: p.itens, seqCounters })
+}
+useAppStore.subscribe((s, antes) => {
+  if (s.tasks !== antes.tasks || s.projects !== antes.projects) garantirNumeros()
+})

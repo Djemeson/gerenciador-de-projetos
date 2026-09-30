@@ -316,7 +316,11 @@ export interface AutomationRun {
 export interface GUT { g: number; u: number; t: number; score: number }
 
 // ── Checklist / Content blocks ────────────────────────────────────────────
-export interface ChecklistItem { id: string; text: string; done: boolean }
+export interface ChecklistItem {
+  id: string; text: string; done: boolean
+  /** Quando foi marcado — é o que põe o item no relatório do período. Ausente em itens antigos. */
+  doneAt?: string | null
+}
 export interface Checklist     { id: string; title: string; items: ChecklistItem[] }
 
 // ── Comentários da tarefa ────────────────────────────────────────────────
@@ -357,6 +361,8 @@ export const TASK_TYPE_META: Record<TaskType, { label: string; symbol: string; c
 // ── Task ──────────────────────────────────────────────────────────────────
 export interface Task {
   id: string
+  /** Número curto e permanente (T-142). Ver lib/shortIds.ts e DIRETRIZES, seção 17. */
+  seq?: number
   workspaceId: string
   projectId: string
   parentId: string | null
@@ -387,6 +393,7 @@ export interface Task {
 // ── Project ───────────────────────────────────────────────────────────────
 export interface Project {
   id: string; name: string; color: string; description: string
+  seq?: number                   // número curto e permanente (P-12) — lib/shortIds.ts
   icon?: string                  // nome do ícone lucide (kebab-case), opcional
   workspaceId: string
   spaceId: string | null
@@ -477,6 +484,7 @@ export function migrateTask(raw: Record<string, unknown>): Task {
   }
   return {
     id: String(raw.id ?? ''),
+    seq: typeof raw.seq === 'number' ? raw.seq : undefined,
     workspaceId: String(raw.workspaceId ?? DEFAULT_WORKSPACE_ID),
     projectId: String(raw.projectId ?? ''),
     parentId: (raw.parentId as string|null) ?? null,
@@ -560,6 +568,7 @@ export function migrateAutomation(raw: Record<string, unknown>): Automation {
 export function migrateProject(raw: Record<string, unknown>): Project {
   return {
     id: String(raw.id ?? ''),
+    seq: typeof raw.seq === 'number' ? raw.seq : undefined,
     name: String(raw.name ?? ''),
     color: String(raw.color ?? '#6366F1'),
     description: String(raw.description ?? ''),
