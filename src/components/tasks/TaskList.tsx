@@ -154,6 +154,9 @@ export function TaskList({ tasks, projectId, scopeKey, columns=[], showProject=f
     const isAdding    = quickAdd?.key===key
     const PillIcon    = pill?.Icon
     const isDropTarget = dragTaskId !== null && dragOverGroup === key
+    // Grupo vazio some da lista; só reaparece enquanto uma tarefa está sendo arrastada
+    // (para continuar servindo de alvo de troca de status/prioridade) ou com o "+" aberto.
+    if (items.length===0 && dragTaskId===null && !isAdding) return null
     return (
       <div key={key}>
         <div className="flex items-center gap-2.5 px-6 pt-2.5 pb-1.5 bg-white md:sticky md:top-[38px] z-[9] group">

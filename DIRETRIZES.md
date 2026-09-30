@@ -1020,9 +1020,10 @@ de hoje continua menor que "agora" às 11h. Atraso é medido contra o **começo 
   (depth 0) arrastam.
 - Também é possível soltar **na área vazia do grupo** (não só em cima de outra tarefa) —
   útil para grupos com poucas tarefas; `onDrop` no container do grupo chama
-  `handleDropOnGroup`. Os grupos de **Status** e **Prioridade** são sempre renderizados
-  (mesmo vazios) para servirem de alvo; **Projeto** e **Responsável** só aparecem quando
-  já têm alguma tarefa no escopo (evita listar todos os projetos do sistema numa tela
+  `handleDropOnGroup`. **Nenhum grupo vazio aparece** (Status, Prioridade, Projeto,
+  Responsável): ele só reaparece **enquanto uma tarefa é arrastada** (para servir de alvo de
+  troca de status/prioridade) ou com o "+" de adição rápida aberto. Projeto e Responsável
+  já eram assim no escopo (evita listar todos os projetos do sistema numa tela
   de Espaço/Pasta).
 - **Arrastar pastas e espaços** na sidebar para reordenar (`reorderFolder`/`reorderSpace`),
   além de projetos (item 13.1).
