@@ -115,3 +115,26 @@ describe('mesclarPorId', () => {
     expect(duas.itens).toEqual(uma.itens)
   })
 })
+
+describe('exclusões que chegam da nuvem (Claude ou outro aparelho)', () => {
+  const item = (id: string, at: string) => ({ id, updatedAt: at, createdAt: at })
+  const gravado = Date.parse('2026-09-30T12:00:00Z')
+
+  it('item só local, editado antes da exclusão (mesmo pendente), cai', () => {
+    const r = mesclarPorId([item('a', '2026-09-30T11:58:00Z')], [item('b', '2026-09-30T10:00:00Z')], gravado,
+      { exclusoes: { a: Date.parse('2026-09-30T11:59:00Z') }, pendentes: { a: 1 } })
+    expect(r.itens.map(i => i.id)).toEqual(['b'])
+  })
+
+  it('item editado depois da exclusão fica (a edição vence)', () => {
+    const r = mesclarPorId([item('a', '2026-09-30T12:01:00Z')], [item('b', '2026-09-30T10:00:00Z')], gravado,
+      { exclusoes: { a: Date.parse('2026-09-30T11:59:00Z') } })
+    expect(r.itens.map(i => i.id).sort()).toEqual(['a', 'b'])
+  })
+
+  it('item restaurado (mais novo que a exclusão local) entra mesmo logo depois de excluir', () => {
+    const r = mesclarPorId([item('b', '2026-09-30T10:00:00Z')], [item('a', '2026-09-30T12:00:00Z'), item('b', '2026-09-30T10:00:00Z')], gravado,
+      { exclusoes: { a: Date.parse('2026-09-30T11:59:00Z') } })
+    expect(r.itens.map(i => i.id).sort()).toEqual(['a', 'b'])
+  })
+})

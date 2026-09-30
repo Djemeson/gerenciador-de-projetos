@@ -82,8 +82,10 @@ export function mesclarPorId<T extends ItemSincronizavel>(
     }
     if (r) {
       // Só no remoto: excluído aqui depois (ou quase junto) da gravação do documento?
+      // `>= tsItem(r)`: se o item foi editado (ou restaurado da lixeira) DEPOIS da exclusão,
+      // a versão remota é mais nova que ela e deve voltar.
       const excluidoEm = exclusoes[r.id]
-      if (excluidoEm !== undefined && excluidoEm > remotoGravadoEm - margemMs) {
+      if (excluidoEm !== undefined && excluidoEm > remotoGravadoEm - margemMs && excluidoEm >= tsItem(r)) {
         manteveLocal = true   // a exclusão local precisa voltar para a nuvem
         continue
       }
@@ -91,6 +93,11 @@ export function mesclarPorId<T extends ItemSincronizavel>(
       continue
     }
     if (l) {
+      // Só no local, mas excluído noutro lugar (outro aparelho ou o Claude) depois da última
+      // edição daqui: cai, mesmo que a edição seja recente ou ainda esteja pendente. Sem
+      // isto, editar no celular pouco antes de o Claude excluir ressuscitava o item.
+      const excluidoEm = exclusoes[l.id]
+      if (excluidoEm !== undefined && excluidoEm >= tsItem(l)) continue
       // Só no local: nunca subiu num push (pendência sobrevive a reinício e a relógio
       // adiantado do outro lado) ou é novo demais para o remoto conhecer.
       if (pendentes[l.id] !== undefined || tsItem(l) > remotoGravadoEm - margemMs) {
@@ -124,10 +131,11 @@ function podar(map: Record<string, number>, agora: number, ttlMs: number, max: n
 }
 
 // ── Registro de exclusões (tombstones) ────────────────────────────────────
-// Guarda `id → quando` das exclusões feitas neste navegador, para um snapshot gravado
-// **antes** da exclusão não ressuscitar o item na janela entre excluir e o push subir.
-// A propagação da exclusão entre dispositivos não depende disto — ela vai no próprio
-// documento (o item simplesmente não está mais lá).
+// Guarda `id → quando` das exclusões — as feitas neste navegador e as que chegam da nuvem
+// (campo `excluidos` do documento, gravado por outros aparelhos e pelo conector do Claude).
+// Serve a dois casos: um snapshot gravado **antes** da exclusão não ressuscita o item, e um
+// item que só existe aqui cai quando foi excluído noutro lugar depois da última edição.
+// O mapa inteiro sobe em todo push, então a exclusão chega a quem estava offline.
 
 const EXCLUSOES_KEY = 'tf_exclusoes_recentes'
 const REGISTRO_MAX = 1000
@@ -139,6 +147,18 @@ export function registrarExclusoes(ids: string[]) {
   const map = lerMapa(EXCLUSOES_KEY)
   ids.forEach(id => { map[id] = agora })
   gravarMapa(EXCLUSOES_KEY, podar(map, agora, REGISTRO_TTL_MS, REGISTRO_MAX))
+}
+
+/** Junta exclusões vindas da nuvem, ficando com o momento mais recente de cada id. */
+export function incorporarExclusoes(remotas: Record<string, number> | undefined) {
+  if (!remotas || typeof remotas !== 'object') return
+  const agora = Date.now()
+  const map = lerMapa(EXCLUSOES_KEY)
+  let mudou = false
+  for (const [id, at] of Object.entries(remotas)) {
+    if (typeof at === 'number' && at > (map[id] ?? 0)) { map[id] = at; mudou = true }
+  }
+  if (mudou) gravarMapa(EXCLUSOES_KEY, podar(map, agora, REGISTRO_TTL_MS, REGISTRO_MAX))
 }
 
 /** Desfazer restaurou itens → a exclusão registrada deixa de valer. */

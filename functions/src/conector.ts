@@ -18,7 +18,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import { initializeApp, getApps } from 'firebase-admin/app'
 import { getFirestore, type Firestore } from 'firebase-admin/firestore'
 import { getAuth } from 'firebase-admin/auth'
-import { DEFINICOES, executar, ErroFerramenta, type DocConta } from '../../shared/ferramentas'
+import { DEFINICOES, executar, ErroFerramenta, type DocConta, type EntradaLixeira } from '../../shared/ferramentas'
 
 const COLECAO_CHAVES = 'claudeTokens'
 const PREFIXO_CHAVE = 'gpc_'
@@ -91,17 +91,28 @@ async function uidDaChave(chave: string | undefined): Promise<string> {
 }
 
 // ── Ferramentas sobre o documento da conta ──────────────────────────────────
+const PRECISAM_DA_LIXEIRA = new Set(['listar_lixeira', 'restaurar'])
+
 async function chamarFerramenta(uid: string, nome: string, args: Record<string, unknown>) {
   const banco = db()
   const ref = banco.collection('syncGroups').doc(uid)
+  const lixeira = ref.collection('lixeira')
   return banco.runTransaction(async tx => {
     const snap = await tx.get(ref)
     if (!snap.exists) throw new ErroFerramenta('A conta ainda não tem dados na nuvem. Abra o app uma vez com login.')
     const dados = snap.data() as DocConta
-    const r = executar(nome, args ?? {}, dados)
+    // Só lê a lixeira quando a ação precisa dela (listar/restaurar) — toda leitura conta na cota.
+    const ctx = PRECISAM_DA_LIXEIRA.has(nome)
+      ? { lixeira: (await tx.get(lixeira)).docs.map(d => d.data() as EntradaLixeira) }
+      : {}
+    const r = executar(nome, args ?? {}, dados, new Date().toISOString(), ctx)
     if (r.alterou) {
-      tx.update(ref, { tasks: r.doc.tasks, projects: r.doc.projects, seqCounters: r.doc.seqCounters, updatedAt: Date.now() })
+      const campos: Record<string, unknown> = { tasks: r.doc.tasks, projects: r.doc.projects, seqCounters: r.doc.seqCounters, updatedAt: Date.now() }
+      if (r.doc.excluidos !== dados.excluidos) campos.excluidos = r.doc.excluidos ?? {}
+      tx.update(ref, campos)
     }
+    r.lixeira?.entrar?.forEach(e => tx.set(lixeira.doc(e.id), e))
+    r.lixeira?.sair?.forEach(id => tx.delete(lixeira.doc(id)))
     return r.texto
   })
 }
@@ -112,7 +123,8 @@ const INSTRUCOES =
   'se refere a eles assim. Ao trabalhar numa tarefa: ver_tarefa primeiro (o último comentário ' +
   '"Ponto de parada" diz de onde retomar); quebre em subtarefas (partes com vida própria) ou ' +
   'checklist (passos curtos); marque cada item ao terminar; ao pausar ou encerrar, comente ' +
-  'começando com "Ponto de parada:". Nunca há exclusão por aqui.'
+  'começando com "Ponto de parada:". Excluir tarefa ou projeto manda para a lixeira (restaurar ' +
+  'desfaz) — confirme com o usuário antes, citando ID e título.'
 
 type Rpc = { jsonrpc: '2.0'; id?: string | number | null; method: string; params?: any }
 

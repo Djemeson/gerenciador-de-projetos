@@ -1722,8 +1722,19 @@ Claude no celular), onde a sessão roda numa VM da Anthropic com o repo clonado 
   `/api/mcp/<chave>` (chave no caminho, para o conector personalizado do claude.ai/Cowork,
   que só aceita URL). Protocolo MCP sem sessão, só POST.
 - Ações em `shared/ferramentas.ts` (puras e testadas): listar projetos/tarefas, buscar,
-  ver tarefa, criar tarefa/subtarefas/checklist, adicionar e marcar itens, atualizar
-  status/título/prioridade/prazo, comentar e relatório por período. **Não existe exclusão.**
+  ver tarefa, criar tarefa/subtarefas/checklist/projeto, adicionar/marcar/editar/remover
+  itens, remover checklist, mover tarefa (com o galho), editar descrição, etiquetas,
+  atualizar status/título/prioridade/prazo, comentar, relatório por período e **excluir
+  tarefa/projeto via lixeira** (`listar_lixeira`, `restaurar`).
+- **Exclusão com lixeira**: o item (com subtarefas, ou o projeto com as tarefas) vai para
+  `syncGroups/{uid}/lixeira/{id}` (só o servidor lê) e o id entra em `excluidos` no documento.
+  Restaurar devolve com `updatedAt` novo e tira o id de `excluidos`. Anexos ficam guardados
+  enquanto o item estiver na lixeira.
+- **`excluidos` é sincronizado pelo app também** (`incorporarExclusoes` + push de
+  `obterExclusoes()`, 7 dias): a mescla derruba o item só-local excluído noutro lugar
+  **depois** da última edição dele, mesmo que a edição seja recente ou pendente — antes, editar
+  no celular minutos antes da exclusão ressuscitava o item. Editar depois da exclusão vence.
+  Por isso o **desfazer** do app devolve o item com `updatedAt` novo.
 - Escrita: transação sobre `syncGroups/{uid}`, `update` só em `tasks`, `projects`,
   `seqCounters` e `updatedAt`. Item alterado ganha `updatedAt` novo — é o que faz a mescla
   dos aparelhos aceitar a versão do Claude. Mesmas regras do app: `completedAt` na

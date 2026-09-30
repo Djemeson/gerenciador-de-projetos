@@ -17,7 +17,7 @@ import {
 } from '../types'
 import { matchesTrigger } from '../lib/automationEngine'
 import {
-  mesclarPorId, registrarExclusoes, cancelarExclusoes, obterExclusoes,
+  mesclarPorId, registrarExclusoes, cancelarExclusoes, obterExclusoes, incorporarExclusoes,
   registrarPendencias, concluirPendencias, obterPendencias,
   registrarOrdemAlterada, obterOrdemAlterada, type ListaOrdenavel,
 } from '../lib/syncMerge'
@@ -390,6 +390,8 @@ async function applyRemoteSnapshot(set: (partial: any) => void, get: () => AppSt
     // Importante: o estado é lido DEPOIS do await acima — o que o usuário criou enquanto
     // os anexos hidratavam também entra na mescla, e daqui até o `set` não há mais await.
     const gravadoEm = typeof data.updatedAt === 'number' ? data.updatedAt : 0;
+    // Exclusões feitas noutros aparelhos e pelo conector do Claude entram antes da mescla.
+    incorporarExclusoes(data.excluidos);
     const base = { exclusoes: obterExclusoes(), pendentes: obterPendencias() };
     const opts = (lista?: ListaOrdenavel) => (lista ? { ...base, ordemLocalEm: obterOrdemAlterada(lista) } : base);
     const s = get();
@@ -541,9 +543,21 @@ export const useAppStore = create<AppState>((set, get) => ({
   undo: () => {
     const { undoStack } = get()
     if (!undoStack.length) return
-    const snap = undoStack[undoStack.length - 1]
-    // O que o desfazer restaura deixa de contar como excluído — senão o próximo snapshot
-    // da nuvem derrubaria o item de novo (ver syncMerge.ts).
+    const atual = get()
+    const agora = new Date().toISOString()
+    // O que volta por desfazer ganha `updatedAt` novo: a exclusão já pode ter subido para a
+    // nuvem (campo `excluidos`) e voltaria a derrubar o item em todo snapshot se ele
+    // continuasse com a data antiga — a mescla só deixa passar item mais novo que a exclusão.
+    const reviver = <T extends { id: string; updatedAt?: string }>(antes: T[], agoraLista: T[]): T[] => {
+      const vivos = new Set(agoraLista.map(i => i.id))
+      return antes.map(i => (vivos.has(i.id) ? i : { ...i, updatedAt: agora }))
+    }
+    const snap = {
+      projects: reviver(undoStack[undoStack.length - 1].projects, atual.projects),
+      tasks:    reviver(undoStack[undoStack.length - 1].tasks,    atual.tasks),
+      spaces:   reviver(undoStack[undoStack.length - 1].spaces,   atual.spaces),
+      folders:  reviver(undoStack[undoStack.length - 1].folders,  atual.folders),
+    }
     cancelarExclusoes([...snap.projects, ...snap.tasks, ...snap.spaces, ...snap.folders].map(i => i.id))
     pProjects(snap.projects, snap.tasks)
     saveJSON(SPACES_KEY, snap.spaces); saveJSON(FOLDERS_KEY, snap.folders)
@@ -1299,6 +1313,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         inboxColumns: get().inboxColumns,
         customViewsByScope: get().customViewsByScope,
         seqCounters: get().seqCounters,
+        // Exclusões recentes (7 dias) viajam no documento: quem estava offline, ou editou
+        // o item pouco antes, recebe a exclusão em vez de ressuscitar o item.
+        excluidos: obterExclusoes(),
         // Chaves de IA e atalho viajam junto (ver DIRETRIZES, seção 13.8). Ficam sob o uid
         // do dono, que é o único a ler o documento pelas regras do Firestore.
         settings: lerSettings(),

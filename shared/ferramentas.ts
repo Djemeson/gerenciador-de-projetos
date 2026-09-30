@@ -1,8 +1,8 @@
-// As ações que o Claude pode executar no gerenciador (conector MCP em api/mcp).
+// As ações que o Claude pode executar no gerenciador (conector MCP, functions/).
 //
 // Tudo aqui é puro: recebe o documento de sincronização da conta (o mesmo que o app grava
 // em syncGroups/{uid}) e devolve o documento alterado + o texto da resposta. Quem lê e
-// grava no Firestore é api/_lib/conector.ts, dentro de uma transação.
+// grava no Firestore é functions/src/conector.ts, dentro de uma transação.
 //
 // Regras que o app depende que sejam respeitadas (ver src/stores/useAppStore.ts):
 // - todo item alterado ganha `updatedAt` novo — é assim que a mescla entre aparelhos sabe
@@ -10,7 +10,10 @@
 // - campos que esta camada não conhece são preservados (o objeto é copiado, nunca
 //   reconstruído), inclusive referências de anexos;
 // - `completedAt` só muda na transição de status, como em `updateTask`;
-// - nada é excluído: o conector cria, marca, comenta e muda status. Apagar é com o dono.
+// - excluir tarefa ou projeto passa pela **lixeira** (syncGroups/{uid}/lixeira, só o
+//   servidor lê) e dá para restaurar; o id vai para `excluidos` no documento, que é como
+//   os aparelhos sabem que o item saiu e não o ressuscitam (src/lib/syncMerge.ts). Os
+//   anexos ficam guardados enquanto o item estiver na lixeira.
 
 import { numerar, formatarId, lerIdCurto, mesclarContadores, type Contadores } from './shortIds'
 
@@ -18,8 +21,27 @@ export const AUTOR_CLAUDE = 'Claude'
 
 type Obj = { id: string; [k: string]: any }
 type Args = Record<string, any>
-export interface DocConta { tasks: Obj[]; projects: Obj[]; seqCounters?: Contadores; [k: string]: unknown }
-export interface Resultado { texto: string; alterou: boolean; doc: DocConta }
+export interface DocConta {
+  tasks: Obj[]; projects: Obj[]; seqCounters?: Contadores
+  /** id → quando foi excluído (ms). O app lê e reenvia este mapa — ver syncMerge.ts. */
+  excluidos?: Record<string, number>
+  [k: string]: unknown
+}
+/** O que foi para a lixeira numa exclusão: o item principal e tudo que saiu junto. */
+export interface EntradaLixeira {
+  id: string                    // id interno do item principal (é o id do documento na lixeira)
+  tipo: 'task' | 'project'
+  seq?: number
+  titulo: string
+  excluidoEm: string
+  projeto?: Obj                 // só quando tipo = 'project'
+  tarefas: Obj[]                // a tarefa e suas subtarefas, ou todas as tarefas do projeto
+}
+export interface Resultado {
+  texto: string; alterou: boolean; doc: DocConta
+  lixeira?: { entrar?: EntradaLixeira[]; sair?: string[] }
+}
+export interface Contexto { lixeira?: EntradaLixeira[] }
 
 export class ErroFerramenta extends Error {}
 
@@ -85,6 +107,37 @@ export const DEFINICOES = [
     inputSchema: { type: 'object', required: ['de', 'ate'], properties: {
       de: { type: 'string', description: 'AAAA-MM-DD (inclusive).' }, ate: { type: 'string', description: 'AAAA-MM-DD (inclusive).' },
       projeto: { ...idProjeto, description: 'Opcional: só este projeto.' } } } },
+  { name: 'mover_tarefa', description: 'Move uma tarefa (com as subtarefas) para outro projeto, ou a pendura/solta de uma tarefa-mãe.',
+    inputSchema: { type: 'object', required: ['tarefa'], properties: {
+      tarefa: idTarefa,
+      projeto: { ...idProjeto, description: 'Projeto de destino. Sem "pai", a tarefa vira tarefa principal lá.' },
+      pai: { type: 'string', description: 'Nova tarefa-mãe (T-…), ou "nenhuma" para virar tarefa principal.' } } } },
+  { name: 'editar_descricao', description: 'Escreve a descrição da tarefa. "acrescentar" (padrão) adiciona ao fim; "substituir" troca o texto (recusado se a descrição tiver imagem ou arquivo, para não apagá-los).',
+    inputSchema: { type: 'object', required: ['tarefa', 'texto'], properties: {
+      tarefa: idTarefa, texto: { type: 'string' }, modo: { type: 'string', enum: ['acrescentar', 'substituir'] } } } },
+  { name: 'definir_etiquetas', description: 'Define as etiquetas da tarefa (substitui a lista inteira; lista vazia remove todas).',
+    inputSchema: { type: 'object', required: ['tarefa', 'etiquetas'], properties: {
+      tarefa: idTarefa, etiquetas: { type: 'array', items: { type: 'string' } } } } },
+  { name: 'editar_item', description: 'Troca o texto de um item de checklist.',
+    inputSchema: { type: 'object', required: ['tarefa', 'item', 'texto'], properties: {
+      tarefa: idTarefa, item: { type: 'string', description: 'id do item (aparece em ver_tarefa).' }, texto: { type: 'string' } } } },
+  { name: 'excluir_itens', description: 'Remove itens de checklist. Não passa pela lixeira: use para limpeza de itens que não fazem mais sentido.',
+    inputSchema: { type: 'object', required: ['tarefa', 'itens'], properties: {
+      tarefa: idTarefa, itens: { type: 'array', items: { type: 'string' }, minItems: 1 } } } },
+  { name: 'excluir_checklist', description: 'Remove um checklist inteiro da tarefa. Não passa pela lixeira.',
+    inputSchema: { type: 'object', required: ['tarefa', 'checklist'], properties: {
+      tarefa: idTarefa, checklist: { type: 'string', description: 'id do checklist (aparece em ver_tarefa).' } } } },
+  { name: 'criar_projeto', description: 'Cria um projeto novo (fica na raiz; o usuário organiza em espaço/pasta pelo app). Devolve o P-….',
+    inputSchema: { type: 'object', required: ['nome'], properties: {
+      nome: { type: 'string' }, descricao: { type: 'string' }, cor: { type: 'string', description: 'Hex, ex.: #6366F1.' } } } },
+  { name: 'excluir_tarefa', description: 'Exclui uma tarefa e as subtarefas dela. Vai para a lixeira (restaurar desfaz). Confirme com o usuário antes, citando ID e título.',
+    inputSchema: { type: 'object', required: ['tarefa'], properties: { tarefa: idTarefa } } },
+  { name: 'excluir_projeto', description: 'Exclui um projeto e todas as tarefas dele. Vai para a lixeira (restaurar desfaz). Confirme com o usuário antes, dizendo quantas tarefas vão junto.',
+    inputSchema: { type: 'object', required: ['projeto'], properties: { projeto: idProjeto } } },
+  { name: 'listar_lixeira', description: 'Mostra o que foi excluído pelo conector e pode ser restaurado.',
+    inputSchema: { type: 'object', properties: {} } },
+  { name: 'restaurar', description: 'Traz de volta da lixeira uma tarefa (com subtarefas) ou um projeto (com as tarefas), pelo ID que tinha.',
+    inputSchema: { type: 'object', required: ['id'], properties: { id: { type: 'string', description: 'T-… ou P-… do item excluído.' } } } },
 ] as const
 
 // ── Consultas auxiliares ────────────────────────────────────────────────────
@@ -165,7 +218,24 @@ function numerarDoc(doc: DocConta): DocConta {
 }
 
 // ── Execução ────────────────────────────────────────────────────────────────
-export function executar(nome: string, args: Args, docOriginal: DocConta, agora = new Date().toISOString()): Resultado {
+/** A tarefa e todas as descendentes (a exclusão e a mudança de projeto levam o galho inteiro). */
+function galho(doc: DocConta, raizId: string): Obj[] {
+  const ids = new Set([raizId])
+  let cresceu = true
+  while (cresceu) {
+    cresceu = false
+    for (const t of doc.tasks) if (t.parentId && ids.has(t.parentId) && !ids.has(t.id)) { ids.add(t.id); cresceu = true }
+  }
+  return doc.tasks.filter(t => ids.has(t.id))
+}
+
+function marcarExcluidos(doc: DocConta, ids: string[], agoraMs: number): Record<string, number> {
+  const mapa = { ...(doc.excluidos ?? {}) }
+  ids.forEach(id => { mapa[id] = agoraMs })
+  return mapa
+}
+
+export function executar(nome: string, args: Args, docOriginal: DocConta, agora = new Date().toISOString(), ctx: Contexto = {}): Resultado {
   // Conta que nunca abriu a versão com IDs ainda não tem números: o servidor numera com a
   // mesma regra determinística do app, então os dois chegam aos mesmos T-/P-.
   let doc = numerarDoc({ ...docOriginal, tasks: docOriginal.tasks ?? [], projects: docOriginal.projects ?? [] })
@@ -333,6 +403,159 @@ export function executar(nome: string, args: Args, docOriginal: DocConta, agora 
         secao('Registros do Claude', comentarios),
         '\nObs.: itens de checklist marcados antes desta integração não têm data e não entram aqui.',
       ].join('\n'))
+    }
+
+    case 'mover_tarefa': {
+      const t = achar(doc, 'task', args.tarefa)
+      const semPai = args.pai === 'nenhuma' || args.pai === null
+      const pai = args.pai && !semPai ? achar(doc, 'task', args.pai) : null
+      const projeto = args.projeto ? achar(doc, 'project', args.projeto) : null
+      if (!pai && !semPai && !projeto) throw new ErroFerramenta('Diga para onde: "projeto" (P-…) e/ou "pai" (T-… ou "nenhuma").')
+      const ramo = galho(doc, t.id)
+      if (pai && ramo.some(x => x.id === pai.id)) throw new ErroFerramenta('Não dá para pendurar a tarefa dentro dela mesma ou de uma subtarefa dela.')
+      const destinoProjeto = pai ? pai.projectId : (projeto ? projeto.id : t.projectId)
+      const destinoWs = pai ? pai.workspaceId : (projeto ? (projeto.workspaceId ?? t.workspaceId) : t.workspaceId)
+      const ids = new Set(ramo.map(x => x.id))
+      const novo = { ...doc, tasks: doc.tasks.map(x => {
+        if (!ids.has(x.id)) return x
+        const base = { ...x, projectId: destinoProjeto, workspaceId: destinoWs, updatedAt: agora }
+        return x.id === t.id ? { ...base, parentId: pai ? pai.id : ((semPai || projeto) ? null : x.parentId) } : base
+      }) }
+      const onde = pai ? `subtarefa de ${formatarId('task', pai.seq)}` : `tarefa principal em ${refProjeto(novo, destinoProjeto)}`
+      return ok(`${formatarId('task', t.seq)} agora é ${onde}${ramo.length > 1 ? ` (levou ${ramo.length - 1} subtarefa(s) junto)` : ''}.`, novo)
+    }
+
+    case 'editar_descricao': {
+      const t = achar(doc, 'task', args.tarefa)
+      const texto = String(args.texto ?? '').trim()
+      if (!texto) throw new ErroFerramenta('O texto está vazio.')
+      const modo = args.modo === 'substituir' ? 'substituir' : 'acrescentar'
+      const blocos: Obj[] = t.blocks ?? []
+      const novoBloco = { id: novoId(), type: 'text', text: escaparHtml(texto), region: 'body' }
+      let blocks: Obj[]
+      if (modo === 'substituir') {
+        const temMidia = blocos.some(b => b.type !== 'text' || /<img\b/i.test(String(b.text ?? '')))
+        if (temMidia) throw new ErroFerramenta('A descrição tem imagem ou arquivo; substituir apagaria isso. Use modo "acrescentar".')
+        blocks = [novoBloco]
+      } else {
+        blocks = [...blocos, novoBloco]
+      }
+      const novo = comTarefa(doc, t.id, x => ({ ...x, blocks, description: modo === 'substituir' ? '' : x.description }), agora)
+      return ok(`Descrição de ${formatarId('task', t.seq)} ${modo === 'substituir' ? 'substituída' : 'acrescentada'}.`, novo)
+    }
+
+    case 'definir_etiquetas': {
+      const t = achar(doc, 'task', args.tarefa)
+      const tags = [...new Set((args.etiquetas ?? []).map((s: unknown) => String(s).trim()).filter(Boolean))] as string[]
+      const novo = comTarefa(doc, t.id, x => ({ ...x, tags }), agora)
+      return ok(`Etiquetas de ${formatarId('task', t.seq)}: ${tags.length ? tags.join(', ') : '(nenhuma)'}.`, novo)
+    }
+
+    case 'editar_item': {
+      const t = achar(doc, 'task', args.tarefa)
+      const texto = String(args.texto ?? '').trim()
+      if (!texto) throw new ErroFerramenta('O texto está vazio.')
+      const existe = (t.checklists ?? []).some((c: Obj) => (c.items ?? []).some((i: Obj) => i.id === args.item))
+      if (!existe) throw new ErroFerramenta(`Item "${args.item}" não existe em ${formatarId('task', t.seq)}. Veja os ids com ver_tarefa.`)
+      const novo = comTarefa(doc, t.id, x => ({ ...x, checklists: x.checklists.map((c: Obj) => ({ ...c, items: c.items.map((i: Obj) => (i.id === args.item ? { ...i, text: texto } : i)) })) }), agora)
+      return ok(`Item atualizado em ${formatarId('task', t.seq)}.`, novo)
+    }
+
+    case 'excluir_itens': {
+      const t = achar(doc, 'task', args.tarefa)
+      const alvo = new Set((args.itens ?? []).map(String))
+      const existentes = new Set((t.checklists ?? []).flatMap((c: Obj) => (c.items ?? []).map((i: Obj) => i.id)))
+      const faltando = [...alvo].filter(id => !existentes.has(id))
+      if (faltando.length) throw new ErroFerramenta(`Itens não encontrados em ${formatarId('task', t.seq)}: ${faltando.join(', ')}.`)
+      const novo = comTarefa(doc, t.id, x => ({ ...x, checklists: x.checklists.map((c: Obj) => ({ ...c, items: c.items.filter((i: Obj) => !alvo.has(i.id)) })) }), agora)
+      return ok(`${alvo.size} ${alvo.size === 1 ? 'item removido' : 'itens removidos'} de ${formatarId('task', t.seq)}.`, novo)
+    }
+
+    case 'excluir_checklist': {
+      const t = achar(doc, 'task', args.tarefa)
+      const cl = (t.checklists ?? []).find((c: Obj) => c.id === args.checklist)
+      if (!cl) throw new ErroFerramenta(`Checklist "${args.checklist}" não existe em ${formatarId('task', t.seq)}.`)
+      const novo = comTarefa(doc, t.id, x => ({ ...x, checklists: x.checklists.filter((c: Obj) => c.id !== cl.id) }), agora)
+      return ok(`Checklist "${cl.title}" removido de ${formatarId('task', t.seq)} (${(cl.items ?? []).length} itens).`, novo)
+    }
+
+    case 'criar_projeto': {
+      const nomeP = String(args.nome ?? '').trim()
+      if (!nomeP) throw new ErroFerramenta('O nome não pode ficar vazio.')
+      const cor = /^#[0-9a-f]{6}$/i.test(String(args.cor ?? '')) ? String(args.cor) : '#6366F1'
+      // Mesmo workspace dos projetos existentes (o mais usado), como faria o app aberto nele.
+      const contagem = new Map<string, number>()
+      doc.projects.forEach(pr => contagem.set(pr.workspaceId ?? 'default', (contagem.get(pr.workspaceId ?? 'default') ?? 0) + 1))
+      const workspaceId = [...contagem.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'default'
+      const pr = {
+        id: novoId(), name: nomeP, color: cor, description: String(args.descricao ?? ''), workspaceId,
+        spaceId: null, folderId: null, gut: { g: 1, u: 1, t: 1, score: 1 }, archived: false, columns: [],
+        activeView: 'list', taskOpenMode: 'center', customViews: [], createdAt: agora, updatedAt: agora,
+      }
+      const novo = numerarDoc({ ...doc, projects: [...doc.projects, pr] })
+      const criado = novo.projects.find(x => x.id === pr.id)!
+      return { texto: `Criado ${formatarId('project', criado.seq)} ${criado.name}.`, alterou: true, doc: novo }
+    }
+
+    case 'excluir_tarefa': {
+      const t = achar(doc, 'task', args.tarefa)
+      const ramo = galho(doc, t.id)
+      const ids = new Set(ramo.map(x => x.id))
+      const novo = { ...doc, tasks: doc.tasks.filter(x => !ids.has(x.id)), excluidos: marcarExcluidos(doc, [...ids], Date.parse(agora)) }
+      const entrada: EntradaLixeira = { id: t.id, tipo: 'task', seq: t.seq, titulo: t.title, excluidoEm: agora, tarefas: ramo }
+      return { texto: `${formatarId('task', t.seq)} ${t.title} foi para a lixeira${ramo.length > 1 ? ` com ${ramo.length - 1} subtarefa(s)` : ''}. Para desfazer: restaurar ${formatarId('task', t.seq)}.`,
+        alterou: true, doc: novo, lixeira: { entrar: [entrada] } }
+    }
+
+    case 'excluir_projeto': {
+      const pr = achar(doc, 'project', args.projeto)
+      if (pr.id === INBOX_PROJECT_ID) throw new ErroFerramenta('A caixa de entrada não pode ser excluída.')
+      const tarefas = doc.tasks.filter(x => x.projectId === pr.id)
+      const idsTarefas = new Set(tarefas.map(x => x.id))
+      const novo = { ...doc, projects: doc.projects.filter(x => x.id !== pr.id), tasks: doc.tasks.filter(x => !idsTarefas.has(x.id)),
+        excluidos: marcarExcluidos(doc, [pr.id, ...idsTarefas], Date.parse(agora)) }
+      const entrada: EntradaLixeira = { id: pr.id, tipo: 'project', seq: pr.seq, titulo: pr.name, excluidoEm: agora, projeto: pr, tarefas }
+      return { texto: `${formatarId('project', pr.seq)} ${pr.name} foi para a lixeira com ${tarefas.length} tarefa(s). Para desfazer: restaurar ${formatarId('project', pr.seq)}.`,
+        alterou: true, doc: novo, lixeira: { entrar: [entrada] } }
+    }
+
+    case 'listar_lixeira': {
+      const itens = [...(ctx.lixeira ?? [])].sort((a, b) => (a.excluidoEm < b.excluidoEm ? 1 : -1))
+      return ok(itens.length
+        ? itens.map(e => `- ${formatarId(e.tipo, e.seq)} ${e.titulo} · excluído em ${dia(e.excluidoEm)}${e.tipo === 'project' ? ` · ${e.tarefas.length} tarefa(s)` : e.tarefas.length > 1 ? ` · ${e.tarefas.length - 1} subtarefa(s)` : ''}`).join('\n')
+        : 'A lixeira está vazia.')
+    }
+
+    case 'restaurar': {
+      const id = lerIdCurto(String(args.id ?? ''))
+      if (!id) throw new ErroFerramenta('Informe o T-… ou P-… do item excluído.')
+      const e = (ctx.lixeira ?? []).find(x => x.tipo === id.tipo && x.seq === id.seq)
+      if (!e) throw new ErroFerramenta(`${formatarId(id.tipo, id.seq)} não está na lixeira (veja listar_lixeira).`)
+      // Volta com updatedAt novo: é o que faz os aparelhos aceitarem o item apesar do registro
+      // de exclusão (a mescla só deixa passar item mais novo que a exclusão).
+      const vivo = (x: Obj): Obj => ({ ...x, updatedAt: agora })
+      const existentes = new Set(doc.tasks.map(x => x.id))
+      let tarefas = e.tarefas.filter(x => !existentes.has(x.id)).map(vivo)
+      let projects = doc.projects
+      let aviso = ''
+      if (e.tipo === 'project' && e.projeto && !doc.projects.some(x => x.id === e.projeto!.id)) {
+        projects = [...doc.projects, vivo(e.projeto)]
+      } else if (e.tipo === 'task') {
+        const raiz = tarefas.find(x => x.id === e.id)
+        if (raiz && raiz.projectId !== INBOX_PROJECT_ID && !doc.projects.some(x => x.id === raiz.projectId)) {
+          tarefas = tarefas.map(x => ({ ...x, projectId: INBOX_PROJECT_ID }))
+          aviso = ' O projeto dela não existe mais: voltou para a caixa de entrada.'
+        }
+        if (raiz?.parentId && !existentes.has(raiz.parentId)) {
+          tarefas = tarefas.map(x => (x.id === raiz.id ? { ...x, parentId: null } : x))
+          aviso += ' A tarefa-mãe não existe mais: voltou como tarefa principal.'
+        }
+      }
+      const ids = new Set([e.id, ...tarefas.map(x => x.id)])
+      const excluidos = Object.fromEntries(Object.entries(doc.excluidos ?? {}).filter(([k]) => !ids.has(k)))
+      const novo = { ...doc, projects, tasks: [...doc.tasks, ...tarefas], excluidos }
+      return { texto: `${formatarId(e.tipo, e.seq)} ${e.titulo} restaurado${e.tipo === 'project' || tarefas.length > 1 ? ` (${tarefas.length} tarefa(s))` : ''}.${aviso}`,
+        alterou: true, doc: novo, lixeira: { sair: [e.id] } }
     }
 
     default:

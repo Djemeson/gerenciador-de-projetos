@@ -78,7 +78,58 @@ describe('conector do Claude — ferramentas', () => {
     expect(() => executar('marcar_itens', { tarefa: 'T-1', itens: ['nada'] }, docBase(), AGORA)).toThrow(/não encontrados/)
   })
 
-  it('não existe ferramenta de exclusão', () => {
-    expect(() => executar('excluir_tarefa', { tarefa: 'T-1' }, docBase(), AGORA)).toThrow(/desconhecida/)
+  it('excluir tarefa leva as subtarefas para a lixeira, registra a exclusão e restaurar desfaz', () => {
+    const d = docBase()
+    d.tasks.push(tarefa('s1', 2, { parentId: 'a' }), tarefa('neta', 3, { parentId: 's1' }), tarefa('outra', 4))
+    d.seqCounters = { task: 4, project: 1 }
+    const ex = executar('excluir_tarefa', { tarefa: 'T-1' }, d, AGORA)
+    expect(ex.doc.tasks.map(t => t.id)).toEqual(['outra'])
+    expect(Object.keys(ex.doc.excluidos!).sort()).toEqual(['a', 'neta', 's1'])
+    const entrada = ex.lixeira!.entrar![0]
+    expect(entrada).toMatchObject({ id: 'a', tipo: 'task', seq: 1 })
+    expect(entrada.tarefas).toHaveLength(3)
+
+    const DEPOIS = '2026-09-30T13:00:00.000Z'
+    const r = executar('restaurar', { id: 'T-1' }, ex.doc, DEPOIS, { lixeira: [entrada] })
+    expect(r.doc.tasks.map(t => t.id).sort()).toEqual(['a', 'neta', 'outra', 's1'])
+    // Volta mais nova que a exclusão, senão os aparelhos a derrubariam de novo.
+    expect(r.doc.tasks.find(t => t.id === 'a')!.updatedAt).toBe(DEPOIS)
+    expect(r.doc.excluidos).toEqual({})
+    expect(r.lixeira).toEqual({ sair: ['a'] })
+    expect(r.doc.tasks.find(t => t.id === 'a')!.seq).toBe(1)   // o ID volta o mesmo
+  })
+
+  it('excluir projeto leva as tarefas; a caixa de entrada não pode', () => {
+    const d = docBase()
+    const ex = executar('excluir_projeto', { projeto: 'P-1' }, d, AGORA)
+    expect(ex.doc.projects).toHaveLength(0)
+    expect(ex.doc.tasks).toHaveLength(0)
+    expect(ex.lixeira!.entrar![0]).toMatchObject({ tipo: 'project', seq: 1, titulo: 'Site' })
+    const comInbox = { ...docBase(), projects: [{ id: '__inbox__', seq: 2, name: 'Inbox', createdAt: T0 }] }
+    expect(() => executar('excluir_projeto', { projeto: 'P-2' }, comInbox, AGORA)).toThrow(/caixa de entrada/)
+  })
+
+  it('mover tarefa leva as subtarefas de projeto e não deixa pendurar dentro de si mesma', () => {
+    const d = docBase()
+    d.projects.push({ id: 'p2', seq: 2, name: 'Outro', workspaceId: 'default', createdAt: T0 })
+    d.tasks.push(tarefa('s1', 2, { parentId: 'a' }))
+    const m = executar('mover_tarefa', { tarefa: 'T-1', projeto: 'P-2' }, d, AGORA)
+    expect(m.doc.tasks.every(t => t.projectId === 'p2')).toBe(true)
+    expect(m.doc.tasks.find(t => t.id === 's1')!.parentId).toBe('a')
+    expect(() => executar('mover_tarefa', { tarefa: 'T-1', pai: 'T-2' }, d, AGORA)).toThrow(/dentro dela mesma/)
+  })
+
+  it('substituir descrição não apaga imagem; acrescentar sempre pode', () => {
+    const d = docBase()
+    d.tasks[0].blocks = [{ id: 'b', type: 'text', text: 'antes <img src="x">' }]
+    expect(() => executar('editar_descricao', { tarefa: 'T-1', texto: 'novo', modo: 'substituir' }, d, AGORA)).toThrow(/imagem/)
+    const r = executar('editar_descricao', { tarefa: 'T-1', texto: 'mais' }, d, AGORA)
+    expect(r.doc.tasks[0].blocks).toHaveLength(2)
+  })
+
+  it('criar projeto recebe o próximo P- e fica no workspace mais usado', () => {
+    const r = executar('criar_projeto', { nome: 'Novo' }, docBase(), AGORA)
+    expect(r.texto).toContain('P-2 Novo')
+    expect(r.doc.projects[1]).toMatchObject({ workspaceId: 'default', spaceId: null, archived: false })
   })
 })
