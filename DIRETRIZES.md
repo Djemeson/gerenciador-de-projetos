@@ -884,7 +884,14 @@ de hoje continua menor que "agora" às 11h. Atraso é medido contra o **começo 
 
 - **Publicar é nos dois lugares: GitHub e Firebase** (30/09/2026 — o app saiu da Vercel):
   entrega aprovada vira commit + `git push origin main` **e**
-  `firebase deploy --only hosting,functions` (domínio `gerenciador-de-projetos-e8be5.web.app`).
+  `firebase deploy --only hosting,functions` (projeto `gerenciador-projetos-djeme`, domínio
+  `gerenciador-projetos-djeme.web.app`; no Windows, com `FUNCTIONS_DISCOVERY_TIMEOUT=60`).
+  **Projeto novo desde 30/09/2026**, tudo em `us-central1` (Firestore, funções e, quando
+  existir, o Cloud Storage — região da cota gratuita). O projeto antigo
+  (`gerenciador-de-projetos-e8be5`, Firestore em São Paulo) foi copiado inteiro: a conta
+  Google com o mesmo uid (`auth:import`), `syncGroups/{uid}` e os anexos idênticos; os
+  documentos de logins anônimos e códigos `TF-` antigos ficaram em `arquivoProjetoAntigo/`
+  (só o servidor lê).
   Não há deploy automático por push: deixar de rodar o deploy significa produção
   desatualizada. Depois, **conferir no ar** — a página e, se mexeu em `functions/`, o
   `/api/mcp` respondendo.

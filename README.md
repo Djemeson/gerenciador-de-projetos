@@ -36,7 +36,8 @@ conta no celular e no PC sincroniza os dois automaticamente, sem código nenhum.
 
 ## Deploy
 
-Firebase, tudo no mesmo projeto (`.firebaserc`):
+Firebase, tudo no mesmo projeto (`.firebaserc` → `gerenciador-projetos-djeme`, região
+`us-central1`):
 
 - **Hosting** serve o app (`dist/`, gerado pelo `npm run build` com as variáveis
   `VITE_FIREBASE_*` do `.env` local) e encaminha `/api/*` para as funções.
@@ -44,8 +45,10 @@ Firebase, tudo no mesmo projeto (`.firebaserc`):
   pessoal. Usam a identidade de serviço do próprio projeto — nenhuma credencial para guardar.
 
 ```
-firebase deploy --only hosting,functions
+FUNCTIONS_DISCOVERY_TIMEOUT=60 firebase deploy --only hosting,functions
 ```
+
+(O tempo maior evita a falha "User code failed to load" quando a pasta está no OneDrive.)
 
 O build das duas partes roda sozinho antes do envio (`predeploy` no `firebase.json`).
 
