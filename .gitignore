@@ -27,3 +27,7 @@ npm-debug.log*
 
 # Vitest
 coverage/
+
+# Firebase CLI
+firebase-debug.log
+firestore-debug.log

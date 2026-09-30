@@ -14,10 +14,11 @@ Se uma decisão precisar mudar, **atualize `DIRETRIZES.md` na mesma entrega**.
 
 ## Lembretes rápidos
 
-- **Publicar é sempre nos dois** (regra desde 29/07/2026, substitui o "push manual"):
-  o que vai para o GitHub vai para a Vercel e vice-versa. Na prática é um movimento só —
-  a Vercel faz deploy de produção a cada push na `main` —, então **nunca deixar um commit
-  parado no local** depois de uma entrega aprovada, e conferir o deploy depois do push.
+- **Publicar é sempre nos dois: GitHub e Firebase** (desde 30/09/2026 o app mora no
+  Firebase — Hosting + Cloud Functions —, não mais na Vercel). Toda entrega aprovada vira
+  commit + push **e** `firebase deploy --only hosting,functions`; depois, conferir no ar em
+  `gerenciador-de-projetos-e8be5.web.app`. O modo automático barra o `firebase deploy`:
+  avisar no começo que a publicação precisa do modo manual.
 - Interface sempre em **português (Brasil)**.
 - A verificação local de build pode falhar por atraso de sincronização do OneDrive;
   quando ocorrer, confirmar integridade relendo os arquivos e validar no build do

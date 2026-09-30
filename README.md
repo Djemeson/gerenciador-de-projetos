@@ -26,8 +26,8 @@ Outros comandos: `npm run lint` (checagem de tipos) · `npm run build` · `npm s
 Feito uma vez no [Console do Firebase](https://console.firebase.google.com):
 
 1. **Authentication → Sign-in method → Google**: habilitar.
-2. **Authentication → Settings → Authorized domains**: incluir `localhost` e o domínio da
-   Vercel (ex.: `meu-app.vercel.app`, além de qualquer domínio próprio).
+2. **Authentication → Settings → Authorized domains**: `localhost` e os domínios do
+   Firebase Hosting (`<projeto>.web.app` e `<projeto>.firebaseapp.com` já vêm incluídos).
 3. **Firestore → Rules**: publicar as regras de [firestore.rules](firestore.rules)
    (`firebase deploy --only firestore:rules`).
 
@@ -36,9 +36,18 @@ conta no celular e no PC sincroniza os dois automaticamente, sem código nenhum.
 
 ## Deploy
 
-Vercel. As variáveis `VITE_FIREBASE_*` precisam estar configuradas no projeto da Vercel
-(Settings → Environment Variables) e o domínio gerado precisa estar nos *Authorized
-domains* do Firebase — senão o login com Google falha com "domínio não autorizado".
+Firebase, tudo no mesmo projeto (`.firebaserc`):
+
+- **Hosting** serve o app (`dist/`, gerado pelo `npm run build` com as variáveis
+  `VITE_FIREBASE_*` do `.env` local) e encaminha `/api/*` para as funções.
+- **Cloud Functions** (`functions/`, região `us-central1`): o conector do Claude e a chave
+  pessoal. Usam a identidade de serviço do próprio projeto — nenhuma credencial para guardar.
+
+```
+firebase deploy --only hosting,functions
+```
+
+O build das duas partes roda sozinho antes do envio (`predeploy` no `firebase.json`).
 
 ## Trabalhar pelo Claude Code no celular
 

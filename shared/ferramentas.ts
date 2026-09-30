@@ -12,7 +12,7 @@
 // - `completedAt` só muda na transição de status, como em `updateTask`;
 // - nada é excluído: o conector cria, marca, comenta e muda status. Apagar é com o dono.
 
-import { numerar, formatarId, lerIdCurto, mesclarContadores, type Contadores } from './shortIds.js'
+import { numerar, formatarId, lerIdCurto, mesclarContadores, type Contadores } from './shortIds'
 
 export const AUTOR_CLAUDE = 'Claude'
 

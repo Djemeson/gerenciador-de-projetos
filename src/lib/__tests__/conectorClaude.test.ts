@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { executar, ErroFerramenta, AUTOR_CLAUDE, type DocConta } from '../../../api/_lib/ferramentas'
+import { executar, ErroFerramenta, AUTOR_CLAUDE, type DocConta } from '../../../shared/ferramentas'
 
 const T0 = '2026-09-01T10:00:00.000Z'
 const AGORA = '2026-09-30T12:00:00.000Z'

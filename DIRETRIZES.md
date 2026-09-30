@@ -882,12 +882,12 @@ de hoje continua menor que "agora" às 11h. Atraso é medido contra o **começo 
 
 ## 10. Fluxo de trabalho
 
-- **Publicar é nos dois lugares** (29/07/2026 — substitui a regra anterior de push manual):
-  entrega aprovada vira commit + `git push origin main`, e a Vercel faz o deploy de produção
-  sozinha a partir daí (integração Git, projeto `gerenciador-de-projetos`, domínio
-  `gerenciador-de-projetos-silk.vercel.app`). Não existe mais "subir só no GitHub" nem
-  "subir só na Vercel": deixar commit parado no local significa produção desatualizada.
-  Depois do push, **conferir o deploy** — build verde e a página no ar.
+- **Publicar é nos dois lugares: GitHub e Firebase** (30/09/2026 — o app saiu da Vercel):
+  entrega aprovada vira commit + `git push origin main` **e**
+  `firebase deploy --only hosting,functions` (domínio `gerenciador-de-projetos-e8be5.web.app`).
+  Não há deploy automático por push: deixar de rodar o deploy significa produção
+  desatualizada. Depois, **conferir no ar** — a página e, se mexeu em `functions/`, o
+  `/api/mcp` respondendo.
 - Mudança nova deve respeitar este documento. Se contrariar algo aqui, **alinhar antes**
   e, se a decisão mudar, **atualizar este arquivo** na mesma entrega.
 - Idioma da interface: **português (Brasil)**.
@@ -1446,7 +1446,8 @@ tarefa (corrige o bug do "trecho até dar Enter"). Não recriar um textarea/tipt
   `App.tsx`). Não é modo de produção — é o que permite abrir o projeto sem segredos.
 - **Configuração no Firebase Console** (fora do código, feita uma vez): Authentication →
   Sign-in method → **Google** habilitado; Authentication → Settings → **Authorized domains**
-  com `localhost` e o domínio da Vercel. Erro de login em produção quase sempre é um desses
+  com `localhost` e os domínios do Hosting (`.web.app`/`.firebaseapp.com`, incluídos por
+  padrão). Erro de login em produção quase sempre é um desses
   dois.
 - **Armazenamento**: Firestore, documento único `syncGroups/{uid}` com todo o
   estado do app (projetos, tarefas, espaços, pastas, automações, metas, colunas do inbox e
@@ -1520,14 +1521,9 @@ tarefa (corrige o bug do "trecho até dar Enter"). Não recriar um textarea/tipt
   `{blockId}__inline{n}`, então trocar a 1ª imagem por outra mantém o id e muda só o
   conteúdo — por isso as chaves de cache (envio e leitura) levam a **impressão do conteúdo**,
   senão o outro aparelho continuaria mostrando a imagem antiga.
-- **IA (`/api/insights`)**: lógica compartilhada em `api/_lib/insights.ts`, usada tanto pelo
-  `server.ts` (dev local, Express) quanto por `api/insights.ts` (função serverless da Vercel
-  em produção) — não duplicar essa lógica entre os dois.
-  > ⚠️ **Auditoria de 30/07/2026**: nenhum arquivo em `src/` chama esse endpoint — os
-  > recursos de IA usam as chaves do navegador. Ele está público (sem checagem de
-  > autenticação) e sem uso. Enquanto não for removido ou protegido, **não** colocar
-  > `GEMINI_API_KEY` nas variáveis de ambiente da Vercel: qualquer pessoa na internet pode
-  > invocá-lo e a conta é sua.
+- **IA**: todos os recursos usam as chaves do navegador (Configurações). O antigo
+  `/api/insights` (público, sem autenticação e sem nenhum uso em `src/`) foi **removido** na
+  migração para o Firebase, em 30/09/2026.
 
 ---
 
@@ -1679,7 +1675,7 @@ Claude no celular), onde a sessão roda numa VM da Anthropic com o repo clonado 
 - **`.env` não vai para o repositório** (e nem deve): sem as variáveis do Firebase, a sessão
   na nuvem builda e roda o app em **modo local sem login** (seção 15). Dá para editar código,
   rodar `npm run lint` e `npm run build`; não dá para testar login/sincronização de verdade —
-  isso se valida no PC ou no deploy da Vercel.
+  isso se valida no PC ou no ar, no Firebase Hosting.
 - **Nunca colocar `GEMINI_API_KEY`/`OPENAI_API_KEY` nas variáveis do ambiente de nuvem**: elas
   ficam legíveis para quem usa o ambiente e não têm cofre de segredos.
 - **O que vale a pena rodar na sessão da nuvem**: `npm run lint` (typecheck) e `npm run build`.
@@ -1709,12 +1705,16 @@ Claude no celular), onde a sessão roda numa VM da Anthropic com o repo clonado 
   tarefa e título do projeto; clique copia. A busca do `TaskPanel` aceita "T-142"/"t142".
   A linha da lista **não** mostra o ID (densidade, seção 8.1).
 
-### 17.2. Conector do Claude (MCP na Vercel)
+### 17.2. Conector do Claude (MCP no Cloud Functions)
 
-- `api/mcp` (chave no cabeçalho `Authorization: Bearer gpc_…`, usado pelo Claude Code) e
-  `api/mcp/[chave]` (chave no caminho, para o conector personalizado do claude.ai/Cowork,
+- Onde mora cada coisa: `shared/` (código puro usado pelo app **e** pelo servidor —
+  `shortIds.ts`, `ferramentas.ts`), `functions/` (Cloud Functions 2ª geração, `us-central1`:
+  `mcp` e `claudeChave`, empacotadas com esbuild) e o Hosting encaminhando `/api/mcp`,
+  `/api/mcp/**` e `/api/claude-chave` para elas (`firebase.json`).
+- `/api/mcp` (chave no cabeçalho `Authorization: Bearer gpc_…`, usado pelo Claude Code) e
+  `/api/mcp/<chave>` (chave no caminho, para o conector personalizado do claude.ai/Cowork,
   que só aceita URL). Protocolo MCP sem sessão, só POST.
-- Ações em `api/_lib/ferramentas.ts` (puras e testadas): listar projetos/tarefas, buscar,
+- Ações em `shared/ferramentas.ts` (puras e testadas): listar projetos/tarefas, buscar,
   ver tarefa, criar tarefa/subtarefas/checklist, adicionar e marcar itens, atualizar
   status/título/prioridade/prazo, comentar e relatório por período. **Não existe exclusão.**
 - Escrita: transação sobre `syncGroups/{uid}`, `update` só em `tasks`, `projects`,
@@ -1723,12 +1723,12 @@ Claude no celular), onde a sessão roda numa VM da Anthropic com o repo clonado 
   transição de status e a tarefa-mãe concluída/reaberta pelas subtarefas.
 - Comentário do Claude tem `author: 'Claude'`; pausa registra "Ponto de parada: …".
   `ChecklistItem.doneAt` (app e conector) é o que põe item marcado no relatório.
-- Chave pessoal: gerada em **Configurações → Integração com o Claude** (`api/claude-chave`,
+- Chave pessoal: gerada em **Configurações → Integração com o Claude** (`/api/claude-chave`,
   que confere o login do Google). Mostrada uma vez; o servidor guarda só o hash em
   `claudeTokens/{sha256}`. Uma chave por conta: gerar outra revoga a anterior.
-- Variável na Vercel: `FIREBASE_SERVICE_ACCOUNT` (JSON da conta de serviço do Firebase).
-- **Imports em `api/`** terminam em `.js` (`./_lib/conector.js`): o pacote é ESM e a Vercel
-  não resolve import sem extensão — foi o que derrubou `api/insights` (que o app não usa).
+- **Sem credencial guardada**: a função usa a identidade de serviço que o Google dá a ela
+  no próprio projeto. (Na Vercel isso exigia colar o JSON de uma conta de serviço — foi um
+  dos motivos da migração.) Teto de 5 instâncias, para uma chave vazada não virar conta alta.
 - Risco conhecido: se o app estiver aberto e subir um push com estado anterior no mesmo
   instante em que o Claude grava, a edição do Claude pode ser sobrescrita. Janela de
   segundos; a transação protege o lado do servidor, não o push do navegador.

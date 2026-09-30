@@ -6,17 +6,19 @@
 //   e guardada aqui só como hash, em `claudeTokens/{sha256}` → { uid }. As regras do
 //   Firestore não liberam essa coleção para o navegador; só este servidor (Admin SDK) a vê.
 // - Cada chamada de ferramenta lê o documento da conta (`syncGroups/{uid}`, o mesmo que o
-//   app sincroniza), aplica a ação (api/_lib/ferramentas.ts) e grava numa transação —
+//   app sincroniza), aplica a ação (shared/ferramentas.ts) e grava numa transação —
 //   se o app gravar no meio, a transação refaz a leitura em vez de atropelar.
 // - A gravação usa `update` só nos campos que o conector toca (tarefas, projetos,
 //   contadores, carimbo do documento). Configurações e chaves de IA ficam intocadas.
 //
-// Variável de ambiente exigida na Vercel: FIREBASE_SERVICE_ACCOUNT (o JSON da conta de
-// serviço do Firebase, puro ou em base64).
+// Roda no Cloud Functions do próprio projeto Firebase: o Admin SDK usa a identidade de
+// serviço que o Google já dá à função — não há credencial para gerar, guardar ou colar.
 
 import { createHash, randomBytes } from 'node:crypto'
-import type { Firestore } from 'firebase-admin/firestore'
-import { DEFINICOES, executar, ErroFerramenta, type DocConta } from './ferramentas.js'
+import { initializeApp, getApps } from 'firebase-admin/app'
+import { getFirestore, type Firestore } from 'firebase-admin/firestore'
+import { getAuth } from 'firebase-admin/auth'
+import { DEFINICOES, executar, ErroFerramenta, type DocConta } from '../../shared/ferramentas'
 
 const COLECAO_CHAVES = 'claudeTokens'
 const PREFIXO_CHAVE = 'gpc_'
@@ -27,41 +29,11 @@ export class ErroHttp extends Error {
   constructor(public status: number, message: string) { super(message) }
 }
 
-// O Admin SDK é carregado sob demanda: se ele falhar ao carregar (versão do Node, pacote
-// faltando), a função responde com a causa em vez de cair inteira com um erro genérico.
-let admin: {
-  app: typeof import('firebase-admin/app')
-  firestore: typeof import('firebase-admin/firestore')
-  auth: typeof import('firebase-admin/auth')
-} | null = null
-async function carregarAdmin() {
-  if (admin) return admin
-  try {
-    const [app, firestore, auth] = await Promise.all([
-      import('firebase-admin/app'), import('firebase-admin/firestore'), import('firebase-admin/auth'),
-    ])
-    admin = { app, firestore, auth }
-    return admin
-  } catch (e: any) {
-    throw new ErroHttp(503, `Falha ao carregar o Firebase Admin: ${e?.message ?? e}`)
-  }
-}
-
 let dbCache: Firestore | null = null
-async function db(): Promise<Firestore> {
+function db(): Firestore {
   if (dbCache) return dbCache
-  const { app, firestore } = await carregarAdmin()
-  const bruto = process.env.FIREBASE_SERVICE_ACCOUNT
-  if (!bruto) throw new ErroHttp(503, 'Integração não configurada: falta FIREBASE_SERVICE_ACCOUNT na Vercel.')
-  let credencial: Record<string, string>
-  try {
-    const texto = bruto.trim().startsWith('{') ? bruto : Buffer.from(bruto, 'base64').toString('utf8')
-    credencial = JSON.parse(texto)
-  } catch {
-    throw new ErroHttp(503, 'FIREBASE_SERVICE_ACCOUNT não é um JSON válido.')
-  }
-  if (!app.getApps().length) app.initializeApp({ credential: app.cert(credencial as any) })
-  dbCache = firestore.getFirestore()
+  if (!getApps().length) initializeApp()
+  dbCache = getFirestore()
   // Campos opcionais das tarefas podem vir `undefined`; o app grava com a mesma opção.
   dbCache.settings({ ignoreUndefinedProperties: true })
   return dbCache
@@ -74,16 +46,16 @@ const hash = (chave: string) => createHash('sha256').update(chave).digest('hex')
 export async function uidDoLogin(authorization: string | undefined): Promise<string> {
   const token = /^Bearer\s+(.+)$/i.exec(authorization ?? '')?.[1]
   if (!token) throw new ErroHttp(401, 'Faça login no app.')
-  await db()   // inicializa o Admin SDK
+  db()   // inicializa o Admin SDK
   try {
-    return (await admin!.auth.getAuth().verifyIdToken(token)).uid
+    return (await getAuth().verifyIdToken(token)).uid
   } catch {
     throw new ErroHttp(401, 'Login expirado. Recarregue o app.')
   }
 }
 
 export async function statusDaChave(uid: string) {
-  const snap = await (await db()).collection(COLECAO_CHAVES).where('uid', '==', uid).get()
+  const snap = await db().collection(COLECAO_CHAVES).where('uid', '==', uid).get()
   const d = snap.docs[0]?.data()
   return d ? { ativa: true, criadaEm: d.createdAt as string, final: d.final as string, usadaEm: (d.lastUsedAt as string) ?? null } : { ativa: false }
 }
@@ -91,7 +63,7 @@ export async function statusDaChave(uid: string) {
 /** Gera uma chave nova e revoga as anteriores (só existe uma por conta). */
 export async function gerarChave(uid: string) {
   const chave = PREFIXO_CHAVE + randomBytes(32).toString('base64url')
-  const banco = await db()
+  const banco = db()
   const col = banco.collection(COLECAO_CHAVES)
   const antigas = await col.where('uid', '==', uid).get()
   const lote = banco.batch()
@@ -102,7 +74,7 @@ export async function gerarChave(uid: string) {
 }
 
 export async function revogarChave(uid: string) {
-  const banco = await db()
+  const banco = db()
   const antigas = await banco.collection(COLECAO_CHAVES).where('uid', '==', uid).get()
   const lote = banco.batch()
   antigas.docs.forEach(d => lote.delete(d.ref))
@@ -111,7 +83,7 @@ export async function revogarChave(uid: string) {
 
 async function uidDaChave(chave: string | undefined): Promise<string> {
   if (!chave || !chave.startsWith(PREFIXO_CHAVE)) throw new ErroHttp(401, 'Chave ausente ou inválida. Gere uma em Configurações → Integração com o Claude.')
-  const ref = (await db()).collection(COLECAO_CHAVES).doc(hash(chave))
+  const ref = db().collection(COLECAO_CHAVES).doc(hash(chave))
   const snap = await ref.get()
   if (!snap.exists) throw new ErroHttp(401, 'Chave revogada ou inválida. Gere uma nova no app.')
   ref.update({ lastUsedAt: new Date().toISOString() }).catch(() => {})
@@ -120,7 +92,7 @@ async function uidDaChave(chave: string | undefined): Promise<string> {
 
 // ── Ferramentas sobre o documento da conta ──────────────────────────────────
 async function chamarFerramenta(uid: string, nome: string, args: Record<string, unknown>) {
-  const banco = await db()
+  const banco = db()
   const ref = banco.collection('syncGroups').doc(uid)
   return banco.runTransaction(async tx => {
     const snap = await tx.get(ref)
