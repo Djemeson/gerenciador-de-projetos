@@ -1,0 +1,16 @@
+{
+  // Configuração própria das funções da Vercel. Sem ela, o @vercel/node usava o
+  // tsconfig da raiz (feito para o Vite: noEmit, moduleResolution "bundler",
+  // allowImportingTsExtensions) e toda função de api/ caía ao carregar
+  // (FUNCTION_INVOCATION_FAILED). Ver DIRETRIZES, seção 17.2.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true
+  },
+  "include": ["./**/*.ts"]
+}
