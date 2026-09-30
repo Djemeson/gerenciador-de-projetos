@@ -35,6 +35,14 @@ export function TaskList({ tasks, projectId, scopeKey, columns=[], showProject=f
   const [selectedIds,  setSelectedIds]  = useState<string[]>([])
   const [lastSelected, setLastSelected] = useState<string|null>(null)
   const [dragTaskId,   setDragTaskId]   = useState<string|null>(null)
+  // Arraste solto fora de qualquer alvo (ou cancelado com Esc) não dispara `drop`: sem isto
+  // o estado de arraste ficava preso e os grupos vazios não voltavam a se esconder.
+  useEffect(() => {
+    if (!dragTaskId) return
+    const fim = () => { setDragTaskId(null); setDragOverGroup(null) }
+    window.addEventListener('dragend', fim)
+    return () => window.removeEventListener('dragend', fim)
+  }, [dragTaskId])
   const [dragOverGroup,setDragOverGroup]= useState<string|null>(null)
   const [focusId,      setFocusId]      = useState<string|null>(null)
 

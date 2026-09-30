@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import {
-  Check, ChevronRight, ChevronDown, GitBranch, Trash2, Search,
+  Check, ChevronRight, ChevronDown, GitBranch, Trash2, Search, GripVertical,
 } from 'lucide-react'
 import type { Task, Project, Priority, TaskStatus, TaskType, ListColumn } from '../../types'
 import { PRIORITY_LABEL, PRIORITY_COLOR, PRIORITY_TEXT_COLOR, priorityTint, TASK_TYPE_META } from '../../types'
@@ -175,23 +175,13 @@ export function TaskRow({ task, project, showProject=false, depth=0, orderedColu
   return (
     <>
       <div
-        draggable={!!onDragStartTask && depth===0}
-        onDragStart={e => {
-          if (!onDragStartTask) return
-          onDragStartTask(task.id)
-          e.dataTransfer.effectAllowed = 'move'
-          // Publica o id num tipo próprio para a **sidebar** poder aceitar o arraste e mover
-          // a tarefa de projeto. O estado interno de reordenação não atravessa componentes;
-          // o `dataTransfer` é o canal que o navegador já oferece para isso.
-          e.dataTransfer.setData(TIPO_ARRASTE_TAREFA, task.id)
-        }}
         onDragOver={e => { if (onDropTask && dragTaskId && dragTaskId!==task.id) { e.preventDefault(); if (!dropOver) setDropOver(true) } }}
         onDragLeave={() => setDropOver(false)}
         onDrop={e => { if (onDropTask) { e.preventDefault(); e.stopPropagation(); onDropTask(task.id) } setDropOver(false) }}
         onDragEnd={() => setDropOver(false)}
         onMouseDown={handleMouseDown}
         onClick={handleClick}
-        className={`flex items-center border-b border-gray-100 transition-colors group cursor-pointer pr-3 md:pr-6
+        className={`relative flex items-center border-b border-gray-100 transition-colors group cursor-pointer pr-3 md:pr-6
           min-h-[44px] md:min-h-[36px]
           ${dragTaskId===task.id ? 'opacity-40' : ''}
           ${dropOver ? 'border-t-2 border-t-brand-400' : ''}
@@ -201,6 +191,31 @@ export function TaskRow({ task, project, showProject=false, depth=0, orderedColu
             isDone    ? 'bg-gray-50/40 hover:bg-gray-50' : 'hover:bg-gray-50'}`}
         style={{ paddingLeft:`${12+indent}px` }}
       >
+        {/* Alça de arraste: só ela é arrastável, então clicar na linha nunca inicia arraste */}
+        {!!onDragStartTask && depth===0 && (
+          <span
+            draggable
+            title="Arrastar tarefa"
+            onClick={e=>e.stopPropagation()}
+            onMouseDown={e=>e.stopPropagation()}
+            onDragStart={e => {
+              e.stopPropagation()
+              e.dataTransfer.effectAllowed = 'move'
+              // Publica o id num tipo próprio para a **sidebar** poder aceitar o arraste e mover
+              // a tarefa de projeto. O estado interno de reordenação não atravessa componentes;
+              // o `dataTransfer` é o canal que o navegador já oferece para isso.
+              e.dataTransfer.setData(TIPO_ARRASTE_TAREFA, task.id)
+              const row = e.currentTarget.parentElement
+              if (row) e.dataTransfer.setDragImage(row, 16, 16)
+              // Adiar: mostrar grupos vazios no mesmo instante muda o layout e o navegador cancela o arraste.
+              setTimeout(() => onDragStartTask(task.id), 0)
+            }}
+            onDragEnd={() => setDropOver(false)}
+            className="absolute left-0 top-1/2 -translate-y-1/2 w-3.5 h-6 flex items-center justify-center text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 md:transition-opacity">
+            <GripVertical size={12}/>
+          </span>
+        )}
+
         {/* Expand */}
         <button onClick={e=>{e.stopPropagation();setExpanded(v=>!v)}}
           className={`w-4 h-4 flex items-center justify-center flex-shrink-0 mr-1 ${hasChildren?'text-gray-400 hover:text-gray-600':'text-transparent pointer-events-none'}`}>

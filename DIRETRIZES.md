@@ -1018,6 +1018,7 @@ de hoje continua menor que "agora" às 11h. Atraso é medido contra o **começo 
   Responsável muda o `assignee`. Agrupado por Prazo não transfere nada (é só ordenação).
   Lógica central em `TaskList.tsx` (`groupField`/`applyGroupTransfer`). Só tarefas-raiz
   (depth 0) arrastam.
+- **A linha não é mais arrastável; só a alça** (`GripVertical`, à esquerda, aparece no hover). Assim clicar na linha nunca inicia arraste. O estado de arraste é ligado com `setTimeout` (mostrar grupos vazios no mesmo instante muda o layout e o navegador cancela o arraste) e limpo por `dragend` na janela.
 - Também é possível soltar **na área vazia do grupo** (não só em cima de outra tarefa) —
   útil para grupos com poucas tarefas; `onDrop` no container do grupo chama
   `handleDropOnGroup`. **Nenhum grupo vazio aparece** (Status, Prioridade, Projeto,
