@@ -5,6 +5,7 @@ import { useAppStore } from '../stores/useAppStore'
 import { useAuthStore } from '../stores/useAuthStore'
 import { RefreshCw, Check, AlertCircle, Wifi, LogOut, Sparkles, Eye, EyeOff, User as UserIcon, Smartphone, Settings } from 'lucide-react'
 import { InstallAppCard } from './InstallAppCard'
+import { ClaudeIntegracaoCard } from './ClaudeIntegracaoCard'
 
 export function SettingsModal() {
   const { settingsOpen, closeSettings, quickCaptureHotkey, updateSetting, openAIKey, geminiApiKey } = useSettingsStore()
@@ -39,7 +40,7 @@ export function SettingsModal() {
   return (
     <Modal open={settingsOpen} onClose={closeSettings} title="Configurações"
       icon={Settings}
-      subtitle="Aplicativo, atalhos, IA e a conta que sincroniza tudo.">
+      subtitle="Aplicativo, atalhos, IA, integração com o Claude e a conta que sincroniza tudo.">
       <div className="space-y-6">
 
         {/* Aplicativo */}
@@ -152,6 +153,8 @@ export function SettingsModal() {
             </div>
           )}
         </div>
+
+        <ClaudeIntegracaoCard />
 
         {/* Conta e sincronização */}
         <div>

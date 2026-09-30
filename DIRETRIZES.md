@@ -1684,6 +1684,55 @@ Claude no celular), onde a sessão roda numa VM da Anthropic com o repo clonado 
   ficam legíveis para quem usa o ambiente e não têm cofre de segredos.
 - **O que vale a pena rodar na sessão da nuvem**: `npm run lint` (typecheck) e `npm run build`.
 
+
+## 17. IDs curtos e integração com o Claude (30/09/2026)
+
+### 17.1. IDs curtos — T-142 / P-12
+
+- **T** = tarefa (subtarefa também é T), **P** = projeto. Campo `seq?: number` em `Task` e
+  `Project`; formatação e leitura em `api/_lib/shortIds.ts` (reexportado por `src/lib/shortIds.ts`).
+- **Um contador por conta, não por projeto**: mover a tarefa de projeto não muda o ID (é por
+  isso que não usamos o formato do Jira, `SITE-12`).
+- **Nunca muda, nunca se repete.** O contador (`seqCounters`, sincronizado no documento da
+  conta e em `tf_seq_counters`) só anda para a frente; número de item excluído não volta.
+- **Numeração num lugar só**: `garantirNumeros()` no fim de `useAppStore.ts`, via `subscribe`,
+  depois de qualquer mudança em `tasks`/`projects`. Nenhuma ação de criação numera por conta
+  própria — caminho de criação novo já nasce coberto.
+- **Determinística**: sem número recebe em ordem de `createdAt` (desempate pelo `id`); número
+  repetido fica com o item mais antigo. Dois aparelhos (ou o servidor) numerando a mesma lista
+  chegam aos mesmos números. Numerar **não** mexe em `updatedAt` nem marca o item como
+  pendência local (marcar protegeria da exclusão feita noutro aparelho).
+- **Aparelho com versão antiga** descarta o `seq` na migração: `restaurarNumeros()` em
+  `applyRemoteSnapshot` devolve o número conhecido localmente.
+- Cópias (`duplicate*`, `addTask`) zeram `seq` — o número é do item, não do conteúdo.
+- Tela: componente **`IdCurto`** (`components/ui/IdCurto.tsx`), fonte única — cabeçalho da
+  tarefa e título do projeto; clique copia. A busca do `TaskPanel` aceita "T-142"/"t142".
+  A linha da lista **não** mostra o ID (densidade, seção 8.1).
+
+### 17.2. Conector do Claude (MCP na Vercel)
+
+- `api/mcp` (chave no cabeçalho `Authorization: Bearer gpc_…`, usado pelo Claude Code) e
+  `api/mcp/[chave]` (chave no caminho, para o conector personalizado do claude.ai/Cowork,
+  que só aceita URL). Protocolo MCP sem sessão, só POST.
+- Ações em `api/_lib/ferramentas.ts` (puras e testadas): listar projetos/tarefas, buscar,
+  ver tarefa, criar tarefa/subtarefas/checklist, adicionar e marcar itens, atualizar
+  status/título/prioridade/prazo, comentar e relatório por período. **Não existe exclusão.**
+- Escrita: transação sobre `syncGroups/{uid}`, `update` só em `tasks`, `projects`,
+  `seqCounters` e `updatedAt`. Item alterado ganha `updatedAt` novo — é o que faz a mescla
+  dos aparelhos aceitar a versão do Claude. Mesmas regras do app: `completedAt` na
+  transição de status e a tarefa-mãe concluída/reaberta pelas subtarefas.
+- Comentário do Claude tem `author: 'Claude'`; pausa registra "Ponto de parada: …".
+  `ChecklistItem.doneAt` (app e conector) é o que põe item marcado no relatório.
+- Chave pessoal: gerada em **Configurações → Integração com o Claude** (`api/claude-chave`,
+  que confere o login do Google). Mostrada uma vez; o servidor guarda só o hash em
+  `claudeTokens/{sha256}`. Uma chave por conta: gerar outra revoga a anterior.
+- Variável na Vercel: `FIREBASE_SERVICE_ACCOUNT` (JSON da conta de serviço do Firebase).
+- **Imports em `api/`** terminam em `.js` (`./_lib/conector.js`): o pacote é ESM e a Vercel
+  não resolve import sem extensão — foi o que derrubou `api/insights` (que o app não usa).
+- Risco conhecido: se o app estiver aberto e subir um push com estado anterior no mesmo
+  instante em que o Claude grava, a edição do Claude pode ser sobrescrita. Janela de
+  segundos; a transação protege o lado do servidor, não o push do navegador.
+
 ---
 
 _Última atualização: 29/07/2026 (Login com Google substituiu o login anônimo + código de
