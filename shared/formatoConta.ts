@@ -107,6 +107,32 @@ export function diferenca<T extends ItemConta>(noServidor: Map<string, string>, 
   }
 }
 
-/** Documento principal ainda no formato antigo (listas dentro dele)? Precisa ser convertido. */
-export const ehFormatoAntigo = (principal: Record<string, unknown> | undefined) =>
-  !!principal && (Array.isArray(principal.tasks) || Array.isArray(principal.projects) || principal.formato !== FORMATO_ATUAL)
+/**
+ * A última gravação do documento principal veio de uma versão antiga do app (ou a conta
+ * nunca foi convertida)? Então o próximo envio de um aparelho atualizado precisa regravá-lo.
+ * Só o carimbo `formato` decide: as listas podem estar lá de propósito (espelho, abaixo).
+ */
+export const ehFormatoAntigo = (principal: Record<string, unknown> | null | undefined) =>
+  !!principal && principal.formato !== FORMATO_ATUAL
+
+// ── Espelho para aparelhos com a versão antiga ──────────────────────────────
+// Um aparelho com a versão antiga aberta lê SÓ as listas de dentro do documento principal.
+// Sem elas, ele acha que a nuvem está vazia, mantém tudo o que tem e regrava o documento no
+// formato antigo; o aparelho novo converte de volta, e os dois ficam regravando a conta a
+// cada poucos segundos (aconteceu na estreia, 05/10/2026). Por isso, enquanto houver sinal
+// de versão antiga nos últimos dias, o principal também leva as listas (`tasks`,
+// `projects`). Passado o prazo sem nenhum aparelho antigo gravar, o espelho some sozinho e
+// o principal fica pequeno.
+
+export const JANELA_CLIENTE_ANTIGO_MS = 7 * 24 * 60 * 60_000
+
+/**
+ * Quando uma versão antiga do app foi vista gravando pela última vez — `undefined` se não
+ * houve nenhuma dentro da janela (aí não precisa mais de espelho).
+ */
+export function clienteAntigoVistoEm(principal: Record<string, unknown> | null | undefined, agora: number): number | undefined {
+  if (!principal) return undefined
+  if (principal.formato !== FORMATO_ATUAL) return agora
+  const v = principal.clienteAntigoVistoEm
+  return typeof v === 'number' && agora - v < JANELA_CLIENTE_ANTIGO_MS ? v : undefined
+}

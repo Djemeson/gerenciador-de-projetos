@@ -200,7 +200,7 @@ describe('formato 2: um documento por tarefa', () => {
 
   const antes = () => new Date(Date.now() - 60 * 60_000).toISOString()
 
-  it('conta no formato antigo é convertida: tarefas vão para a coleção e saem do principal', async () => {
+  it('conta no formato antigo é convertida: tarefas vão para a coleção (principal mantém o espelho)', async () => {
     const at = antes()
     useAppStore.getState().startCloudSync('uid-teste')
     await chegaSnapshot({
@@ -214,8 +214,39 @@ describe('formato 2: um documento por tarefa', () => {
     const principal = ultimoPrincipal()
     expect(principal.formato).toBe(2)
     expect(principal.ordemTarefas).toEqual(['t1', 't2'])
+    // A última gravação veio do formato antigo → um aparelho antigo pode estar aberto: o
+    // principal leva as listas como espelho, senão os dois ficam regravando a conta.
+    expect(typeof principal.clienteAntigoVistoEm).toBe('number')
+    expect(principal.tasks.map((t: { id: string }) => t.id)).toEqual(['t1', 't2'])
+  })
+
+  it('sem aparelho antigo na janela, o principal vai sem as listas', async () => {
+    const at = antes()
+    useAppStore.getState().startCloudSync('uid-teste')
+    await chegaContaNova(
+      { formato: 2, ordemTarefas: ['t1'], ordemProjetos: ['p1'], updatedAt: Date.now() - 30 * 60_000 },
+      [{ ...tarefaRemota('t1', 'Um', at), seq: 1 }],
+      [{ ...projetoRemoto(at), seq: 1 }],
+    )
+    useAppStore.getState().updateTask('t1', { title: 'Um, editada' })
+    await vi.advanceTimersByTimeAsync(2000)
+    const principal = ultimoPrincipal()
     expect(principal).not.toHaveProperty('tasks')
     expect(principal).not.toHaveProperty('projects')
+    expect(principal).not.toHaveProperty('clienteAntigoVistoEm')
+  })
+
+  it('principal novo com espelho não dispara envio (sem vai-e-volta entre aparelhos novos)', async () => {
+    const at = antes()
+    const t1 = { ...tarefaRemota('t1', 'Um', at), seq: 1 }
+    const p1 = { ...projetoRemoto(at), seq: 1 }
+    useAppStore.getState().startCloudSync('uid-teste')
+    await chegaContaNova(
+      { formato: 2, clienteAntigoVistoEm: Date.now(), tasks: [t1], projects: [p1], ordemTarefas: ['t1'], ordemProjetos: ['p1'], seqCounters: { task: 1, project: 1 }, updatedAt: Date.now() - 30 * 60_000 },
+      [t1], [p1],
+    )
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(lotes).toHaveLength(0)
   })
 
   it('editar uma tarefa grava só ela', async () => {

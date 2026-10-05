@@ -1473,10 +1473,18 @@ tarefa (corrige o bug do "trecho até dar Enter"). Não recriar um textarea/tipt
     chegada — um envio de outro aparelho mexe nas três, e aplicar pedaço a pedaço mesclaria
     ordem nova com tarefa velha. Daí em diante é o mesmo `applyRemoteSnapshot`/`syncMerge`.
   - **Compatibilidade com o formato 1**: conta ainda com `tasks`/`projects` dentro do
-    principal é lida por essas listas e convertida no envio seguinte (o `setDoc` do
-    principal tira as listas). Aparelho com a versão antiga aberta pode regravar as listas;
-    `montarLista` as junta às coleções (vence o `updatedAt` mais novo; item excluído depois
-    da última edição não volta) e o próximo envio de um aparelho novo converte de novo.
+    principal é lida por essas listas e convertida no envio seguinte. Aparelho com a versão
+    antiga aberta pode regravar as listas; `montarLista` as junta às coleções (vence o
+    `updatedAt` mais novo; item excluído depois da última edição não volta).
+  - **Espelho enquanto houver aparelho antigo** (`clienteAntigoVistoEm`). Na estreia
+    (05/10/2026) o app novo e uma aba com a versão antiga ficaram **regravando a conta a
+    cada poucos segundos**: o antigo só lê as listas do principal, achava a nuvem vazia,
+    regravava no formato 1, e o novo convertia de volta. Agora, quando o principal chega
+    sem o carimbo `formato: 2`, a versão antiga foi vista: o principal passa a levar também
+    `tasks`/`projects` como espelho por **7 dias** desde a última vez que ela gravou (o
+    carimbo `clienteAntigoVistoEm` viaja no documento). Sem sinal de versão antiga nesse
+    prazo, o espelho some sozinho. Só o carimbo `formato` decide se é preciso regravar —
+    as listas podem estar lá de propósito. O conector segue a mesma regra.
   - **O conector do Claude usa o mesmo módulo**: lê principal + coleções na transação,
     grava só os itens alterados e, se a conta estava no formato 1, converte ali mesmo.
   - **Regra**: lista nova que possa crescer sem limite (como tarefas) ganha coleção

@@ -4,7 +4,7 @@ import { localProjects, localTasks, gravarComAviso } from '../lib/localStore'
 import { removerExemplosAntigos } from '../lib/exemplosAntigos'
 import { db, doc, setDoc, getDoc, onSnapshot, collection, writeBatch } from '../lib/firebase'
 import {
-  montarLista, diferenca, assinatura, assinaturasDe, ehFormatoAntigo,
+  montarLista, diferenca, assinatura, assinaturasDe, ehFormatoAntigo, clienteAntigoVistoEm,
   FORMATO_ATUAL, COLECAO_TAREFAS, COLECAO_PROJETOS, type ItemConta,
 } from '../lib/formatoConta'
 import { stripAndUploadAttachments, hydrateAttachments, deleteAttachmentsOf } from '../lib/cloudAttachments'
@@ -380,6 +380,9 @@ let unsubscribeCloud: (() => void) | null = null
 // atualizado a cada snapshot das coleções e a cada envio. É o que permite gravar só o que
 // mudou — ver lib/formatoConta.ts.
 let noServidor = { tarefas: new Map<string, string>(), projetos: new Map<string, string>() }
+// Último documento principal recebido — diz se ainda há aparelho com versão antiga
+// (ver `clienteAntigoVistoEm` em lib/formatoConta.ts).
+let principalRecebido: Record<string, any> | null = null
 
 // Um lote do Firestore aceita até 500 operações; a margem cobre o documento principal.
 const OPERACOES_POR_LOTE = 450
@@ -1313,9 +1316,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       const projects = get().projects as unknown as ItemConta[];
       // Documento principal: tudo, menos tarefas e projetos — esses têm documento próprio
       // e aqui fica só a ordem deles (ver lib/formatoConta.ts). `setDoc` substitui o
-      // documento inteiro, o que também apaga as listas de um documento no formato antigo.
+      // documento inteiro, o que também apaga as listas de um documento no formato antigo —
+      // salvo enquanto houver aparelho com versão antiga: aí elas vão junto, como espelho.
+      const antigoVistoEm = clienteAntigoVistoEm(principalRecebido, Date.now());
       const principal = {
         formato: FORMATO_ATUAL,
+        ...(antigoVistoEm ? { clienteAntigoVistoEm: antigoVistoEm, tasks, projects } : {}),
         ordemTarefas: tasks.map(t => t.id),
         ordemProjetos: projects.map(p => p.id),
         spaces: get().spaces,
@@ -1409,8 +1415,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         projects: montarLista(projetos, p.ordemProjetos, p.projects, excluidos),
       });
       cloudReady = true;   // a partir daqui o estado local já reflete a nuvem
-      // Conta ainda no formato antigo (ou documento principal ausente): o próximo envio
-      // converte — grava tarefas e projetos nas coleções e tira as listas de dentro dele.
+      // Última gravação veio de uma versão antiga (ou documento principal ausente): o
+      // próximo envio converte — grava tarefas e projetos nas coleções e regrava o principal
+      // (com o espelho das listas, enquanto houver aparelho antigo — ver formatoConta.ts).
       if (!principal || ehFormatoAntigo(principal)) triggerSyncPush();
     };
     // Uma aplicação por vez, na ordem em que chegaram.
@@ -1427,6 +1434,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     // push→pull→push), mas o conteúdo é guardado — é o que o servidor terá em seguida.
     const pararPrincipal = onSnapshot(base, (snap) => {
       recebido.principal = snap.exists() ? snap.data() : null;
+      principalRecebido = recebido.principal;
       if (!snap.metadata.hasPendingWrites) agendar();
     }, falhou);
     const pararTarefas = onSnapshot(collection(base, COLECAO_TAREFAS), (snap) => {
@@ -1449,6 +1457,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   stopCloudSync: () => {
     if (unsubscribeCloud) { unsubscribeCloud(); unsubscribeCloud = null; }
     noServidor = { tarefas: new Map(), projetos: new Map() };
+    principalRecebido = null;
     cloudReady = false;
     set({ cloudSyncStatus: 'idle', syncUid: null });
   },

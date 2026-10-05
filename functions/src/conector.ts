@@ -21,7 +21,8 @@ import { getFirestore, FieldValue, type Firestore } from 'firebase-admin/firesto
 import { getAuth } from 'firebase-admin/auth'
 import { DEFINICOES, executar, ErroFerramenta, type DocConta, type EntradaLixeira } from '../../shared/ferramentas'
 import {
-  montarLista, diferenca, assinaturasDe, FORMATO_ATUAL, COLECAO_TAREFAS, COLECAO_PROJETOS, type ItemConta,
+  montarLista, diferenca, assinaturasDe, clienteAntigoVistoEm,
+  FORMATO_ATUAL, COLECAO_TAREFAS, COLECAO_PROJETOS, type ItemConta,
 } from '../../shared/formatoConta'
 
 const COLECAO_CHAVES = 'claudeTokens'
@@ -138,8 +139,16 @@ async function chamarFerramenta(uid: string, nome: string, args: Record<string, 
         formato: FORMATO_ATUAL,
         updatedAt: Date.now(),
       }
-      if ('tasks' in principal) campos.tasks = FieldValue.delete()
-      if ('projects' in principal) campos.projects = FieldValue.delete()
+      // Aparelho com versão antiga visto há pouco: as listas continuam no principal como
+      // espelho (senão ele e o app novo ficam regravando a conta — ver formatoConta.ts).
+      const antigoVistoEm = clienteAntigoVistoEm(principal, Date.now())
+      if (antigoVistoEm) {
+        Object.assign(campos, { clienteAntigoVistoEm: antigoVistoEm, tasks: r.doc.tasks, projects: r.doc.projects })
+      } else {
+        if ('tasks' in principal) campos.tasks = FieldValue.delete()
+        if ('projects' in principal) campos.projects = FieldValue.delete()
+        if ('clienteAntigoVistoEm' in principal) campos.clienteAntigoVistoEm = FieldValue.delete()
+      }
       if (r.doc.excluidos !== dados.excluidos) campos.excluidos = r.doc.excluidos ?? {}
       tx.update(ref, campos)
     }

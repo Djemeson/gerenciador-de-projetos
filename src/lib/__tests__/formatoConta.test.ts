@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { montarLista, diferenca, assinatura, assinaturasDe, ehFormatoAntigo, FORMATO_ATUAL } from '../formatoConta'
+import { montarLista, diferenca, assinatura, assinaturasDe, ehFormatoAntigo, clienteAntigoVistoEm, JANELA_CLIENTE_ANTIGO_MS, FORMATO_ATUAL } from '../formatoConta'
 
 const T1 = '2026-10-01T10:00:00.000Z'
 const T2 = '2026-10-02T10:00:00.000Z'
@@ -75,11 +75,25 @@ describe('formato da conta — diferenca', () => {
 })
 
 describe('formato da conta — ehFormatoAntigo', () => {
-  it('reconhece o documento que ainda carrega as listas ou não tem o carimbo do formato', () => {
+  it('só o carimbo decide: listas no principal podem ser o espelho de propósito', () => {
     expect(ehFormatoAntigo({ tasks: [], projects: [] })).toBe(true)
-    expect(ehFormatoAntigo({ formato: FORMATO_ATUAL, tasks: [] })).toBe(true)
     expect(ehFormatoAntigo({ spaces: [] })).toBe(true)
+    expect(ehFormatoAntigo({ formato: FORMATO_ATUAL, tasks: [] })).toBe(false)
     expect(ehFormatoAntigo({ formato: FORMATO_ATUAL, ordemTarefas: [] })).toBe(false)
     expect(ehFormatoAntigo(undefined)).toBe(false)
+    expect(ehFormatoAntigo(null)).toBe(false)
+  })
+})
+
+describe('formato da conta — espelho para aparelho com versão antiga', () => {
+  const agora = Date.parse('2026-10-05T15:00:00Z')
+  it('gravação sem carimbo = versão antiga vista agora', () => {
+    expect(clienteAntigoVistoEm({ tasks: [] }, agora)).toBe(agora)
+  })
+  it('carimbo recente mantém o espelho; vencido, some', () => {
+    expect(clienteAntigoVistoEm({ formato: FORMATO_ATUAL, clienteAntigoVistoEm: agora - 1000 }, agora)).toBe(agora - 1000)
+    expect(clienteAntigoVistoEm({ formato: FORMATO_ATUAL, clienteAntigoVistoEm: agora - JANELA_CLIENTE_ANTIGO_MS - 1 }, agora)).toBeUndefined()
+    expect(clienteAntigoVistoEm({ formato: FORMATO_ATUAL }, agora)).toBeUndefined()
+    expect(clienteAntigoVistoEm(null, agora)).toBeUndefined()
   })
 })
