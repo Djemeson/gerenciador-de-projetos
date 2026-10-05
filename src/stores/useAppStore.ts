@@ -2,7 +2,11 @@ import { create } from 'zustand'
 import { nanoid } from '../lib/nanoid'
 import { localProjects, localTasks, gravarComAviso } from '../lib/localStore'
 import { removerExemplosAntigos } from '../lib/exemplosAntigos'
-import { db, doc, setDoc, getDoc, onSnapshot } from '../lib/firebase'
+import { db, doc, setDoc, getDoc, onSnapshot, collection, writeBatch } from '../lib/firebase'
+import {
+  montarLista, diferenca, assinatura, assinaturasDe, ehFormatoAntigo,
+  FORMATO_ATUAL, COLECAO_TAREFAS, COLECAO_PROJETOS, type ItemConta,
+} from '../lib/formatoConta'
 import { stripAndUploadAttachments, hydrateAttachments, deleteAttachmentsOf } from '../lib/cloudAttachments'
 import type {
   Project, Task, Space, Folder, ColumnDef, Automation, AutomationRun, ViewType,
@@ -371,6 +375,14 @@ function triggerSyncPush() {
 }
 
 let unsubscribeCloud: (() => void) | null = null
+
+// O que o servidor tem hoje de cada tarefa e projeto (id → assinatura do conteúdo),
+// atualizado a cada snapshot das coleções e a cada envio. É o que permite gravar só o que
+// mudou — ver lib/formatoConta.ts.
+let noServidor = { tarefas: new Map<string, string>(), projetos: new Map<string, string>() }
+
+// Um lote do Firestore aceita até 500 operações; a margem cobre o documento principal.
+const OPERACOES_POR_LOTE = 450
 
 // Aplica um documento vindo do Firestore (de um onSnapshot ou de um getDoc avulso) ao
 // estado local — usado tanto pela assinatura em tempo real quanto por "vincular dispositivo".
@@ -1297,10 +1309,15 @@ export const useAppStore = create<AppState>((set, get) => ({
       // O que está pendente NESTE momento é o que o documento abaixo carrega; o que for
       // alterado durante o envio entra no próximo debounce e continua pendente.
       const pendentesNoEnvio = Object.keys(obterPendencias());
-      const tasks = await stripAndUploadAttachments(uid, get().tasks);
-      const stateToSync = {
-        projects: get().projects,
-        tasks,
+      const tasks = await stripAndUploadAttachments(uid, get().tasks) as unknown as ItemConta[];
+      const projects = get().projects as unknown as ItemConta[];
+      // Documento principal: tudo, menos tarefas e projetos — esses têm documento próprio
+      // e aqui fica só a ordem deles (ver lib/formatoConta.ts). `setDoc` substitui o
+      // documento inteiro, o que também apaga as listas de um documento no formato antigo.
+      const principal = {
+        formato: FORMATO_ATUAL,
+        ordemTarefas: tasks.map(t => t.id),
+        ordemProjetos: projects.map(p => p.id),
         spaces: get().spaces,
         folders: get().folders,
         workspaces: get().workspaces,
@@ -1321,7 +1338,29 @@ export const useAppStore = create<AppState>((set, get) => ({
         settings: lerSettings(),
         updatedAt: Date.now(),
       };
-      await setDoc(doc(db, 'syncGroups', uid), stateToSync);
+      const t = diferenca(noServidor.tarefas, tasks);
+      const p = diferenca(noServidor.projetos, projects);
+      const base = doc(db, 'syncGroups', uid);
+      type Operacao = (lote: ReturnType<typeof writeBatch>) => void;
+      const operacoes: Operacao[] = [
+        ...t.gravar.map(i => (l => l.set(doc(base, COLECAO_TAREFAS, i.id), i)) as Operacao),
+        ...t.apagar.map(id => (l => l.delete(doc(base, COLECAO_TAREFAS, id))) as Operacao),
+        ...p.gravar.map(i => (l => l.set(doc(base, COLECAO_PROJETOS, i.id), i)) as Operacao),
+        ...p.apagar.map(id => (l => l.delete(doc(base, COLECAO_PROJETOS, id))) as Operacao),
+      ];
+      // Itens primeiro, documento principal por último (no último lote): quem lê a ordem
+      // nova já encontra as tarefas que ela cita. Normalmente é um lote só.
+      const banco = db;
+      for (let i = 0; i < operacoes.length || i === 0; i += OPERACOES_POR_LOTE) {
+        const lote = writeBatch(banco);
+        operacoes.slice(i, i + OPERACOES_POR_LOTE).forEach(op => op(lote));
+        if (i + OPERACOES_POR_LOTE >= operacoes.length) lote.set(base, principal);
+        await lote.commit();
+      }
+      t.gravar.forEach(i => noServidor.tarefas.set(i.id, assinatura(i)));
+      t.apagar.forEach(id => noServidor.tarefas.delete(id));
+      p.gravar.forEach(i => noServidor.projetos.set(i.id, assinatura(i)));
+      p.apagar.forEach(id => noServidor.projetos.delete(id));
       concluirPendencias(pendentesNoEnvio);   // já estão na nuvem — deixam de precisar de proteção
       set({ cloudSyncStatus: 'synced', lastSyncedAt: new Date().toLocaleTimeString('pt-BR') });
     } catch (e) {
@@ -1334,30 +1373,82 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!db || !uid) return;
     if (unsubscribeCloud) { unsubscribeCloud(); unsubscribeCloud = null; }
     set({ syncUid: uid });
+    noServidor = { tarefas: new Map(), projetos: new Map() };
 
-    unsubscribeCloud = onSnapshot(doc(db, 'syncGroups', uid), async (snap) => {
-      // Ignora o "eco" da própria escrita local (evita loop push→pull→push)
-      if (snap.metadata.hasPendingWrites) return;
+    // Três assinaturas em tempo real (formato 2, ver lib/formatoConta.ts): o documento
+    // principal e as coleções de tarefas e de projetos. O que chega de cada uma é guardado
+    // e a conta é remontada e aplicada depois de uma pausa curta — um envio de outro
+    // aparelho mexe nas três de uma vez, e aplicar cada pedaço separado mesclaria a ordem
+    // nova com tarefas velhas. `undefined` = aquela assinatura ainda não respondeu.
+    const base = doc(db, 'syncGroups', uid);
+    const recebido: { principal?: Record<string, any> | null; tarefas?: ItemConta[]; projetos?: ItemConta[] } = {};
+    let semeou = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let fila: Promise<void> = Promise.resolve();
 
-      if (!snap.exists()) {
-        // Conta sem documento: aqui a decisão de semear é explícita, então o push é
+    const aplicar = async () => {
+      const { principal, tarefas, projetos } = recebido;
+      if (principal === undefined || !tarefas || !projetos) return;   // a primeira leitura ainda não completou
+
+      if (principal === null && !tarefas.length && !projetos.length) {
+        // Conta sem nada na nuvem: aqui a decisão de semear é explícita, então o push é
         // forçado (a trava existe para o caso oposto — sobrescrever dados que existem).
+        if (semeou) return;
+        semeou = true;
         const migrated = await migrateLegacySyncCode(set, get, uid);
         cloudReady = true;
         if (!migrated) get().pushToCloud({ force: true });
         return;
       }
 
-      await applyRemoteSnapshot(set, get, uid, snap.data());
+      const p = principal ?? {};
+      const excluidos = (p.excluidos ?? {}) as Record<string, number>;
+      await applyRemoteSnapshot(set, get, uid, {
+        ...p,
+        tasks: montarLista(tarefas, p.ordemTarefas, p.tasks, excluidos),
+        projects: montarLista(projetos, p.ordemProjetos, p.projects, excluidos),
+      });
       cloudReady = true;   // a partir daqui o estado local já reflete a nuvem
-    }, (err) => {
+      // Conta ainda no formato antigo (ou documento principal ausente): o próximo envio
+      // converte — grava tarefas e projetos nas coleções e tira as listas de dentro dele.
+      if (!principal || ehFormatoAntigo(principal)) triggerSyncPush();
+    };
+    // Uma aplicação por vez, na ordem em que chegaram.
+    const agendar = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => { fila = fila.then(aplicar, aplicar); }, 300);
+    };
+    const falhou = (err: unknown) => {
       console.error('Erro na assinatura em tempo real:', err);
       set({ cloudSyncStatus: 'error' });
-    });
+    };
+
+    // `hasPendingWrites`: o "eco" da própria escrita local não é reaplicado (evita loop
+    // push→pull→push), mas o conteúdo é guardado — é o que o servidor terá em seguida.
+    const pararPrincipal = onSnapshot(base, (snap) => {
+      recebido.principal = snap.exists() ? snap.data() : null;
+      if (!snap.metadata.hasPendingWrites) agendar();
+    }, falhou);
+    const pararTarefas = onSnapshot(collection(base, COLECAO_TAREFAS), (snap) => {
+      recebido.tarefas = snap.docs.map(d => d.data() as ItemConta);
+      noServidor.tarefas = assinaturasDe(recebido.tarefas);
+      if (!snap.metadata.hasPendingWrites) agendar();
+    }, falhou);
+    const pararProjetos = onSnapshot(collection(base, COLECAO_PROJETOS), (snap) => {
+      recebido.projetos = snap.docs.map(d => d.data() as ItemConta);
+      noServidor.projetos = assinaturasDe(recebido.projetos);
+      if (!snap.metadata.hasPendingWrites) agendar();
+    }, falhou);
+
+    unsubscribeCloud = () => {
+      pararPrincipal(); pararTarefas(); pararProjetos();
+      if (timer) clearTimeout(timer);
+    };
   },
 
   stopCloudSync: () => {
     if (unsubscribeCloud) { unsubscribeCloud(); unsubscribeCloud = null; }
+    noServidor = { tarefas: new Map(), projetos: new Map() };
     cloudReady = false;
     set({ cloudSyncStatus: 'idle', syncUid: null });
   },

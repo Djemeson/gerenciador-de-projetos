@@ -16,17 +16,29 @@ vi.stubGlobal('localStorage', {
 })
 
 // ── Firestore simulado ────────────────────────────────────────────────────
+// Formato 2 (shared/formatoConta.ts): documento principal + coleções de tarefas e
+// projetos, cada um com a sua assinatura em tempo real; envio em lote (writeBatch).
 type SnapshotCb = (snap: any) => void
-let snapshotCb: SnapshotCb | null = null
-const setDocMock = vi.fn(async (..._args: unknown[]) => {})
+const ouvintes = new Map<string, SnapshotCb>()
+interface Op { tipo: 'set' | 'delete'; path: string; data?: any }
+const lotes: Op[][] = []
 
 vi.mock('../../lib/firebase', () => ({
   db: {},
   USE_FIREBASE: true,
-  doc: (_db: unknown, _col: string, id: string) => ({ id }),
+  doc: (pai: any, ...partes: string[]) => ({ path: [pai?.path, ...partes].filter(Boolean).join('/') }),
+  collection: (pai: any, nome: string) => ({ path: `${pai.path}/${nome}` }),
   getDoc: vi.fn(async () => ({ exists: () => false })),
-  setDoc: (...args: unknown[]) => setDocMock(...args),
-  onSnapshot: (_ref: unknown, cb: SnapshotCb) => { snapshotCb = cb; return () => { snapshotCb = null } },
+  setDoc: vi.fn(async () => {}),
+  writeBatch: () => {
+    const ops: Op[] = []
+    return {
+      set: (ref: { path: string }, data: any) => { ops.push({ tipo: 'set', path: ref.path, data }) },
+      delete: (ref: { path: string }) => { ops.push({ tipo: 'delete', path: ref.path }) },
+      commit: async () => { lotes.push(ops) },
+    }
+  },
+  onSnapshot: (ref: { path: string }, cb: SnapshotCb) => { ouvintes.set(ref.path, cb); return () => { ouvintes.delete(ref.path) } },
 }))
 // Anexos passam reto — aqui o assunto é a mescla, não o upload.
 vi.mock('../../lib/cloudAttachments', () => ({
@@ -37,9 +49,30 @@ vi.mock('../../lib/cloudAttachments', () => ({
 
 import { useAppStore } from '../useAppStore'
 
+const BASE = 'syncGroups/uid-teste'
+const semPendencia = { hasPendingWrites: false }
+const colecao = (itens: any[]) => ({ docs: itens.map(i => ({ data: () => i })), metadata: semPendencia })
+
+/** Documento no formato antigo (listas dentro do principal, coleções vazias) — o caso de
+ *  uma conta ainda não convertida ou de um aparelho com a versão anterior do app. */
 const chegaSnapshot = async (data: Record<string, unknown>) => {
-  await snapshotCb!({ exists: () => true, data: () => data, metadata: { hasPendingWrites: false } })
+  ouvintes.get(`${BASE}/tarefas`)!(colecao([]))
+  ouvintes.get(`${BASE}/projetos`)!(colecao([]))
+  ouvintes.get(BASE)!({ exists: () => true, data: () => data, metadata: semPendencia })
+  await vi.advanceTimersByTimeAsync(300)
 }
+
+/** Conta no formato 2: tarefas e projetos nas coleções, a ordem no principal. */
+const chegaContaNova = async (principal: Record<string, unknown>, tarefas: any[], projetos: any[]) => {
+  ouvintes.get(`${BASE}/tarefas`)!(colecao(tarefas))
+  ouvintes.get(`${BASE}/projetos`)!(colecao(projetos))
+  ouvintes.get(BASE)!({ exists: () => true, data: () => principal, metadata: semPendencia })
+  await vi.advanceTimersByTimeAsync(300)
+}
+
+const opsDeTodosOsLotes = () => lotes.flat()
+const tarefasGravadas = () => opsDeTodosOsLotes().filter(o => o.tipo === 'set' && o.path.startsWith(`${BASE}/tarefas/`)).map(o => o.data.id)
+const ultimoPrincipal = () => [...opsDeTodosOsLotes()].reverse().find(o => o.path === BASE)!.data
 
 const tarefaRemota = (id: string, title: string, at: string) => ({
   id, workspaceId: 'default', projectId: 'p1', parentId: null, title, description: '', blocks: [],
@@ -56,7 +89,7 @@ describe('sincronização com conta vinculada (mescla de snapshots)', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     mem.clear()
-    setDocMock.mockClear()
+    lotes.length = 0
     useAppStore.getState().stopCloudSync()
     useAppStore.setState({ projects: [], tasks: [], spaces: [], folders: [], workspaces: [], notes: [], goals: [], automations: [], seqCounters: { task: 0, project: 0 } })
   })
@@ -82,10 +115,8 @@ describe('sincronização com conta vinculada (mescla de snapshots)', () => {
 
     // A divergência agenda o re-push (debounce 1,5s) que leva a tarefa à nuvem.
     await vi.advanceTimersByTimeAsync(2000)
-    expect(setDocMock).toHaveBeenCalled()
-    const chamadas = setDocMock.mock.calls
-    const doc = chamadas[chamadas.length - 1][1] as { tasks: { id: string }[] }
-    expect(doc.tasks.map(t => t.id)).toContain(nova.id)
+    expect(tarefasGravadas()).toContain(nova.id)
+    expect(ultimoPrincipal().ordemTarefas).toContain(nova.id)
   })
 
   it('exclusão feita noutro dispositivo continua propagando', async () => {
@@ -144,9 +175,7 @@ describe('sincronização com conta vinculada (mescla de snapshots)', () => {
     expect(useAppStore.getState().projects[0].seq).toBe(1)
 
     await vi.advanceTimersByTimeAsync(2000)
-    const chamadas = setDocMock.mock.calls
-    const doc = chamadas[chamadas.length - 1][1] as { seqCounters: { task: number } }
-    expect(doc.seqCounters.task).toBe(5)
+    expect(ultimoPrincipal().seqCounters.task).toBe(5)
 
     // Aparelho com versão antiga edita t1 e sobe sem o `seq`: o número conhecido volta.
     const agora = new Date().toISOString()
@@ -156,6 +185,97 @@ describe('sincronização com conta vinculada (mescla de snapshots)', () => {
       updatedAt: Date.now(),
     })
     expect(useAppStore.getState().tasks.find(t => t.id === 't1')).toMatchObject({ title: 'Editada lá', seq: 1 })
+  })
+})
+
+describe('formato 2: um documento por tarefa', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    mem.clear()
+    lotes.length = 0
+    useAppStore.getState().stopCloudSync()
+    useAppStore.setState({ projects: [], tasks: [], spaces: [], folders: [], workspaces: [], notes: [], goals: [], automations: [], seqCounters: { task: 0, project: 0 } })
+  })
+  afterEach(() => { vi.useRealTimers() })
+
+  const antes = () => new Date(Date.now() - 60 * 60_000).toISOString()
+
+  it('conta no formato antigo é convertida: tarefas vão para a coleção e saem do principal', async () => {
+    const at = antes()
+    useAppStore.getState().startCloudSync('uid-teste')
+    await chegaSnapshot({
+      projects: [projetoRemoto(at)],
+      tasks: [tarefaRemota('t1', 'Um', at), tarefaRemota('t2', 'Dois', at)],
+      updatedAt: Date.now() - 30 * 60_000,
+    })
+    await vi.advanceTimersByTimeAsync(2000)
+
+    expect(tarefasGravadas().sort()).toEqual(['t1', 't2'])
+    const principal = ultimoPrincipal()
+    expect(principal.formato).toBe(2)
+    expect(principal.ordemTarefas).toEqual(['t1', 't2'])
+    expect(principal).not.toHaveProperty('tasks')
+    expect(principal).not.toHaveProperty('projects')
+  })
+
+  it('editar uma tarefa grava só ela', async () => {
+    const at = antes()
+    useAppStore.getState().startCloudSync('uid-teste')
+    await chegaContaNova(
+      { formato: 2, ordemTarefas: ['t1', 't2'], ordemProjetos: ['p1'], updatedAt: Date.now() - 30 * 60_000 },
+      [{ ...tarefaRemota('t1', 'Um', at), seq: 1 }, { ...tarefaRemota('t2', 'Dois', at), seq: 2 }],
+      [{ ...projetoRemoto(at), seq: 1 }],
+    )
+    await vi.advanceTimersByTimeAsync(2000)
+    lotes.length = 0
+
+    useAppStore.getState().updateTask('t2', { title: 'Dois, editada' })
+    await vi.advanceTimersByTimeAsync(2000)
+
+    expect(tarefasGravadas()).toEqual(['t2'])
+    expect(opsDeTodosOsLotes().filter(o => o.path.includes('/projetos/'))).toHaveLength(0)
+  })
+
+  it('excluir aqui apaga o documento da tarefa', async () => {
+    const at = antes()
+    useAppStore.getState().startCloudSync('uid-teste')
+    await chegaContaNova(
+      { formato: 2, ordemTarefas: ['t1', 't2'], ordemProjetos: ['p1'], updatedAt: Date.now() - 30 * 60_000 },
+      [{ ...tarefaRemota('t1', 'Um', at), seq: 1 }, { ...tarefaRemota('t2', 'Dois', at), seq: 2 }],
+      [{ ...projetoRemoto(at), seq: 1 }],
+    )
+    await vi.advanceTimersByTimeAsync(2000)
+    lotes.length = 0
+
+    useAppStore.getState().deleteTask('t2')
+    await vi.advanceTimersByTimeAsync(2000)
+
+    expect(opsDeTodosOsLotes().filter(o => o.tipo === 'delete').map(o => o.path)).toEqual([`${BASE}/tarefas/t2`])
+    expect(ultimoPrincipal().ordemTarefas).toEqual(['t1'])
+  })
+
+  it('exclusão feita noutro aparelho (documento some da coleção) chega aqui', async () => {
+    const at = antes()
+    useAppStore.getState().startCloudSync('uid-teste')
+    const t1 = { ...tarefaRemota('t1', 'Fica', at), seq: 1 }
+    const t2 = { ...tarefaRemota('t2', 'Sai', at), seq: 2 }
+    const proj = [{ ...projetoRemoto(at), seq: 1 }]
+    await chegaContaNova({ formato: 2, ordemTarefas: ['t1', 't2'], updatedAt: Date.now() - 30 * 60_000 }, [t1, t2], proj)
+    expect(useAppStore.getState().tasks).toHaveLength(2)
+
+    await chegaContaNova({ formato: 2, ordemTarefas: ['t1'], excluidos: { t2: Date.now() }, updatedAt: Date.now() + MARGEM_FOLGA }, [t1], proj)
+    expect(useAppStore.getState().tasks.map(t => t.id)).toEqual(['t1'])
+  })
+
+  it('ordem vem do documento principal', async () => {
+    const at = antes()
+    useAppStore.getState().startCloudSync('uid-teste')
+    await chegaContaNova(
+      { formato: 2, ordemTarefas: ['t2', 't1'], ordemProjetos: ['p1'], updatedAt: Date.now() - 30 * 60_000 },
+      [{ ...tarefaRemota('t1', 'Um', at), seq: 1 }, { ...tarefaRemota('t2', 'Dois', at), seq: 2 }],
+      [{ ...projetoRemoto(at), seq: 1 }],
+    )
+    expect(useAppStore.getState().tasks.map(t => t.id)).toEqual(['t2', 't1'])
   })
 })
 

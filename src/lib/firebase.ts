@@ -10,6 +10,7 @@ import {
   updateDoc,
   deleteDoc,
   onSnapshot,
+  writeBatch,
   query,
   orderBy,
   serverTimestamp,
@@ -137,6 +138,6 @@ export function watchAuthState(cb: (user: User | null) => void) {
 export {
   db, auth,
   collection, doc, getDoc, setDoc, getDocs, addDoc, updateDoc, deleteDoc,
-  onSnapshot, query, orderBy, serverTimestamp, Timestamp,
+  onSnapshot, writeBatch, query, orderBy, serverTimestamp, Timestamp,
 }
 export type { DocumentData, User }

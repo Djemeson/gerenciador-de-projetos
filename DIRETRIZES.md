@@ -1435,7 +1435,8 @@ tarefa (corrige o bug do "trecho até dar Enter"). Não recriar um textarea/tipt
   própria tela de login, não no console: provedor não habilitado, domínio não autorizado,
   popup fechado, rede, chave inválida. Ao adicionar um caso novo, traduzir ali — a tela não
   deve mostrar código cru do Firebase.
-- **Um documento por conta**: `syncGroups/{uid}`, onde `uid` é o do usuário Google.
+- **Uma conta por usuário Google**: `syncGroups/{uid}` (documento principal + coleções
+  `tarefas` e `projetos`, ver "Armazenamento" abaixo), onde `uid` é o do usuário Google.
   `startCloudSync(uid)` é chamado no `App.tsx` quando o usuário entra; `syncUid` no store
   substituiu o antigo `syncCode`. Entrar com a mesma conta em outro dispositivo já
   sincroniza — **não existe mais código para digitar**, nem `linkToCode`/`generateNewCode`.
@@ -1456,15 +1457,37 @@ tarefa (corrige o bug do "trecho até dar Enter"). Não recriar um textarea/tipt
   com `localhost` e os domínios do Hosting (`.web.app`/`.firebaseapp.com`, incluídos por
   padrão). Erro de login em produção quase sempre é um desses
   dois.
-- **Armazenamento**: Firestore, documento único `syncGroups/{uid}` com todo o
-  estado do app (projetos, tarefas, espaços, pastas, automações, metas, colunas do inbox e
-  visualizações personalizadas). `localStorage` continua como cache local instantâneo
-  (`localStore.ts`, `saveJSON`/`loadJSON` em `useAppStore.ts`) — a nuvem é a camada de
-  sincronização por cima, não substitui o cache local.
+- **Armazenamento — um documento por tarefa (formato 2, desde 05/10/2026,
+  `shared/formatoConta.ts`)**: `syncGroups/{uid}` é o documento **principal** (espaços,
+  pastas, automações, metas, notas, colunas do inbox, visualizações, configurações,
+  contadores, `excluidos` e a **ordem** — `ordemTarefas`/`ordemProjetos`, só ids, e
+  `formato: 2`); cada tarefa mora em `syncGroups/{uid}/tarefas/{id}` e cada projeto em
+  `syncGroups/{uid}/projetos/{id}`. Motivo: o documento único tinha teto de 1 MiB para a
+  conta inteira e, ao passar dele, **nada mais sincronizava**; agora o teto é por tarefa.
+  - **Envio grava só o que mudou**: `noServidor` (id → assinatura estável do conteúdo,
+    atualizado a cada snapshot das coleções e a cada envio) × estado local → `diferenca`
+    diz o que gravar e o que apagar. Tudo vai num `writeBatch` (até 450 operações por
+    lote), **itens primeiro e o principal no último lote**.
+  - **Recebimento**: três `onSnapshot` (principal, tarefas, projetos); o que chega é
+    guardado e a conta é remontada (`montarLista`) e aplicada 300 ms depois da última
+    chegada — um envio de outro aparelho mexe nas três, e aplicar pedaço a pedaço mesclaria
+    ordem nova com tarefa velha. Daí em diante é o mesmo `applyRemoteSnapshot`/`syncMerge`.
+  - **Compatibilidade com o formato 1**: conta ainda com `tasks`/`projects` dentro do
+    principal é lida por essas listas e convertida no envio seguinte (o `setDoc` do
+    principal tira as listas). Aparelho com a versão antiga aberta pode regravar as listas;
+    `montarLista` as junta às coleções (vence o `updatedAt` mais novo; item excluído depois
+    da última edição não volta) e o próximo envio de um aparelho novo converte de novo.
+  - **O conector do Claude usa o mesmo módulo**: lê principal + coleções na transação,
+    grava só os itens alterados e, se a conta estava no formato 1, converte ali mesmo.
+  - **Regra**: lista nova que possa crescer sem limite (como tarefas) ganha coleção
+    própria aqui, não um campo no principal — o principal tem de continuar pequeno.
+  `localStorage` continua como cache local instantâneo (`localStore.ts`,
+  `saveJSON`/`loadJSON` em `useAppStore.ts`) — a nuvem é a camada de sincronização por
+  cima, não substitui o cache local.
 - **Conta na UI**: rodapé da sidebar mostra foto/nome da conta Google (não mais "DJ /
   Djemeson" fixo); `SettingsModal.tsx` tem a seção **"Conta e sincronização"** com a conta,
   botão **Sair**, status da nuvem e "Sincronizar agora".
-- **Tempo real**: `onSnapshot` no documento do grupo (não é polling). Toda alteração local
+- **Tempo real**: `onSnapshot` no documento principal e nas coleções (não é polling). Toda alteração local
   já passava por `saveJSON`/`pProjects`, que dispara `triggerSyncPush` (debounce de 1.5s)
   → `pushToCloud()`. Ao aplicar um snapshot vindo da nuvem, `snap.metadata.hasPendingWrites`
   é checado para ignorar o eco da própria escrita (evita loop push→pull→push).

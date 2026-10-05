@@ -5,20 +5,24 @@
 // - A chave é gerada no app (Configurações → Integração com o Claude), mostrada uma vez
 //   e guardada aqui só como hash, em `claudeTokens/{sha256}` → { uid }. As regras do
 //   Firestore não liberam essa coleção para o navegador; só este servidor (Admin SDK) a vê.
-// - Cada chamada de ferramenta lê o documento da conta (`syncGroups/{uid}`, o mesmo que o
-//   app sincroniza), aplica a ação (shared/ferramentas.ts) e grava numa transação —
-//   se o app gravar no meio, a transação refaz a leitura em vez de atropelar.
-// - A gravação usa `update` só nos campos que o conector toca (tarefas, projetos,
-//   contadores, carimbo do documento). Configurações e chaves de IA ficam intocadas.
+// - Cada chamada de ferramenta lê a conta (`syncGroups/{uid}` + as coleções de tarefas e
+//   projetos, o mesmo que o app sincroniza — ver shared/formatoConta.ts), aplica a ação
+//   (shared/ferramentas.ts) e grava numa transação — se o app gravar no meio, a transação
+//   refaz a leitura em vez de atropelar.
+// - A gravação toca só as tarefas/projetos que mudaram e, no documento principal, a ordem,
+//   os contadores e o carimbo. Configurações e chaves de IA ficam intocadas.
 //
 // Roda no Cloud Functions do próprio projeto Firebase: o Admin SDK usa a identidade de
 // serviço que o Google já dá à função — não há credencial para gerar, guardar ou colar.
 
 import { createHash, randomBytes } from 'node:crypto'
 import { initializeApp, getApps } from 'firebase-admin/app'
-import { getFirestore, type Firestore } from 'firebase-admin/firestore'
+import { getFirestore, FieldValue, type Firestore } from 'firebase-admin/firestore'
 import { getAuth } from 'firebase-admin/auth'
 import { DEFINICOES, executar, ErroFerramenta, type DocConta, type EntradaLixeira } from '../../shared/ferramentas'
+import {
+  montarLista, diferenca, assinaturasDe, FORMATO_ATUAL, COLECAO_TAREFAS, COLECAO_PROJETOS, type ItemConta,
+} from '../../shared/formatoConta'
 
 const COLECAO_CHAVES = 'claudeTokens'
 const PREFIXO_CHAVE = 'gpc_'
@@ -97,17 +101,45 @@ async function chamarFerramenta(uid: string, nome: string, args: Record<string, 
   const banco = db()
   const ref = banco.collection('syncGroups').doc(uid)
   const lixeira = ref.collection('lixeira')
+  const colTarefas = ref.collection(COLECAO_TAREFAS)
+  const colProjetos = ref.collection(COLECAO_PROJETOS)
   return banco.runTransaction(async tx => {
-    const snap = await tx.get(ref)
+    const [snap, snapTarefas, snapProjetos] = await Promise.all([tx.get(ref), tx.get(colTarefas), tx.get(colProjetos)])
     if (!snap.exists) throw new ErroFerramenta('A conta ainda não tem dados na nuvem. Abra o app uma vez com login.')
-    const dados = snap.data() as DocConta
+    // Formato 2 (shared/formatoConta.ts): cada tarefa e projeto é um documento; o principal
+    // guarda a ordem. Uma conta ainda no formato antigo é lida pelas listas de dentro dele.
+    const principal = snap.data() as Record<string, any>
+    const tarefasServidor = snapTarefas.docs.map(d => d.data() as ItemConta)
+    const projetosServidor = snapProjetos.docs.map(d => d.data() as ItemConta)
+    const excluidos = (principal.excluidos ?? {}) as Record<string, number>
+    const dados: DocConta = {
+      ...principal,
+      tasks: montarLista(tarefasServidor, principal.ordemTarefas, principal.tasks, excluidos),
+      projects: montarLista(projetosServidor, principal.ordemProjetos, principal.projects, excluidos),
+    }
     // Só lê a lixeira quando a ação precisa dela (listar/restaurar) — toda leitura conta na cota.
     const ctx = PRECISAM_DA_LIXEIRA.has(nome)
       ? { lixeira: (await tx.get(lixeira)).docs.map(d => d.data() as EntradaLixeira) }
       : {}
     const r = executar(nome, args ?? {}, dados, new Date().toISOString(), ctx)
     if (r.alterou) {
-      const campos: Record<string, unknown> = { tasks: r.doc.tasks, projects: r.doc.projects, seqCounters: r.doc.seqCounters, updatedAt: Date.now() }
+      // Grava só os itens que mudaram; o resto da conta (configurações, chaves de IA) fica
+      // intocado. Se a conta ainda estava no formato antigo, converte nesta mesma gravação.
+      const t = diferenca(assinaturasDe(tarefasServidor), r.doc.tasks)
+      const p = diferenca(assinaturasDe(projetosServidor), r.doc.projects)
+      t.gravar.forEach(i => tx.set(colTarefas.doc(i.id), i))
+      t.apagar.forEach(id => tx.delete(colTarefas.doc(id)))
+      p.gravar.forEach(i => tx.set(colProjetos.doc(i.id), i))
+      p.apagar.forEach(id => tx.delete(colProjetos.doc(id)))
+      const campos: Record<string, unknown> = {
+        ordemTarefas: r.doc.tasks.map(i => i.id),
+        ordemProjetos: r.doc.projects.map(i => i.id),
+        seqCounters: r.doc.seqCounters,
+        formato: FORMATO_ATUAL,
+        updatedAt: Date.now(),
+      }
+      if ('tasks' in principal) campos.tasks = FieldValue.delete()
+      if ('projects' in principal) campos.projects = FieldValue.delete()
       if (r.doc.excluidos !== dados.excluidos) campos.excluidos = r.doc.excluidos ?? {}
       tx.update(ref, campos)
     }
