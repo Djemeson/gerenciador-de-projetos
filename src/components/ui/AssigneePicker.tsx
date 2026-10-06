@@ -2,13 +2,14 @@ import React, { useRef, useState } from 'react'
 import { Check, ChevronDown } from 'lucide-react'
 import { useAppStore } from '../../stores/useAppStore'
 import { FloatingPanel } from './FloatingPanel'
+import { AssigneeAvatar } from './AssigneeAvatar'
 
 // Popover de responsável — lista quem já foi usado como responsável em outras tarefas do
 // workspace (não existe um cadastro de "pessoas"/membros no app, é single-user local; a
 // lista é só um atalho para reaproveitar nomes já digitados) + campo para digitar um novo
 // nome. Único seletor de responsável do app — reusado na célula da lista (`TaskRow`) e na
-// propriedade "Responsável" (`TaskDetail`).
-const initialsOf = (name: string) => name.trim().slice(0, 2).toUpperCase()
+// propriedade "Responsável" (`TaskDetail`). A cor do avatar vem de `lib/assigneeLook.ts`
+// (Claude laranja, DJ azul claro) via `AssigneeAvatar`.
 
 interface AssigneePickerProps {
   value: string
@@ -31,7 +32,7 @@ export function AssigneePicker({ value, onChange, variant = 'row' }: AssigneePic
     <button ref={btnRef} onClick={e => { e.stopPropagation(); openPop() }}
       className="flex items-center justify-center min-w-0 w-full">
       {value ? (
-        <span className="w-6 h-6 rounded-full bg-gradient-to-br from-brand-200 to-brand-400 text-brand-800 text-[10px] font-extrabold flex items-center justify-center flex-shrink-0 shadow-[0_0_0_2px_#fff,0_0_0_4px_#EEF0FF]">{initialsOf(value)}</span>
+        <AssigneeAvatar name={value} ring/>
       ) : <span className="text-xs text-gray-300">—</span>}
     </button>
   ) : (
@@ -40,7 +41,7 @@ export function AssigneePicker({ value, onChange, variant = 'row' }: AssigneePic
       <div className="flex items-center gap-2 min-w-0">
         {value ? (
           <>
-            <span className="w-6 h-6 rounded-full bg-brand-50 text-brand-700 text-[10px] font-bold flex items-center justify-center flex-shrink-0 border border-brand-100/50">{initialsOf(value)}</span>
+            <AssigneeAvatar name={value} variant="soft"/>
             <span className="min-w-0 truncate text-sm font-semibold text-gray-700">{value}</span>
           </>
         ) : (
@@ -65,7 +66,7 @@ export function AssigneePicker({ value, onChange, variant = 'row' }: AssigneePic
               {filtered.map(name => (
                 <button key={name} onClick={() => select(name)}
                   className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 transition-colors ${name===value?'bg-brand-50/60 text-brand-700 font-medium':'text-gray-700'}`}>
-                  <span className="w-5 h-5 rounded-full bg-gradient-to-br from-brand-200 to-brand-400 text-brand-800 text-[10px] font-extrabold flex items-center justify-center flex-shrink-0">{initialsOf(name)}</span>
+                  <AssigneeAvatar name={name} size={20}/>
                   <span className="flex-1 min-w-0 truncate text-left">{name}</span>
                   {name===value && <Check size={12} className="flex-shrink-0" />}
                 </button>

@@ -23,6 +23,7 @@ import { estaAtrasada, formatarPrazo } from '../../lib/dueDate'
 import { Select, PRIORITY_OPTIONS, STATUS_OPTIONS } from '../ui/Select'
 import { AssigneePicker } from '../ui/AssigneePicker'
 import { DueDatePicker } from '../ui/DueDatePicker'
+import { AssigneeAvatar } from '../ui/AssigneeAvatar'
 import type { Task, ColumnDef, ViewType, Priority, TaskStatus, TaskOpenMode } from '../../types'
 import { PRIORITY_LABEL, STATUS_LABEL, STATUS_COLOR, STATUS_ORDER, STATUS_FLOW, STATUS_OPTIONAL, migrateViewType } from '../../types'
 
@@ -621,7 +622,7 @@ function BoardView({ tasks }: { tasks: Task[] }) {
                             {formatarPrazo(t.dueDate)}
                           </span>
                         )}
-                        <span className="w-5 h-5 rounded-full bg-brand-50 text-brand-700 text-[10px] font-semibold flex items-center justify-center border border-brand-100">{t.assignee.slice(0,2)}</span>
+                        {t.assignee && <AssigneeAvatar name={t.assignee} size={20} variant="soft"/>}
                         <TaskMetaIcons task={t}/>
                       </div>
                       {t.tags.length>0 && (

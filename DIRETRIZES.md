@@ -547,7 +547,8 @@ Regras:
   Status (`STATUS_PILL`, com ícone: `Circle`/`Clock`/`Hourglass`/`PauseCircle`/`CheckCircle2`), **Prioridade**
   (cores de `PRIORITY_OPTIONS`) e **Projeto** (cor do próprio projeto) usam essa pílula
   (seção 4.8). Só **Responsável** segue com ponto colorido + rótulo (sem pílula — o
-  protótipo original também não cobria esse agrupamento).
+  protótipo original também não cobria esse agrupamento); o ponto tem a cor da pessoa
+  (seção 8.5).
 - Use sempre os tokens; não cravar cores novas fora dessa paleta sem necessidade.
 
 ### 8.2. Sistema visual consolidado (auditoria de 29/07/2026)
@@ -645,6 +646,30 @@ Regras:
 - **Regra para tela nova**: cor clara cravada (`#F7F8FF`, `to-white`, tinta hex) só com
   contrapartida `.dark` no `index.css`; alfa de branco/cinza (`bg-white/70` etc.) precisa
   constar na lista de overrides de alfa. Na dúvida, teste com a classe `.dark` aplicada.
+
+### 8.5. Responsável: Claude e DJ, cada um com sua cor (06/10/2026)
+
+- O campo `assignee` continua **texto livre**, mas dois nomes têm papel fixo: **Claude** e
+  **DJ** (o usuário). Reconhecimento num lugar só: `shared/responsaveis.ts` (`quemE`,
+  `normalizarResponsavel`) — "claude", " CLAUDE " → Claude; "dj", "Djemeson" → DJ. O app e o
+  conector usam o mesmo código, por isso mora em `shared/`.
+- **Cor fonte única**: `lib/assigneeLook.ts` (`ASSIGNEE_LOOK`, `assigneeLook`,
+  `assigneeInitials`). **Claude laranja** (`#D97757`, avatar `#FDDCC8 → #F4A27A`, iniciais
+  **CL**), **DJ azul claro** (`#4FA3E8`, avatar `#D3E6F8 → #8EC1EE`, família do `info`),
+  **outros nomes no índigo da marca** (o visual de antes). Texto sobre a cor passa de 4.5:1
+  (seção 8.2). Nunca redigitar estes hex numa tela.
+- **Avatar único**: `components/ui/AssigneeAvatar.tsx` (`solid` = gradiente; `soft` = fundo
+  claro com borda; `ring` = anel da célula da lista). Usado no `AssigneePicker` (célula,
+  propriedade do painel e menu), no cartão do quadro (`TaskPanel`) e na "Carga da equipe"
+  dos relatórios. A etiqueta de nome da linha no celular (`TaskRow`), o ponto do grupo
+  "Responsável" (`TaskList`) e a cor da linha em `byAssignee` (`reportMetrics`) leem o
+  mesmo `assigneeLook`.
+- **Regra de atribuição** (vale para o conector e para tudo que o Claude criar): toda tarefa
+  nasce com responsável. É do **Claude** sempre que ele puder executar de algum jeito (API,
+  script, computer use, modo manual); do **DJ** só o que exige o usuário — decisão,
+  pagamento, chave ou senha, falar com pessoas, dado pessoal. As etiquetas
+  "Responsável: Claude/Djemeson" usadas antes como substituto foram retiradas — o campo faz
+  esse papel.
 
 ### 8.1. Densidade e escala da lista de tarefas (redesign 15/07/2026)
 
@@ -1755,7 +1780,7 @@ Claude no celular), onde a sessão roda numa VM da Anthropic com o repo clonado 
 - Ações em `shared/ferramentas.ts` (puras e testadas): listar projetos/tarefas, buscar,
   ver tarefa, criar tarefa/subtarefas/checklist/projeto, adicionar/marcar/editar/remover
   itens, remover checklist, mover tarefa (com o galho), editar descrição, etiquetas,
-  atualizar status/título/prioridade/prazo, comentar, relatório por período e **excluir
+  atualizar status/título/prioridade/prazo/**responsável**, comentar, relatório por período e **excluir
   tarefa/projeto via lixeira** (`listar_lixeira`, `restaurar`).
 - **Exclusão com lixeira**: o item (com subtarefas, ou o projeto com as tarefas) vai para
   `syncGroups/{uid}/lixeira/{id}` (só o servidor lê) e o id entra em `excluidos` no documento.
@@ -1770,6 +1795,10 @@ Claude no celular), onde a sessão roda numa VM da Anthropic com o repo clonado 
   `seqCounters` e `updatedAt`. Item alterado ganha `updatedAt` novo — é o que faz a mescla
   dos aparelhos aceitar a versão do Claude. Mesmas regras do app: `completedAt` na
   transição de status e a tarefa-mãe concluída/reaberta pelas subtarefas.
+- **Responsável** (06/10/2026): `criar_tarefa` e `criar_subtarefas` aceitam `responsavel`
+  (padrão: DJ; subtarefa herda o da mãe) e `atualizar_tarefa` troca. Nome passa por
+  `normalizarResponsavel` (seção 8.5); vazio é recusado — toda tarefa tem responsável. A regra
+  Claude × DJ está na descrição das ferramentas e nas instruções do conector.
 - Comentário do Claude tem `author: 'Claude'`; pausa registra "Ponto de parada: …".
   `ChecklistItem.doneAt` (app e conector) é o que põe item marcado no relatório.
 - Chave pessoal: gerada em **Configurações → Integração com o Claude** (`/api/claude-chave`,

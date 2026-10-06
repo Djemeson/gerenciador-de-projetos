@@ -16,6 +16,7 @@
 //   anexos ficam guardados enquanto o item estiver na lixeira.
 
 import { numerar, formatarId, lerIdCurto, mesclarContadores, type Contadores } from './shortIds'
+import { normalizarResponsavel, RESPONSAVEL_DJ } from './responsaveis'
 
 export const AUTOR_CLAUDE = 'Claude'
 
@@ -60,6 +61,10 @@ const dia = (iso?: string | null) => (iso ? String(iso).slice(0, 10) : '')
 // ── Definições (o que o Claude vê) ──────────────────────────────────────────
 const idTarefa = { type: 'string', description: 'ID curto da tarefa, ex.: "T-142".' }
 const idProjeto = { type: 'string', description: 'ID curto do projeto, ex.: "P-12".' }
+const REGRA_RESPONSAVEL = 'Toda tarefa tem responsável: "Claude" sempre que o Claude puder executar de algum jeito '
+  + '(API, script, computer use, modo manual); "DJ" (o usuário) só quando exige ele — decisão, pagamento, chave ou senha, '
+  + 'falar com pessoas, dado pessoal. Outro nome também é aceito.'
+const responsavel = { type: 'string', description: REGRA_RESPONSAVEL }
 
 export const DEFINICOES = [
   { name: 'listar_projetos', description: 'Lista os projetos com o ID curto (P-…) e quantas tarefas estão abertas.',
@@ -72,17 +77,19 @@ export const DEFINICOES = [
     inputSchema: { type: 'object', required: ['texto'], properties: { texto: { type: 'string' } } } },
   { name: 'ver_tarefa', description: 'Tudo sobre uma tarefa: status, descrição, subtarefas, checklists (com o id de cada item) e os comentários recentes. Use sempre antes de trabalhar numa tarefa — o último comentário "Ponto de parada" diz de onde retomar.',
     inputSchema: { type: 'object', required: ['tarefa'], properties: { tarefa: idTarefa } } },
-  { name: 'criar_tarefa', description: 'Cria uma tarefa num projeto (ou uma subtarefa, se "pai" for informado). Devolve o ID curto.',
+  { name: 'criar_tarefa', description: 'Cria uma tarefa num projeto (ou uma subtarefa, se "pai" for informado). Devolve o ID curto. Informe sempre o responsável (padrão: DJ).',
     inputSchema: { type: 'object', required: ['titulo'], properties: {
       projeto: { ...idProjeto, description: 'Projeto de destino (obrigatório se não houver "pai").' },
       pai: { ...idTarefa, description: 'Tarefa-mãe, para criar uma subtarefa.' },
       titulo: { type: 'string' },
       descricao: { type: 'string' },
       prioridade: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'] },
-      prazo: { type: 'string', description: 'Data AAAA-MM-DD.' } } } },
+      prazo: { type: 'string', description: 'Data AAAA-MM-DD.' },
+      responsavel: { ...responsavel, description: `${REGRA_RESPONSAVEL} Padrão: "DJ".` } } } },
   { name: 'criar_subtarefas', description: 'Cria várias subtarefas de uma vez sob a mesma tarefa-mãe. Use para partes com vida própria (pode pausar no meio, tem prazo, pode ir para outra pessoa).',
     inputSchema: { type: 'object', required: ['pai', 'titulos'], properties: {
-      pai: idTarefa, titulos: { type: 'array', items: { type: 'string' }, minItems: 1 } } } },
+      pai: idTarefa, titulos: { type: 'array', items: { type: 'string' }, minItems: 1 },
+      responsavel: { ...responsavel, description: `${REGRA_RESPONSAVEL} Vale para todas as subtarefas criadas; padrão: o responsável da tarefa-mãe.` } } } },
   { name: 'criar_checklist', description: 'Cria um checklist com itens numa tarefa. Use para passos curtos, feitos numa sentada só.',
     inputSchema: { type: 'object', required: ['tarefa', 'titulo', 'itens'], properties: {
       tarefa: idTarefa, titulo: { type: 'string' }, itens: { type: 'array', items: { type: 'string' }, minItems: 1 } } } },
@@ -94,13 +101,14 @@ export const DEFINICOES = [
     inputSchema: { type: 'object', required: ['tarefa', 'itens'], properties: {
       tarefa: idTarefa, itens: { type: 'array', items: { type: 'string' }, description: 'ids dos itens (aparecem em ver_tarefa).', minItems: 1 },
       feito: { type: 'boolean', description: 'Padrão: true.' } } } },
-  { name: 'atualizar_tarefa', description: 'Muda status, título, prioridade ou prazo de uma tarefa. Concluir a última subtarefa conclui a mãe, como no app.',
+  { name: 'atualizar_tarefa', description: 'Muda status, título, prioridade, prazo ou responsável de uma tarefa. Concluir a última subtarefa conclui a mãe, como no app.',
     inputSchema: { type: 'object', required: ['tarefa'], properties: {
       tarefa: idTarefa,
       status: { type: 'string', enum: ['todo', 'in_progress', 'waiting', 'paused', 'done'] },
       titulo: { type: 'string' },
       prioridade: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'] },
-      prazo: { type: ['string', 'null'], description: 'AAAA-MM-DD, ou null para remover.' } } } },
+      prazo: { type: ['string', 'null'], description: 'AAAA-MM-DD, ou null para remover.' },
+      responsavel } } },
   { name: 'comentar', description: 'Registra um comentário na tarefa, assinado pelo Claude. Ao pausar, comece com "Ponto de parada:" e diga o que foi feito, o que falta e o que depende de decisão.',
     inputSchema: { type: 'object', required: ['tarefa', 'texto'], properties: { tarefa: idTarefa, texto: { type: 'string' } } } },
   { name: 'relatorio', description: 'O que aconteceu num período: tarefas concluídas, criadas, itens de checklist marcados e comentários do Claude. Base para resumos e relatórios.',
@@ -194,7 +202,14 @@ function mudarStatus(doc: DocConta, id: string, status: string, agora: string): 
   return d
 }
 
-function novaTarefa(doc: DocConta, dados: { titulo: string; projeto?: Obj; pai?: Obj; descricao?: string; prioridade?: string; prazo?: string }, agora: string): Obj {
+/** Responsável informado pelo Claude: "claude" → "Claude", "djemeson" → "DJ"; vazio é recusado. */
+function lerResponsavel(valor: unknown): string {
+  const nome = normalizarResponsavel(valor)
+  if (!nome) throw new ErroFerramenta('Toda tarefa tem responsável: informe "Claude", "DJ" ou outro nome.')
+  return nome
+}
+
+function novaTarefa(doc: DocConta, dados: { titulo: string; projeto?: Obj; pai?: Obj; descricao?: string; prioridade?: string; prazo?: string; responsavel?: string }, agora: string): Obj {
   const projectId = dados.pai?.projectId ?? dados.projeto?.id
   const workspaceId = dados.pai?.workspaceId ?? dados.projeto?.workspaceId ?? 'default'
   const titulo = String(dados.titulo ?? '').trim()
@@ -204,7 +219,7 @@ function novaTarefa(doc: DocConta, dados: { titulo: string; projeto?: Obj; pai?:
     title: titulo, description: '',
     blocks: dados.descricao ? [{ id: novoId(), type: 'text', text: escaparHtml(dados.descricao), region: 'body' }] : [],
     status: 'todo', priority: dados.prioridade ?? (dados.pai ? 'low' : 'medium'), taskType: 'task',
-    dueDate: dados.prazo ?? null, assignee: 'DJ', tags: [], checklists: [], customFields: {}, comments: [],
+    dueDate: dados.prazo ?? null, assignee: dados.responsavel ?? RESPONSAVEL_DJ, tags: [], checklists: [], customFields: {}, comments: [],
     createdAt: agora, updatedAt: agora, completedAt: null,
   }
 }
@@ -283,7 +298,7 @@ export function executar(nome: string, args: Args, docOriginal: DocConta, agora 
       const partes = [
         `${formatarId('task', t.seq)} ${t.title}`,
         `Projeto: ${refProjeto(doc, t.projectId)}${mae ? ` · Tarefa-mãe: ${linhaTarefa(mae)}` : ''}`,
-        `Status: ${STATUS[t.status] ?? t.status} · Prioridade: ${PRIORIDADE[t.priority] ?? t.priority}${t.dueDate ? ` · Prazo: ${dia(t.dueDate)}` : ''}`,
+        `Status: ${STATUS[t.status] ?? t.status} · Prioridade: ${PRIORIDADE[t.priority] ?? t.priority}${t.dueDate ? ` · Prazo: ${dia(t.dueDate)}` : ''} · Responsável: ${t.assignee || '(ninguém)'}`,
         `Criada em ${dia(t.createdAt)}${t.completedAt ? ` · Concluída em ${dia(t.completedAt)}` : ''}`,
       ]
       if (descricao) partes.push(`\nDescrição:\n${descricao}`)
@@ -300,10 +315,11 @@ export function executar(nome: string, args: Args, docOriginal: DocConta, agora 
     case 'criar_tarefa': {
       const pai = args.pai ? achar(doc, 'task', args.pai) : undefined
       const projeto = pai ? undefined : achar(doc, 'project', args.projeto)
-      const t = novaTarefa(doc, { titulo: args.titulo, projeto, pai, descricao: args.descricao, prioridade: args.prioridade, prazo: args.prazo }, agora)
+      const responsavelNovo = args.responsavel === undefined ? RESPONSAVEL_DJ : lerResponsavel(args.responsavel)
+      const t = novaTarefa(doc, { titulo: args.titulo, projeto, pai, descricao: args.descricao, prioridade: args.prioridade, prazo: args.prazo, responsavel: responsavelNovo }, agora)
       const novo = numerarDoc({ ...doc, tasks: [...doc.tasks, t] })
       const criada = novo.tasks.find(x => x.id === t.id)!
-      return { texto: `Criada ${formatarId('task', criada.seq)} ${criada.title}${pai ? ` (subtarefa de ${formatarId('task', pai.seq)})` : ''}.`, alterou: true, doc: novo }
+      return { texto: `Criada ${formatarId('task', criada.seq)} ${criada.title}${pai ? ` (subtarefa de ${formatarId('task', pai.seq)})` : ''} · responsável: ${criada.assignee}.`, alterou: true, doc: novo }
     }
 
     case 'criar_subtarefas': {
@@ -312,7 +328,8 @@ export function executar(nome: string, args: Args, docOriginal: DocConta, agora 
       if (!titulos.length) throw new ErroFerramenta('Informe ao menos um título.')
       // createdAt crescente preserva a ordem dada na numeração (desempate por createdAt).
       const base = Date.parse(agora)
-      const novas = titulos.map((titulo, i) => novaTarefa(doc, { titulo, pai }, new Date(base + i).toISOString()))
+      const responsavelSubs = args.responsavel === undefined ? (normalizarResponsavel(pai.assignee) || RESPONSAVEL_DJ) : lerResponsavel(args.responsavel)
+      const novas = titulos.map((titulo, i) => novaTarefa(doc, { titulo, pai, responsavel: responsavelSubs }, new Date(base + i).toISOString()))
       let novo = numerarDoc({ ...doc, tasks: [...doc.tasks, ...novas] })
       // Tarefa-mãe concluída que ganha subtarefa aberta volta a "Em progresso", como no app.
       if (pai.status === 'done') novo = mudarStatus(novo, pai.id, 'in_progress', agora)
@@ -359,6 +376,7 @@ export function executar(nome: string, args: Args, docOriginal: DocConta, agora 
       if (args.titulo !== undefined) { const s = String(args.titulo).trim(); if (!s) throw new ErroFerramenta('O título não pode ficar vazio.'); campos.title = s }
       if (args.prioridade !== undefined) { if (!PRIORIDADE[args.prioridade]) throw new ErroFerramenta('Prioridade inválida.'); campos.priority = args.prioridade }
       if (args.prazo !== undefined) campos.dueDate = args.prazo || null
+      if (args.responsavel !== undefined) { const r = lerResponsavel(args.responsavel); if (r !== t.assignee) campos.assignee = r }
       if (Object.keys(campos).length) novo = comTarefa(novo, t.id, x => ({ ...x, ...campos }), agora)
       if (args.status !== undefined) {
         if (!STATUS[args.status]) throw new ErroFerramenta('Status inválido.')
@@ -369,7 +387,7 @@ export function executar(nome: string, args: Args, docOriginal: DocConta, agora 
       const mae = depois.parentId ? novo.tasks.find(x => x.id === depois.parentId) : null
       const antesMae = mae ? doc.tasks.find(x => x.id === mae.id) : null
       const extra = mae && antesMae && mae.status !== antesMae.status ? `\nTarefa-mãe ${formatarId('task', mae.seq)} foi para "${STATUS[mae.status]}".` : ''
-      return ok(`Atualizada: ${linhaTarefa(depois)}${extra}`, novo)
+      return ok(`Atualizada: ${linhaTarefa(depois)} · responsável: ${depois.assignee || '(ninguém)'}${extra}`, novo)
     }
 
     case 'comentar': {

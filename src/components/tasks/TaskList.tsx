@@ -14,6 +14,7 @@ const STATUS_ICON: Record<TaskStatus, React.ElementType> = {
 }
 const STATUS_PILL = (s: TaskStatus) => ({ color: STATUS_COLOR[s], Icon: STATUS_ICON[s] })
 import { sortTasks } from '../../lib/taskColumns'
+import { assigneeLook } from '../../lib/assigneeLook'
 import { useListColumns } from './useListColumns'
 
 
@@ -242,7 +243,7 @@ export function TaskList({ tasks, projectId, scopeKey, columns=[], showProject=f
     content = projects.map(pr=>{const items=rootTasks.filter(t=>t.projectId===pr.id); return items.length?renderGroup(pr.id,pr.name,items,'todo',pr.color,{color:pr.color},pr.id):null})
   } else if (sortBy==='assignee') {
     const assignees=[...new Set(rootTasks.map(t=>t.assignee||'Sem responsável'))].sort()
-    content = assignees.map(a=>{const items=rootTasks.filter(t=>(t.assignee||'Sem responsável')===a); return items.length?renderGroup('asg_'+a,a,items,'todo','#6366F1',undefined,a==='Sem responsável'?'':a):null})
+    content = assignees.map(a=>{const items=rootTasks.filter(t=>(t.assignee||'Sem responsável')===a); return items.length?renderGroup('asg_'+a,a,items,'todo',a==='Sem responsável'?'#9B9EA8':assigneeLook(a).dot,undefined,a==='Sem responsável'?'':a):null})
   } else {
     const base=[...rootTasks].sort((a,b)=>{if(!a.dueDate)return 1;if(!b.dueDate)return-1;return new Date(a.dueDate).getTime()-new Date(b.dueDate).getTime()})
     const sorted=colSort?sortTasks(base,colSort):base

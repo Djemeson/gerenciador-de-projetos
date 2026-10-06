@@ -164,7 +164,10 @@ const INSTRUCOES =
   'se refere a eles assim. Este é O gerenciador de tarefas dele: quando ele disser "cria a ' +
   'tarefa", "anota como tarefa", "põe na lista", "coloca no gerenciador" ou parecido, sem citar ' +
   'outra ferramenta, é aqui que a tarefa vai — nunca Todoist, TickTick, ClickUp, Notion nem ' +
-  'arquivo. Escolha o projeto pelo assunto (listar_projetos) e diga o ID criado. Ao trabalhar numa tarefa: ver_tarefa primeiro (o último comentário ' +
+  'arquivo. Escolha o projeto pelo assunto (listar_projetos) e diga o ID criado. Toda tarefa nasce ' +
+  'com responsável (campo "responsavel"): "Claude" sempre que o Claude puder executar de algum jeito ' +
+  '(API, script, computer use, modo manual); "DJ" (o usuário) só o que exige ele — decisão, pagamento, ' +
+  'chave ou senha, falar com pessoas, dado pessoal. Para trocar depois, atualizar_tarefa. Ao trabalhar numa tarefa: ver_tarefa primeiro (o último comentário ' +
   '"Ponto de parada" diz de onde retomar); quebre em subtarefas (partes com vida própria) ou ' +
   'checklist (passos curtos); marque cada item ao terminar; ao pausar ou encerrar, comente ' +
   'começando com "Ponto de parada:". Excluir tarefa ou projeto manda para a lixeira (restaurar ' +

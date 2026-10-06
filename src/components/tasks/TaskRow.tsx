@@ -18,6 +18,7 @@ import { AssigneePicker } from '../ui/AssigneePicker'
 import { TagsCell } from '../ui/TagsCell'
 import { ProjectIcon } from '../ui/EntityBadges'
 import { taskProgress } from '../../lib/taskProgress'
+import { assigneeLook } from '../../lib/assigneeLook'
 
 // Círculo de prioridade: borda na cor da prioridade e fundo com a mesma cor em tinta.
 // Derivado de PRIORITY_COLOR — era a terceira paleta paralela de prioridade do app.
@@ -346,7 +347,8 @@ export function TaskRow({ task, project, showProject=false, depth=0, orderedColu
               </span>
             )}
             {task.assignee && (
-              <span className="text-[10px] font-medium bg-brand-50 border border-brand-100 text-brand-600 px-1.5 py-0.5 rounded">
+              <span className="text-[10px] font-medium border px-1.5 py-0.5 rounded"
+                style={{ background: assigneeLook(task.assignee).soft, borderColor: assigneeLook(task.assignee).softBorder, color: assigneeLook(task.assignee).softText }}>
                 {task.assignee}
               </span>
             )}

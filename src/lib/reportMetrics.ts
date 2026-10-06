@@ -3,6 +3,7 @@
 import type { Task, Project, Space, DateFieldKey, DateFilterValue } from '../types'
 import { resolvePeriodRange, taskDateValue, parseISO, type Range } from './dateFilter'
 import { taskProgress } from './taskProgress'
+import { assigneeLook } from './assigneeLook'
 
 const DAY = 86_400_000
 export const startOfDay = (d: Date) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x }
@@ -194,7 +195,7 @@ export function byTag(tasks: Task[], now: Date): GroupRow[] {
 export function byAssignee(tasks: Task[], now: Date): GroupRow[] {
   const people = [...new Set(tasks.map(t => t.assignee))].filter(Boolean)
   return people
-    .map(p => summarize(p, p, '#6366F1', tasks.filter(t => t.assignee === p), now))
+    .map(p => summarize(p, p, assigneeLook(p).dot, tasks.filter(t => t.assignee === p), now))
     .sort((a, b) => b.total - a.total)
 }
 

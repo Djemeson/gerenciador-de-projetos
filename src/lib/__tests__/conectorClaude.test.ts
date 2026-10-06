@@ -132,4 +132,25 @@ describe('conector do Claude — ferramentas', () => {
     expect(r.texto).toContain('P-2 Novo')
     expect(r.doc.projects[1]).toMatchObject({ workspaceId: 'default', spaceId: null, archived: false })
   })
+
+  it('responsável: nasce DJ por padrão, aceita Claude em qualquer grafia e muda pelo atualizar', () => {
+    const padrao = executar('criar_tarefa', { projeto: 'P-1', titulo: 'Pagar boleto' }, docBase(), AGORA)
+    expect(padrao.doc.tasks[1].assignee).toBe('DJ')
+    const doClaude = executar('criar_tarefa', { projeto: 'P-1', titulo: 'Rodar script', responsavel: ' claude ' }, docBase(), AGORA)
+    expect(doClaude.doc.tasks[1].assignee).toBe('Claude')
+    expect(doClaude.texto).toContain('responsável: Claude')
+    expect(() => executar('criar_tarefa', { projeto: 'P-1', titulo: 'x', responsavel: '  ' }, docBase(), AGORA)).toThrow(ErroFerramenta)
+
+    const subs = executar('criar_subtarefas', { pai: 'T-2', titulos: ['a', 'b'] }, doClaude.doc, AGORA)
+    expect(subs.doc.tasks.filter(t => t.parentId === doClaude.doc.tasks[1].id).every(t => t.assignee === 'Claude')).toBe(true)
+
+    const DEPOIS = '2026-10-01T09:00:00.000Z'
+    const troca = executar('atualizar_tarefa', { tarefa: 'T-1', responsavel: 'Claude' }, docBase(), DEPOIS)
+    expect(troca.doc.tasks[0]).toMatchObject({ assignee: 'Claude', updatedAt: DEPOIS })
+    const djemeson = executar('atualizar_tarefa', { tarefa: 'T-1', responsavel: 'Djemeson' }, troca.doc, DEPOIS)
+    expect(djemeson.doc.tasks[0].assignee).toBe('DJ')
+    const igual = executar('atualizar_tarefa', { tarefa: 'T-1', responsavel: 'dj' }, docBase(), DEPOIS)
+    expect(igual.texto).toContain('Nada mudou')
+    expect(executar('ver_tarefa', { tarefa: 'T-1' }, troca.doc, DEPOIS).texto).toContain('Responsável: Claude')
+  })
 })

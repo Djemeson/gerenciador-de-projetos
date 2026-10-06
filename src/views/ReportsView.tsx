@@ -21,6 +21,7 @@ import {
   bySpace, byTag, byAssignee, topByGut, averageProgress, STALLED_DAYS,
 } from '../lib/reportMetrics'
 import { goalHealth } from '../lib/goalMetrics'
+import { AssigneeAvatar } from '../components/ui/AssigneeAvatar'
 
 // Preferências do painel, lembradas entre visitas — o relatório costuma ser aberto
 // sempre com o mesmo recorte.
@@ -484,9 +485,7 @@ export function ReportsView() {
                   {assigneeRows.map(r => (
                     <button key={r.key} onClick={() => setDrill({ title: r.label, tasks: currentTasks.filter(t => t.assignee === r.key && t.status !== 'done') })}
                       className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors text-left">
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-brand-200 to-brand-400 text-brand-800 text-[10px] font-bold flex items-center justify-center flex-shrink-0">
-                        {r.label.slice(0, 2).toUpperCase()}
-                      </div>
+                      <AssigneeAvatar name={r.label} size={28}/>
                       <div className="flex-1 min-w-0">
                         <p className="text-[11px] font-semibold text-gray-800 truncate">{r.label}</p>
                         <p className="text-[10px] text-gray-400">
