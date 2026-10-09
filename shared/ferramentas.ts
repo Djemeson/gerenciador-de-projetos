@@ -73,6 +73,10 @@ export const DEFINICOES = [
     inputSchema: { type: 'object', required: ['projeto'], properties: {
       projeto: idProjeto,
       filtro: { type: 'string', enum: ['abertas', 'concluidas', 'todas'], description: 'Padrão: abertas.' } } } },
+  { name: 'tarefas_abertas', description: 'Todas as tarefas abertas dos projetos ativos, em JSON (id, título, projeto, status, responsável, prazo, prioridade, tarefa-mãe). Feita para automações (espelho no TickTick, resumo da manhã); para conversa, prefira listar_tarefas.',
+    inputSchema: { type: 'object', properties: {
+      responsavel: { type: 'string', description: 'Opcional: só deste responsável (ex.: "DJ"). Tarefa sem responsável não entra no filtro.' },
+      so_com_prazo: { type: 'boolean', description: 'Opcional: só as que têm prazo.' } } } },
   { name: 'buscar_tarefas', description: 'Procura tarefas pelo texto do título ou da descrição (até 25 resultados).',
     inputSchema: { type: 'object', required: ['texto'], properties: { texto: { type: 'string' } } } },
   { name: 'ver_tarefa', description: 'Tudo sobre uma tarefa: status, descrição, subtarefas, checklists (com o id de cada item) e os comentários recentes. Use sempre antes de trabalhar numa tarefa — o último comentário "Ponto de parada" diz de onde retomar.',
@@ -281,8 +285,30 @@ export function executar(nome: string, args: Args, docOriginal: DocConta, agora 
       return ok(`${formatarId('project', p.seq)} ${p.name} — ${filtro}\n${linhas.length ? linhas.join('\n') : '(nenhuma)'}`)
     }
 
+    case 'tarefas_abertas': {
+      // Leitura só: o fluxo do n8n compara esta lista com o espelho do TickTick. Tarefa de
+      // projeto arquivado fica fora (não é trabalho corrente).
+      const quem = args.responsavel ? normalizarResponsavel(args.responsavel) : ''
+      const ativos = new Map(doc.projects.filter(p => !p.archived).map(p => [p.id, p]))
+      const lista = doc.tasks
+        .filter(t => t.status !== 'done' && (ativos.has(t.projectId) || t.projectId === INBOX_PROJECT_ID))
+        .filter(t => !quem || normalizarResponsavel(t.assignee) === quem)
+        .filter(t => !args.so_com_prazo || t.dueDate)
+        .map(t => {
+          const p = ativos.get(t.projectId)
+          const mae = t.parentId ? doc.tasks.find(x => x.id === t.parentId) : null
+          return {
+            id: formatarId('task', t.seq), titulo: t.title,
+            projeto: p ? formatarId('project', p.seq) : null, nomeProjeto: nomeProjeto(doc, t.projectId),
+            status: t.status, responsavel: t.assignee || null, prazo: dia(t.dueDate) || null,
+            prioridade: t.priority ?? null, mae: mae ? formatarId('task', mae.seq) : null,
+          }
+        })
+      return ok(JSON.stringify(lista))
+    }
+
     case 'buscar_tarefas': {
-      const q = String(args.texto ?? '').trim().toLowerCase()
+      const q =String(args.texto ?? '').trim().toLowerCase()
       if (!q) throw new ErroFerramenta('Informe o texto a buscar.')
       const achadas = doc.tasks
         .filter(t => String(t.title).toLowerCase().includes(q) || textoDeHtml((t.blocks ?? []).map((b: Obj) => b.text ?? '').join(' ')).toLowerCase().includes(q))

@@ -53,6 +53,25 @@ describe('conector do Claude — ferramentas', () => {
     expect(r.texto).toContain('Tarefa-mãe T-1')
   })
 
+  it('tarefas_abertas: JSON das abertas, filtra responsável e prazo, ignora projeto arquivado', () => {
+    const d = docBase()
+    d.projects.push({ id: 'p2', seq: 2, name: 'Velho', workspaceId: 'default', archived: true, createdAt: T0, updatedAt: T0 })
+    d.tasks.push(
+      tarefa('b', 2, { assignee: 'Claude', dueDate: '2026-10-10T00:00:00.000Z' }),
+      tarefa('c', 3, { status: 'done' }),
+      tarefa('d', 4, { projectId: 'p2' }),
+      tarefa('e', 5, { parentId: 'a', dueDate: '2026-10-11' }),
+    )
+    d.seqCounters = { task: 5, project: 2 }
+    const todas = JSON.parse(executar('tarefas_abertas', {}, d, AGORA).texto)
+    expect(todas.map((t: any) => t.id)).toEqual(['T-1', 'T-2', 'T-5'])
+    expect(todas[1]).toMatchObject({ projeto: 'P-1', nomeProjeto: 'Site', responsavel: 'Claude', prazo: '2026-10-10' })
+    expect(todas[2]).toMatchObject({ mae: 'T-1', prazo: '2026-10-11' })
+    const doDj = JSON.parse(executar('tarefas_abertas', { responsavel: 'djemeson', so_com_prazo: true }, d, AGORA).texto)
+    expect(doDj.map((t: any) => t.id)).toEqual(['T-5'])
+    expect(executar('tarefas_abertas', {}, d, AGORA).alterou).toBe(false)
+  })
+
   it('comentário sai assinado pelo Claude e aparece em ver_tarefa', () => {
     const c = executar('comentar', { tarefa: 't1', texto: 'Ponto de parada: falta revisar.' }, docBase(), AGORA)
     expect(c.doc.tasks[0].comments[0]).toMatchObject({ author: AUTOR_CLAUDE, text: 'Ponto de parada: falta revisar.' })
