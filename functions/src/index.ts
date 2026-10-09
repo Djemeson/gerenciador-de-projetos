@@ -54,3 +54,6 @@ export const claudeChave = onRequest({ invoker: 'public' }, async (req, res) => 
     res.status(status).json({ error: status === 500 ? 'Erro interno.' : e.message })
   }
 })
+
+// Avisos em tempo real para o orquestrador de produtividade (n8n) — ver orquestrador.ts.
+export { avisarTarefa, avisarProjeto, orquestradorSincronizar } from './orquestrador'

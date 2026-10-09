@@ -35,7 +35,7 @@ export class ErroHttp extends Error {
 }
 
 let dbCache: Firestore | null = null
-function db(): Firestore {
+export function db(): Firestore {
   if (dbCache) return dbCache
   if (!getApps().length) initializeApp()
   dbCache = getFirestore()
@@ -86,7 +86,7 @@ export async function revogarChave(uid: string) {
   await lote.commit()
 }
 
-async function uidDaChave(chave: string | undefined): Promise<string> {
+export async function uidDaChave(chave: string | undefined): Promise<string> {
   if (!chave || !chave.startsWith(PREFIXO_CHAVE)) throw new ErroHttp(401, 'Chave ausente ou inválida. Gere uma em Configurações → Integração com o Claude.')
   const ref = db().collection(COLECAO_CHAVES).doc(hash(chave))
   const snap = await ref.get()
