@@ -2,7 +2,7 @@ import { IdCurto } from '../ui/IdCurto'
 import { lerIdCurto } from '../../lib/shortIds'
 import React, { useState, useMemo } from 'react'
 import {
-  Search, Eye, EyeOff, SlidersHorizontal, List, LayoutGrid, Table2, Calendar, PenTool, Activity, LayoutDashboard, Trash2, Check, Plus, X, Circle,
+  Search, Eye, EyeOff, Milestone, SlidersHorizontal, List, LayoutGrid, Table2, Calendar, PenTool, Activity, LayoutDashboard, Trash2, Check, Plus, X, Circle,
   ChevronDown,
 } from 'lucide-react'
 import { useAppStore } from '../../stores/useAppStore'
@@ -13,6 +13,7 @@ import { TaskMetaIcons } from './TaskMetaIcons'
 import { loadMultiSort, saveMultiSort, sortTasksMulti, type MultiSort } from '../../lib/taskColumns'
 import { TaskDetail } from './TaskDetail'
 import { WhiteboardView } from './WhiteboardView'
+import { JornadaView } from './JornadaView'
 import { FilterPanel } from '../FilterPanel'
 import { AIPanel } from '../AIPanel'
 import { NotesPanel, NotesButton } from '../NotesPanel'
@@ -36,6 +37,9 @@ const GROUP_LABEL: Record<GroupBy, string> = {
 const ALL_VIEWS: { key: ViewType; label: string; Icon: React.ElementType }[] = [
   { key:'overview',   label:'Overview',      Icon: Eye },
   { key:'list',       label:'Tarefas',       Icon: List },
+  // Jornada do projeto (seção 4.12). Só faz sentido dentro de um projeto: os outros escopos
+  // passam `views` sem ela.
+  { key:'milestones', label:'Marcos',        Icon: Milestone },
   { key:'board',      label:'Board',         Icon: LayoutGrid },
   { key:'table',      label:'Tabela',        Icon: Table2 },
   { key:'calendar',   label:'Calendário',    Icon: Calendar },
@@ -135,7 +139,9 @@ export function TaskPanel({
    * botão aparece desativado, com a explicação no título — sumir com ele faria a barra
    * pular de lugar a cada troca de aba.
    */
-  const visaoPorStatus = view === 'board' || (view === 'list' && group === 'status')
+  // A visão "Marcos" entra aqui pelo mesmo motivo: o passado da trilha (marcos e tarefas
+  // concluídos) é metade do que ela existe para mostrar.
+  const visaoPorStatus = view === 'board' || (view === 'list' && group === 'status') || view === 'milestones'
   const [ocultarConcluidas, setOcultarConcluidas] = useState<boolean>(
     () => (viewPrefs[scopeKey+'_hideDone'] ?? '1') === '1',
   )
@@ -244,7 +250,9 @@ export function TaskPanel({
                   disabled={visaoPorStatus}
                   aria-pressed={ocultarConcluidas && !visaoPorStatus}
                   title={visaoPorStatus
-                    ? 'Esta visão é organizada por status — as concluídas fazem parte dela e sempre aparecem'
+                    ? view === 'milestones'
+                      ? 'Os marcos mostram o caminho já percorrido — as concluídas fazem parte dele e sempre aparecem'
+                      : 'Esta visão é organizada por status — as concluídas fazem parte dela e sempre aparecem'
                     : ocultarConcluidas
                       ? `Mostrar as concluídas${ocultas ? ` (${ocultas} oculta${ocultas > 1 ? 's' : ''})` : ''}`
                       : 'Ocultar as concluídas'}
@@ -329,6 +337,7 @@ export function TaskPanel({
         <div className="flex flex-1 overflow-hidden">
           {!activeCustomId && view==='overview'  && <OverviewView  tasks={visibleTasks} accent={accent} pct={pct} gut={gut}/>}
           {!activeCustomId && view==='list'      && <TaskList tasks={visibleTasks} projectId={defaultProjectId} scopeKey={scopeKey} columns={columns} showProject={showProject} sortBy={group} subtasksCollapsed={subtasksCollapsed} expandVersion={expandVersion}/>}
+          {!activeCustomId && view==='milestones'&& <JornadaView   tasks={visibleTasks} accent={accent} projectId={defaultProjectId}/>}
           {!activeCustomId && view==='board'     && <BoardView     tasks={visibleTasks}/>}
           {!activeCustomId && view==='table'     && <TableView     tasks={visibleTasks} columns={columns} showProject={showProject} scopeKey={scopeKey}/>}
           {!activeCustomId && view==='calendar'  && <CalendarInline tasks={visibleTasks}/>}

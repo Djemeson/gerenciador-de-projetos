@@ -247,7 +247,7 @@ A página de **Projeto** (`ProjectDetailView`) é a referência rica desse mesmo
 
 O `TaskPanel` oferece:
 
-- Abas: **Overview, Tarefas (lista), Board, Tabela, Calendário, Quadro branco, Atividade, Painéis**
+- Abas: **Overview, Tarefas (lista), Marcos (só em projeto, seção 4.12), Board, Tabela, Calendário, Quadro branco, Atividade, Painéis**
   (via prop `views` dá pra escolher o subconjunto).
 - Barra de progresso e contagem de tarefas.
 - Controle **"Agrupar por"**: Status, Prioridade, Prazo, Responsável e Projeto
@@ -401,6 +401,38 @@ mesmo componente serve a escopos diferentes (ex.: espaços), para remontar e rec
   arredondados). O estado é dono do `TaskPanel` (não do `TaskList`) e é passado como
   prop para o(s) `TaskList` que ele renderiza (view padrão e visualização
   personalizada), já que o botão precisa ficar fora do componente de lista em si.
+
+### 4.12. Visão "Marcos" — a jornada do projeto (13/10/2026)
+
+Responde de relance **de onde o trabalho veio, onde está e para onde vai** — coisa que lista,
+board e calendário não dizem. Aba **"Marcos"** (ícone `Milestone`), **só no projeto**: os
+outros escopos passam `views` sem ela, porque misturar marcos de vários projetos não forma
+caminho nenhum.
+
+- **Marco não é entidade nova**: é a tarefa do tipo `milestone` (losango) no nível principal;
+  as tarefas do marco são as **subtarefas** dele. Nada no modelo de dados mudou — a IA que
+  gera projeto já cria marcos assim (`aiProjectGen.ts`).
+- **Ordem e "marco atual"** moram em `lib/jornada.ts` (`montarJornada`, com teste): primeiro
+  os concluídos pela data de conclusão, depois os abertos pelo prazo (sem prazo no fim, na
+  ordem da lista). O **atual** é o primeiro aberto. A ordem vem das datas, não de arraste —
+  mudar o prazo de um marco já o reposiciona.
+- **Próximo passo** (só no marco atual): a subtarefa aberta mais urgente — em andamento,
+  depois aguardando, a fazer, pausada; empate pelo prazo, depois pela ordem da lista.
+- Tela (`components/tasks/JornadaView.tsx`), de cima para baixo: **trilha** (Início → marcos
+  → Chegada, com o preenchimento avançando na proporção do marco atual e o selo "Você está
+  aqui"; no celular ela rola e abre centrada no atual), **bússola** (três cartões: De onde
+  veio / Onde está / Para onde vai), **linha do tempo** (um bloco por marco; concluídos
+  começam recolhidos) e **Fora dos marcos** (tarefas principais que ainda não estão em
+  nenhum).
+- **Organizar é por arraste**, no mesmo canal `taskId` do Board: soltar sobre um marco vira
+  subtarefa dele; soltar em "Fora dos marcos" devolve ao nível principal. Marco não entra em
+  marco. Tarefa pendente que cai num marco concluído **reabre o marco** (senão a trilha diria
+  "concluído" com trabalho aberto dentro). O fechamento automático do marco quando todas as
+  subtarefas terminam já vem do `updateTask` — é isso que faz a trilha andar sozinha.
+- "Virar marco" (nas tarefas fora dos marcos) e "Novo marco" no fim da linha do tempo são as
+  duas portas de entrada; o estado vazio explica o que é marco em uma frase.
+- **Ignora "Ocultar concluídas"** (entra no `visaoPorStatus` do `TaskPanel`): o passado é
+  metade do que esta visão existe para mostrar.
 
 ---
 

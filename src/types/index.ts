@@ -176,7 +176,7 @@ export interface ListColumn {
 }
 
 // ── Views ─────────────────────────────────────────────────────────────────
-export type ViewType = 'list' | 'board' | 'table' | 'calendar' | 'overview' | 'whiteboard' | 'activity' | 'dashboard'
+export type ViewType = 'list' | 'board' | 'table' | 'calendar' | 'overview' | 'whiteboard' | 'activity' | 'dashboard' | 'milestones'
 
 // ── Filtro de período (datas) — estilo ClickUp ──────────────────────────────
 // Campo de data ao qual o período se aplica.
