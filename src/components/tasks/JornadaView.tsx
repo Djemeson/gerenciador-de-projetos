@@ -3,7 +3,7 @@ import {
   Flag, MapPin, Navigation, Diamond, Check, ChevronRight, Plus, ArrowRight, CornerDownRight, Sparkles,
 } from 'lucide-react'
 import { useAppStore } from '../../stores/useAppStore'
-import { montarJornada, type MarcoDaJornada } from '../../lib/jornada'
+import { montarJornada, ordenarTarefasDoMarco, type MarcoDaJornada } from '../../lib/jornada'
 import { TYPE_ICON } from '../../lib/taskTypeIcons'
 import { estaAtrasada, formatarPrazo } from '../../lib/dueDate'
 import { STATUS_COLOR } from '../../types'
@@ -43,6 +43,13 @@ export function JornadaView({ tasks, accent, projectId }: { tasks: Task[]; accen
 
   // Concluídos começam recolhidos: o passado é contexto, não trabalho. O usuário abre o que quiser.
   const [abertos, setAbertos] = useState<Record<string, boolean>>({})
+  // "Fora dos marcos" num projeto antigo é quase todo histórico: no projeto real de
+  // atendimento eram 33 linhas, 29 riscadas na frente das 4 abertas. Abertas primeiro,
+  // concluídas atrás de um botão.
+  const [verSoltasFeitas, setVerSoltasFeitas] = useState(false)
+  const soltas = useMemo(() => ordenarTarefasDoMarco(semMarco), [semMarco])
+  const soltasAbertas = soltas.filter(t => t.status !== 'done')
+  const soltasFeitas  = soltas.length - soltasAbertas.length
   const estaAberto = (m: MarcoDaJornada) => abertos[m.marco.id] ?? m.fase !== 'feito'
   const alternar = (m: MarcoDaJornada) => setAbertos(a => ({ ...a, [m.marco.id]: !estaAberto(m) }))
 
@@ -118,13 +125,24 @@ export function JornadaView({ tasks, accent, projectId }: { tasks: Task[]; accen
             className="rounded-2xl border border-dashed border-gray-300 bg-white/60 p-3 md:p-4">
             <div className="flex items-center justify-between gap-2 mb-2 px-1">
               <h3 className="text-[12px] font-bold uppercase tracking-wider text-gray-500">
-                Fora dos marcos <span className="tabnum text-gray-400 font-semibold">· {semMarco.length}</span>
+                Fora dos marcos <span className="tabnum text-gray-400 font-semibold">· {soltasAbertas.length} {soltasAbertas.length === 1 ? 'aberta' : 'abertas'}</span>
               </h3>
               <span className="hidden sm:inline text-[11px] text-gray-400">
                 {marcos.length ? 'Arraste para um marco para pôr na trilha' : 'Passe o mouse e use "Virar marco"'}
               </span>
             </div>
-            <div className="space-y-0.5">{semMarco.map(t => linha(t, { virarMarco: true }))}</div>
+            <div className="space-y-0.5">
+              {(verSoltasFeitas ? soltas : soltasAbertas).map(t => linha(t, { virarMarco: true }))}
+            </div>
+            {soltasAbertas.length === 0 && !verSoltasFeitas && (
+              <p className="px-2 py-1.5 text-[12px] text-gray-400">Nenhuma tarefa aberta fora dos marcos.</p>
+            )}
+            {soltasFeitas > 0 && (
+              <button onClick={() => setVerSoltasFeitas(v => !v)}
+                className="mt-1 px-2 py-1 text-[11.5px] font-semibold text-gray-400 hover:text-gray-700 rounded-lg transition-colors">
+                {verSoltasFeitas ? 'Esconder as concluídas' : `Mostrar ${soltasFeitas} concluída${soltasFeitas === 1 ? '' : 's'}`}
+              </button>
+            )}
           </AlvoSoltar>
         )}
       </div>
