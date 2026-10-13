@@ -433,6 +433,17 @@ caminho nenhum.
   duas portas de entrada; o estado vazio explica o que é marco em uma frase.
 - **Ignora "Ocultar concluídas"** (entra no `visaoPorStatus` do `TaskPanel`): o passado é
   metade do que esta visão existe para mostrar.
+- A lógica (ordem, atual, próximo passo, atraso) mora em **`shared/jornada.ts`**, usada pela
+  aba e pelo conector do Claude (`ver_marcos`) — os dois contam a mesma história. Datas
+  comparadas como texto; o "hoje" chega de quem chama (aparelho no app, Bragança no servidor).
+- **Planejar marcos com IA** (`PlanejarMarcosModal` + `lib/aiMarcos.ts`, com teste): o
+  usuário descreve as etapas em texto livre; a IA devolve marcos com tarefas **novas** e
+  **existentes** (só as principais fora de marco; as que já estão num marco não se mexem).
+  Proposta editável (desmarcar marco/tarefa, ajustar prazo) antes de gravar. Sem chave, o
+  modo local lê a forma do texto (linha = marco, tópico = tarefa, data escrita = prazo).
+  **Anti-duplicata obrigatória**: o gpt-4o-mini, mesmo instruído, reescreve tarefas
+  existentes como novas; `reaproveitarParecidas` (radicais de 5 letras, 80% da menor)
+  troca a reescrita pela existente — ou a descarta se ela já estiver num marco.
 
 ---
 
@@ -1693,6 +1704,7 @@ chave ali não amplia o acesso de forma relevante.
 | Triagem da inbox (afinidade local sempre; lote Gemini no botão "Triar com IA") | `InboxView` | `lib/aiInboxTriage.ts` |
 | Criar automação por frase ("quando X, então Y" → editor preenchido) | `AutomationsView` | `lib/aiAutomationBuilder.ts` |
 | Agentes de IA (instruções próprias + execução sob demanda) | `AgentsView` (nav "Agentes de IA") | `lib/agentEngine.ts` |
+| Planejar marcos a partir de texto (reaproveita tarefas existentes) | aba Marcos (`PlanejarMarcosModal`) | `lib/aiMarcos.ts` |
 
 ### 15.3.1. Agentes de IA (30/07/2026, inspirados nos "superagentes")
 
@@ -1812,8 +1824,15 @@ Claude no celular), onde a sessão roda numa VM da Anthropic com o repo clonado 
 - Ações em `shared/ferramentas.ts` (puras e testadas): listar projetos/tarefas, buscar,
   ver tarefa, criar tarefa/subtarefas/checklist/projeto, adicionar/marcar/editar/remover
   itens, remover checklist, mover tarefa (com o galho), editar descrição, etiquetas,
-  atualizar status/título/prioridade/prazo/**responsável**, comentar, relatório por período e **excluir
+  atualizar status/título/prioridade/prazo/**responsável**/**tipo**, comentar, relatório por período e **excluir
   tarefa/projeto via lixeira** (`listar_lixeira`, `restaurar`).
+- **Marcos** (13/10/2026): `ver_marcos` conta a jornada do projeto (mesma lógica da aba,
+  `shared/jornada.ts`, com o atraso medido no dia de Bragança); `criar_marco` cria o marco
+  com tarefas novas e/ou `incluir` existentes do mesmo projeto; `atualizar_tarefa` com
+  `tipo: "marco"` converte (só tarefa principal). Nas listas o marco aparece como
+  `◆ Marco:` e em `tarefas_abertas` com `tipo`. Marco não entra em marco, e tarefa aberta
+  que entra num marco concluído o reabre (`mover_tarefa`, como no app). As instruções do
+  conector mandam propor os marcos ao usuário antes de criar.
 - **Exclusão com lixeira**: o item (com subtarefas, ou o projeto com as tarefas) vai para
   `syncGroups/{uid}/lixeira/{id}` (só o servidor lê) e o id entra em `excluidos` no documento.
   Restaurar devolve com `updatedAt` novo e tira o id de `excluidos`. Anexos ficam guardados

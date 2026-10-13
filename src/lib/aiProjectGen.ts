@@ -141,7 +141,7 @@ function normalizeTaskList(raw: any): AIGeneratedTask[] {
   return tasks.map(normalizeTask).filter((t: AIGeneratedTask | null): t is AIGeneratedTask => !!t)
 }
 
-async function callOpenAIRaw(system: string, user: string, apiKey: string): Promise<any | null> {
+export async function callOpenAIRaw(system: string, user: string, apiKey: string): Promise<any | null> {
   try {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -165,7 +165,7 @@ async function callOpenAIRaw(system: string, user: string, apiKey: string): Prom
   }
 }
 
-async function callGeminiRaw(system: string, user: string, apiKey: string): Promise<any | null> {
+export async function callGeminiRaw(system: string, user: string, apiKey: string): Promise<any | null> {
   try {
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,

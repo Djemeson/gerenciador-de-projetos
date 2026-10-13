@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Flag, MapPin, Navigation, Diamond, Check, ChevronRight, Plus, ArrowRight, CornerDownRight, Sparkles,
+  Flag, MapPin, Navigation, Diamond, ChevronRight, Plus, ArrowRight, CornerDownRight, Sparkles,
 } from 'lucide-react'
 import { useAppStore } from '../../stores/useAppStore'
 import { montarJornada, ordenarTarefasDoMarco, type MarcoDaJornada } from '../../lib/jornada'
@@ -11,6 +11,7 @@ import type { Task } from '../../types'
 import { IdCurto } from '../ui/IdCurto'
 import { AssigneeAvatar } from '../ui/AssigneeAvatar'
 import { DueDatePicker } from '../ui/DueDatePicker'
+import { PlanejarMarcosModal } from './PlanejarMarcosModal'
 
 /**
  * Visão "Marcos" (jornada do projeto) — DIRETRIZES, seção 4.12.
@@ -30,7 +31,9 @@ const fmtCurta = (iso: string) => formatarPrazo(iso.slice(0, 10))
 const fmtLonga = (iso: string) => formatarPrazo(iso.slice(0, 10), { day: 'numeric', month: 'long', year: 'numeric' })
 
 export function JornadaView({ tasks, accent, projectId }: { tasks: Task[]; accent: string; projectId?: string }) {
-  const { updateTask, quickAddTask, setSelectedTask } = useAppStore()
+  const { updateTask, quickAddTask, setSelectedTask, tasks: todasAsTarefas } = useAppStore()
+  // A IA planeja sobre o projeto inteiro, não sobre o recorte da busca que esta visão recebe.
+  const doProjeto = useMemo(() => todasAsTarefas.filter(t => t.projectId === projectId), [todasAsTarefas, projectId])
   const jornada = useMemo(() => montarJornada(tasks), [tasks])
   const { marcos, atualIdx, semMarco } = jornada
 
@@ -47,6 +50,7 @@ export function JornadaView({ tasks, accent, projectId }: { tasks: Task[]; accen
   // atendimento eram 33 linhas, 29 riscadas na frente das 4 abertas. Abertas primeiro,
   // concluídas atrás de um botão.
   const [verSoltasFeitas, setVerSoltasFeitas] = useState(false)
+  const [planejando, setPlanejando] = useState(false)
   const soltas = useMemo(() => ordenarTarefasDoMarco(semMarco), [semMarco])
   const soltasAbertas = soltas.filter(t => t.status !== 'done')
   const soltasFeitas  = soltas.length - soltasAbertas.length
@@ -95,9 +99,14 @@ export function JornadaView({ tasks, accent, projectId }: { tasks: Task[]; accen
       <div className="max-w-4xl mx-auto px-4 md:px-6 py-5 md:py-6 space-y-5">
 
         {marcos.length === 0 ? (
-          <Vazio onCriar={criarMarco} temSoltas={semMarco.length > 0} podeCriar={!!projectId}/>
+          <Vazio onCriar={criarMarco} temSoltas={semMarco.length > 0} podeCriar={!!projectId} onPlanejar={() => setPlanejando(true)}/>
         ) : (
           <>
+            {projectId && (
+              <div className="flex justify-end -mb-2">
+                <BotaoPlanejar onClick={() => setPlanejando(true)}>Planejar mais marcos com IA</BotaoPlanejar>
+              </div>
+            )}
             <Trilha jornada={jornada} accent={accent} onIr={irPara}/>
             <Bussola jornada={jornada} accent={accent} onIr={irPara} onAbrir={id => setSelectedTask(id)}/>
 
@@ -139,14 +148,27 @@ export function JornadaView({ tasks, accent, projectId }: { tasks: Task[]; accen
             )}
             {soltasFeitas > 0 && (
               <button onClick={() => setVerSoltasFeitas(v => !v)}
-                className="mt-1 px-2 py-1 text-[11.5px] font-semibold text-gray-400 hover:text-gray-700 rounded-lg transition-colors">
+                className="mt-1 px-2 py-1 text-[12px] font-semibold text-gray-400 hover:text-gray-700 rounded-lg transition-colors">
                 {verSoltasFeitas ? 'Esconder as concluídas' : `Mostrar ${soltasFeitas} concluída${soltasFeitas === 1 ? '' : 's'}`}
               </button>
             )}
           </AlvoSoltar>
         )}
       </div>
+      {projectId && (
+        <PlanejarMarcosModal open={planejando} onClose={() => setPlanejando(false)} projectId={projectId}
+          tasks={doProjeto}/>
+      )}
     </div>
+  )
+}
+
+function BotaoPlanejar({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button onClick={onClick}
+      className="flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-semibold text-gray-700 bg-white border border-gray-200 rounded-lg shadow-xs hover:border-brand-300 hover:text-gray-900 transition-colors">
+      <Sparkles size={14} className="text-brand-600"/>{children}
+    </button>
   )
 }
 
@@ -183,7 +205,7 @@ function Trilha({ jornada, accent, onIr }: { jornada: ReturnType<typeof montarJo
 
         <Estacao rotulo="Início" sub={inicio ? fmtCurta(inicio) : '—'}>
           <span className="w-[22px] h-[22px] rounded-full flex items-center justify-center text-white shadow-sm" style={{ background: accent }}>
-            <Flag size={11} strokeWidth={2.5}/>
+            <Flag size={12} strokeWidth={2.5}/>
           </span>
         </Estacao>
 
@@ -198,9 +220,9 @@ function Trilha({ jornada, accent, onIr }: { jornada: ReturnType<typeof montarJo
               selo={atual ? 'Você está aqui' : undefined} accent={accent} atual={atual}>
               {m.fase === 'feito' && (
                 <span className="w-[22px] h-[22px] flex items-center justify-center">
-                  <span className="w-[15px] h-[15px] rotate-45 rounded-[3px] flex items-center justify-center" style={{ background: COR_FEITO }}>
-                    <Check size={9} strokeWidth={3.5} className="-rotate-45 text-white"/>
-                  </span>
+                  {/* Losango cheio em verde já diz "entregue"; um check de 9px dentro dele
+                      ficava abaixo da escala mínima de ícone (12) e esfarelava. */}
+                  <span className="w-[15px] h-[15px] rotate-45 rounded-[3px]" style={{ background: COR_FEITO }}/>
                 </span>
               )}
               {atual && (
@@ -221,7 +243,7 @@ function Trilha({ jornada, accent, onIr }: { jornada: ReturnType<typeof montarJo
         <Estacao rotulo={tudoFeito ? 'Chegou' : 'Chegada'} sub={tudoFeito ? 'tudo entregue' : chegada ? `prev. ${fmtCurta(chegada)}` : 'sem data'}>
           <span className={`w-[22px] h-[22px] rounded-full flex items-center justify-center border-2 ${tudoFeito ? 'text-white' : 'bg-white border-gray-300 text-gray-400'}`}
             style={tudoFeito ? { background: COR_FEITO, borderColor: COR_FEITO } : undefined}>
-            <MapPin size={11} strokeWidth={2.5}/>
+            <MapPin size={12} strokeWidth={2.5}/>
           </span>
         </Estacao>
       </div>
@@ -243,8 +265,8 @@ function Estacao({ rotulo, sub, children, onClick, forte, alerta, titulo, selo, 
         </span>
       )}
       <span className="relative z-10 transition-transform group-hover:scale-110">{children}</span>
-      <span className={`mt-2 text-[11.5px] leading-tight line-clamp-2 ${forte ? 'font-bold text-gray-900' : 'font-semibold text-gray-600 group-hover:text-gray-900'}`}>{rotulo}</span>
-      <span className={`tabnum mt-0.5 text-[10.5px] ${alerta ? 'text-danger-600 font-semibold' : 'text-gray-400'}`}>{sub}</span>
+      <span className={`mt-2 text-[12px] leading-tight line-clamp-2 ${forte ? 'font-bold text-gray-900' : 'font-semibold text-gray-600 group-hover:text-gray-900'}`}>{rotulo}</span>
+      <span className={`tabnum mt-0.5 text-[11px] ${alerta ? 'text-danger-600 font-semibold' : 'text-gray-400'}`}>{sub}</span>
     </Tag>
   )
 }
@@ -266,7 +288,7 @@ function Bussola({ jornada, accent, onIr, onAbrir }: {
         <p className="text-[13px] font-semibold text-gray-900">{inicio ? `Começou em ${fmtLonga(inicio)}` : 'Ainda sem tarefas'}</p>
         <p className="text-[12px] text-gray-500 mt-1 tabnum">{feitos.length} de {marcos.length} marcos · {entregues} tarefa{entregues === 1 ? '' : 's'} entregue{entregues === 1 ? '' : 's'}</p>
         {ultimoFeito && (
-          <button onClick={() => onIr(ultimoFeito.marco.id)} className="mt-2 text-[11.5px] text-gray-500 hover:text-gray-800 text-left truncate max-w-full">
+          <button onClick={() => onIr(ultimoFeito.marco.id)} className="mt-2 text-[12px] text-gray-500 hover:text-gray-800 text-left truncate max-w-full">
             Último: <span className="font-semibold">{ultimoFeito.marco.title}</span>
           </button>
         )}
@@ -309,7 +331,7 @@ function Bussola({ jornada, accent, onIr, onAbrir }: {
         ) : (
           <p className="text-[13px] font-semibold text-gray-900">{atual ? 'Este é o último marco' : 'Fim da trilha'}</p>
         )}
-        {chegada && <p className="mt-2 text-[11.5px] text-gray-500 tabnum">Chegada prevista: <span className="font-semibold">{fmtLonga(chegada)}</span></p>}
+        {chegada && <p className="mt-2 text-[12px] text-gray-500 tabnum">Chegada prevista: <span className="font-semibold">{fmtLonga(chegada)}</span></p>}
       </Cartao>
     </div>
   )
@@ -319,7 +341,7 @@ function Cartao({ Icone, titulo, accent, children }: { Icone: React.ElementType;
   return (
     <div className="bg-white border border-gray-200/70 rounded-2xl p-4 shadow-xs min-w-0"
       style={accent ? { boxShadow: `inset 3px 0 0 ${accent}` } : undefined}>
-      <div className="flex items-center gap-1.5 mb-2 text-[10.5px] font-bold uppercase tracking-wider text-gray-400">
+      <div className="flex items-center gap-1.5 mb-2 text-[11px] font-bold uppercase tracking-wider text-gray-400">
         <Icone size={12} style={accent ? { color: accent } : undefined}/>{titulo}
       </div>
       {children}
@@ -360,7 +382,7 @@ function SecaoMarco({ m, accent, aberto, ultimo, proximo, onAlternar, onAbrir, o
           <button onClick={onAlternar} className="p-0.5 -ml-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100" title={aberto ? 'Recolher' : 'Expandir'}>
             <ChevronRight size={14} className={`transition-transform ${aberto ? 'rotate-90' : ''}`}/>
           </button>
-          <Diamond size={14} className="flex-shrink-0" style={{ color: cor ?? STATUS_COLOR[m.marco.status] }} fill={feito ? COR_FEITO : 'none'}/>
+          <Diamond size={14} className="flex-shrink-0" style={{ color: cor ?? STATUS_COLOR[m.marco.status] }}/>
           {/* O título fica com o espaço que sobrar (flex-1) — no celular os selos o reduziam a
               uma letra. O ID curto e a data longa do selo só aparecem a partir de `sm`. */}
           <span className="flex-1 min-w-0 flex items-center gap-2">
@@ -414,17 +436,17 @@ function LinhaTarefa({ task, accent, subtarefas, destaque, onAbrir, onConcluir, 
       {destaque && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full" style={{ background: accent }}/>}
       <button onClick={e => { e.stopPropagation(); onConcluir() }} title={feita ? 'Reabrir' : 'Concluir'}
         className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded hover:bg-gray-100">
-        <Icone size={14} style={{ color: STATUS_COLOR[task.status] }} fill={feita && task.taskType === 'task' ? STATUS_COLOR.done : 'none'}/>
+        <Icone size={14} style={{ color: STATUS_COLOR[task.status] }}/>
       </button>
       <span className={`min-w-0 truncate text-[13px] ${feita ? 'line-through text-gray-400' : 'text-gray-800'}`}>{task.title}</span>
       <IdCurto tipo="task" seq={task.seq}/>
       {destaque && <span className="flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded text-white" style={{ background: accent }}>Próximo passo</span>}
-      {subtarefas > 0 && <span className="flex-shrink-0 tabnum text-[10.5px] text-gray-400">{subtarefas} sub</span>}
+      {subtarefas > 0 && <span className="flex-shrink-0 tabnum text-[11px] text-gray-400">{subtarefas} sub</span>}
       <span className="flex-1"/>
       {onVirarMarco && (
         <button onClick={e => { e.stopPropagation(); onVirarMarco() }} title="Transformar esta tarefa em marco"
           className="flex-shrink-0 md:opacity-0 md:group-hover/linha:opacity-100 flex items-center gap-1 text-[11px] font-semibold text-gray-500 hover:text-brand-600 px-1.5 py-0.5 rounded border border-gray-200 bg-white transition-opacity">
-          <Diamond size={11}/> Virar marco
+          <Diamond size={12}/> Virar marco
         </button>
       )}
       {task.dueDate && (
@@ -485,7 +507,7 @@ function NovoMarco({ onCriar }: { onCriar: (t: string) => void }) {
   )
 }
 
-function Vazio({ onCriar, temSoltas, podeCriar }: { onCriar: (t: string) => void; temSoltas: boolean; podeCriar: boolean }) {
+function Vazio({ onCriar, temSoltas, podeCriar, onPlanejar }: { onCriar: (t: string) => void; temSoltas: boolean; podeCriar: boolean; onPlanejar: () => void }) {
   return (
     <div className="bg-white border border-gray-200/70 rounded-2xl p-6 md:p-8 text-center shadow-xs">
       <div className="mx-auto w-11 h-11 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center mb-3">
@@ -497,8 +519,15 @@ function Vazio({ onCriar, temSoltas, podeCriar }: { onCriar: (t: string) => void
         daquela fase, e esta tela mostra de onde o trabalho veio, onde está e o que vem depois.
       </p>
       {podeCriar && (
-        <div className="mt-4 max-w-sm mx-auto border border-gray-200 rounded-xl text-left">
-          <CampoNovo placeholder="Criar o primeiro marco" onCriar={onCriar}/>
+        <div className="mt-4 max-w-sm mx-auto space-y-2">
+          {/* Caminho principal: descrever as etapas em texto e deixar a IA montar. */}
+          <button onClick={onPlanejar}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl ai-gradient-bg text-white text-[13px] font-semibold shadow-sm">
+            <Sparkles size={14}/> Planejar marcos com IA
+          </button>
+          <div className="border border-gray-200 rounded-xl text-left">
+            <CampoNovo placeholder="Ou criar um marco à mão" onCriar={onCriar}/>
+          </div>
         </div>
       )}
       {temSoltas && <p className="mt-3 text-[12px] text-gray-400">Ou transforme uma tarefa que já existe: use "Virar marco" na lista abaixo.</p>}
