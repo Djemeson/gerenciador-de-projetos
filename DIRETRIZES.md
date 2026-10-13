@@ -1688,7 +1688,11 @@ chave ali não amplia o acesso de forma relevante.
 
 > Toda superfície de IA segue o **padrão híbrido** (regra em 13.3.2): funciona sem chave
 > (modo local determinístico e honesto), melhora com chave Gemini, nunca lança exceção.
-> `callGemini` (`lib/aiSummary.ts`) é a fonte única da chamada. Recurso novo em `lib/`
+> `callGemini` (`lib/aiSummary.ts`) é a fonte única da chamada, e **`lib/aiModelos.ts` a fonte
+> única do modelo** (`GEMINI_MODEL`, `OPENAI_MODEL`, `urlGemini`) — eram três cópias de
+> `gemini-2.0-flash`, que o Google desligou: como toda falha cai no modo local, o app inteiro
+> perdeu a IA do Gemini sem erro visível (corrigido em 13/10/2026 → `gemini-3.5-flash-lite`).
+> Antes de trocar, conferir ai.google.dev/gemini-api/docs/models. Recurso novo em `lib/`
 > entra com teste. Superfícies atuais:
 
 | Superfície | Onde | Lib |

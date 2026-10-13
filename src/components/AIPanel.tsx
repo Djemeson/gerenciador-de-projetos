@@ -40,6 +40,7 @@ const QUICK_ACTIONS: { key: string; label: string; Icon: React.ElementType; prom
   ]},
 ]
 import { useAppStore } from '../stores/useAppStore'
+import { OPENAI_MODEL, urlGemini } from '../lib/aiModelos'
 import { useSettingsStore } from '../stores/useSettingsStore'
 import { estaAtrasada } from '../lib/dueDate'
 import { AiKeyNotice } from './ui/AiKeyNotice'
@@ -51,8 +52,6 @@ import {
   formatRelativeDate,
 } from '../lib/aiChatHistory'
 
-const OPENAI_MODEL = 'gpt-4o-mini'
-const GEMINI_MODEL = 'gemini-2.0-flash'
 const MAX_TOOL_ROUNDS = 5
 
 type View = 'chat' | 'history'
@@ -200,7 +199,7 @@ export function AIPanel() {
     const wsProjects = projects.filter(p => inScope(p.workspaceId) && !p.archived)
     const contextBlurb = `Contexto (somente consulta, sem execução de ações): ${wsProjects.length} projetos ativos; ${active.length} tarefas ativas; ${overdue} atrasadas. Projetos: ${wsProjects.map(p => p.name).join(', ') || 'nenhum'}.`
     const transcript = history.map(m => `${m.role === 'user' ? 'Usuário' : 'Assistente'}: ${m.content}`).join('\n')
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiApiKey}`, {
+    const res = await fetch(urlGemini(geminiApiKey), {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ contents: [{ parts: [{ text: `${systemPrompt()}\n${scopeNote()}\n${contextBlurb}\n\n${transcript}` }] }] }),
     })

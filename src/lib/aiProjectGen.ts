@@ -1,4 +1,5 @@
 import type { Priority, TaskType } from '../types'
+import { OPENAI_MODEL, urlGemini } from './aiModelos'
 
 // Tipos de tarefa que fazem sentido a IA GERAR ao planejar um projeto (exclui
 // 'meeting_note' e 'form_response', que são preenchidos pelo usuário durante o
@@ -19,8 +20,6 @@ export interface AIGeneratedProject {
   tasks: AIGeneratedTask[]
 }
 
-const OPENAI_MODEL = 'gpt-4o-mini'
-const GEMINI_MODEL = 'gemini-2.0-flash'
 
 // Explica a taxonomia de tipos de tarefa do app (mesmos ícones/propósito usados
 // na UI — ver TASK_TYPE_META em types.ts e TYPE_ICON em lib/taskTypeIcons.ts)
@@ -168,7 +167,7 @@ export async function callOpenAIRaw(system: string, user: string, apiKey: string
 export async function callGeminiRaw(system: string, user: string, apiKey: string): Promise<any | null> {
   try {
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+      urlGemini(apiKey),
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
