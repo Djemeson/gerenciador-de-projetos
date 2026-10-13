@@ -17,6 +17,7 @@
 
 import { numerar, formatarId, lerIdCurto, mesclarContadores, type Contadores } from './shortIds'
 import { normalizarResponsavel, RESPONSAVEL_DJ } from './responsaveis'
+import { montarJornada } from './jornada'
 
 export const AUTOR_CLAUDE = 'Claude'
 
@@ -57,6 +58,9 @@ const textoDeHtml = (s: string) => String(s ?? '')
   .replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
   .replace(/\n{3,}/g, '\n\n').trim()
 const dia = (iso?: string | null) => (iso ? String(iso).slice(0, 10) : '')
+/** "Hoje" em Bragança (UTC−3): o servidor roda em UTC, e o atraso de um marco é medido no dia dele. */
+const hojeLocal = (agora: string) => new Date(Date.parse(agora) - 3 * 3600 * 1000).toISOString().slice(0, 10)
+const ehMarco = (t: Obj) => t.taskType === 'milestone'
 
 // ── Definições (o que o Claude vê) ──────────────────────────────────────────
 const idTarefa = { type: 'string', description: 'ID curto da tarefa, ex.: "T-142".' }
@@ -90,6 +94,17 @@ export const DEFINICOES = [
       prioridade: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'] },
       prazo: { type: 'string', description: 'Data AAAA-MM-DD.' },
       responsavel: { ...responsavel, description: `${REGRA_RESPONSAVEL} Padrão: "DJ".` } } } },
+  { name: 'ver_marcos', description: 'A jornada de um projeto pelos marcos (etapas com cara de entrega; as tarefas de cada marco são as subtarefas dele): o que já foi entregue, o marco atual com o próximo passo, o que vem a seguir, a chegada prevista e as tarefas ainda fora de qualquer marco. Use para "em que pé está o projeto", "onde estamos", "o que vem depois".',
+    inputSchema: { type: 'object', required: ['projeto'], properties: { projeto: idProjeto } } },
+  { name: 'criar_marco', description: 'Cria um marco (etapa do projeto) e, de uma vez, as tarefas dele: novas ("tarefas") e/ou existentes que passam para dentro dele ("incluir", com as subtarefas que tiverem). Para planejar fases a partir de um pedido em texto: leia o projeto (listar_tarefas), proponha os marcos ao usuário e, aprovado, chame uma vez por marco, na ordem, com prazos crescentes — a ordem da jornada vem dos prazos.',
+    inputSchema: { type: 'object', required: ['projeto', 'titulo'], properties: {
+      projeto: idProjeto,
+      titulo: { type: 'string', description: 'Nome de entrega, curto: "Piloto no ar", "Equipe treinada".' },
+      descricao: { type: 'string', description: 'O que caracteriza o marco como cumprido.' },
+      prazo: { type: 'string', description: 'AAAA-MM-DD. Define a posição do marco na jornada.' },
+      tarefas: { type: 'array', items: { type: 'string' }, description: 'Títulos de tarefas novas, criadas dentro do marco.' },
+      incluir: { type: 'array', items: { type: 'string' }, description: 'IDs (T-…) de tarefas existentes do mesmo projeto que passam para dentro do marco.' },
+      responsavel: { ...responsavel, description: `${REGRA_RESPONSAVEL} Vale para o marco e as tarefas novas; padrão: "DJ".` } } } },
   { name: 'criar_subtarefas', description: 'Cria várias subtarefas de uma vez sob a mesma tarefa-mãe. Use para partes com vida própria (pode pausar no meio, tem prazo, pode ir para outra pessoa).',
     inputSchema: { type: 'object', required: ['pai', 'titulos'], properties: {
       pai: idTarefa, titulos: { type: 'array', items: { type: 'string' }, minItems: 1 },
@@ -105,9 +120,10 @@ export const DEFINICOES = [
     inputSchema: { type: 'object', required: ['tarefa', 'itens'], properties: {
       tarefa: idTarefa, itens: { type: 'array', items: { type: 'string' }, description: 'ids dos itens (aparecem em ver_tarefa).', minItems: 1 },
       feito: { type: 'boolean', description: 'Padrão: true.' } } } },
-  { name: 'atualizar_tarefa', description: 'Muda status, título, prioridade, prazo ou responsável de uma tarefa. Concluir a última subtarefa conclui a mãe, como no app.',
+  { name: 'atualizar_tarefa', description: 'Muda status, título, prioridade, prazo, responsável ou tipo (tarefa/marco) de uma tarefa. Concluir a última subtarefa conclui a mãe, como no app.',
     inputSchema: { type: 'object', required: ['tarefa'], properties: {
       tarefa: idTarefa,
+      tipo: { type: 'string', enum: ['tarefa', 'marco'], description: '"marco" transforma a tarefa numa etapa do projeto (só tarefa principal); "tarefa" desfaz.' },
       status: { type: 'string', enum: ['todo', 'in_progress', 'waiting', 'paused', 'done'] },
       titulo: { type: 'string' },
       prioridade: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'] },
@@ -119,7 +135,7 @@ export const DEFINICOES = [
     inputSchema: { type: 'object', required: ['de', 'ate'], properties: {
       de: { type: 'string', description: 'AAAA-MM-DD (inclusive).' }, ate: { type: 'string', description: 'AAAA-MM-DD (inclusive).' },
       projeto: { ...idProjeto, description: 'Opcional: só este projeto.' } } } },
-  { name: 'mover_tarefa', description: 'Move uma tarefa (com as subtarefas) para outro projeto, ou a pendura/solta de uma tarefa-mãe.',
+  { name: 'mover_tarefa', description: 'Move uma tarefa (com as subtarefas) para outro projeto, ou a pendura/solta de uma tarefa-mãe — inclusive para dentro de um marco (pai = o T- do marco).',
     inputSchema: { type: 'object', required: ['tarefa'], properties: {
       tarefa: idTarefa,
       projeto: { ...idProjeto, description: 'Projeto de destino. Sem "pai", a tarefa vira tarefa principal lá.' },
@@ -167,7 +183,7 @@ const refProjeto = (doc: DocConta, projectId: string) => {
   const p = doc.projects.find(x => x.id === projectId)
   return p ? `${formatarId('project', p.seq)} ${p.name}` : nomeProjeto(doc, projectId)
 }
-const linhaTarefa = (t: Obj) => `${formatarId('task', t.seq)} [${STATUS[t.status] ?? t.status}] ${t.title}`
+const linhaTarefa = (t: Obj) => `${formatarId('task', t.seq)} [${STATUS[t.status] ?? t.status}] ${ehMarco(t) ? '◆ Marco: ' : ''}${t.title}`
 const checklistsResumo = (t: Obj) => {
   const itens = (t.checklists ?? []).flatMap((c: Obj) => c.items ?? [])
   return itens.length ? ` · checklist ${itens.filter((i: Obj) => i.done).length}/${itens.length}` : ''
@@ -302,6 +318,7 @@ export function executar(nome: string, args: Args, docOriginal: DocConta, agora 
             projeto: p ? formatarId('project', p.seq) : null, nomeProjeto: nomeProjeto(doc, t.projectId),
             status: t.status, responsavel: t.assignee || null, prazo: dia(t.dueDate) || null,
             prioridade: t.priority ?? null, mae: mae ? formatarId('task', mae.seq) : null,
+            tipo: ehMarco(t) ? 'marco' : 'tarefa',
           }
         })
       return ok(JSON.stringify(lista))
@@ -327,6 +344,7 @@ export function executar(nome: string, args: Args, docOriginal: DocConta, agora 
         `Status: ${STATUS[t.status] ?? t.status} · Prioridade: ${PRIORIDADE[t.priority] ?? t.priority}${t.dueDate ? ` · Prazo: ${dia(t.dueDate)}` : ''} · Responsável: ${t.assignee || '(ninguém)'}`,
         `Criada em ${dia(t.createdAt)}${t.completedAt ? ` · Concluída em ${dia(t.completedAt)}` : ''}`,
       ]
+      if (ehMarco(t)) partes.push('Tipo: marco (etapa do projeto; as subtarefas são as tarefas desta fase — a jornada completa está em ver_marcos)')
       if (descricao) partes.push(`\nDescrição:\n${descricao}`)
       if (subs.length) partes.push(`\nSubtarefas:\n${arvore(subs, doc.tasks).join('\n')}`)
       for (const c of t.checklists ?? []) {
@@ -346,6 +364,74 @@ export function executar(nome: string, args: Args, docOriginal: DocConta, agora 
       const novo = numerarDoc({ ...doc, tasks: [...doc.tasks, t] })
       const criada = novo.tasks.find(x => x.id === t.id)!
       return { texto: `Criada ${formatarId('task', criada.seq)} ${criada.title}${pai ? ` (subtarefa de ${formatarId('task', pai.seq)})` : ''} · responsável: ${criada.assignee}.`, alterou: true, doc: novo }
+    }
+
+    case 'ver_marcos': {
+      const p = achar(doc, 'project', args.projeto)
+      const j = montarJornada(doc.tasks.filter(t => t.projectId === p.id) as any[], hojeLocal(agora))
+      const cab = `${formatarId('project', p.seq)} ${p.name} — jornada`
+      const soltas: Obj[] = j.semMarco.filter((t: Obj) => t.status !== 'done')
+      const fora = soltas.length
+        ? `\nFora dos marcos (${soltas.length} aberta(s)):\n${soltas.slice(0, 20).map(t => `- ${linhaTarefa(t)}`).join('\n')}${soltas.length > 20 ? `\n… e mais ${soltas.length - 20}` : ''}`
+        : ''
+      if (!j.marcos.length) {
+        return ok(`${cab}\nEste projeto ainda não tem marcos. Para organizar em etapas: criar_marco (tarefas novas e/ou "incluir" as existentes) ou atualizar_tarefa com tipo "marco".${fora}`)
+      }
+      const feitos = j.marcos.filter(m => m.fase === 'feito').length
+      const linhas = [
+        `${cab}: ${feitos} de ${j.marcos.length} marcos concluídos · começou em ${dia(j.inicio)} · ${j.entregues} tarefa(s) entregue(s) em marcos fechados${j.chegada ? ` · chegada prevista ${j.chegada}` : ''}`,
+        '',
+      ]
+      j.marcos.forEach((m, i) => {
+        const mc = m.marco as Obj
+        const id = formatarId('task', mc.seq)
+        const conta = `${m.feitas}/${m.total} tarefas${m.total ? ` (${m.pct}%)` : ''}`
+        if (m.fase === 'feito') { linhas.push(`✓ ${id} ${mc.title} — concluído em ${dia(mc.completedAt ?? mc.updatedAt)} · ${conta}`); return }
+        const prazo = mc.dueDate ? ` · até ${dia(mc.dueDate)}${m.atrasado ? ' (ATRASADO)' : ''}` : ' · sem prazo'
+        if (m.fase === 'atual') {
+          linhas.push(`▶ ${id} ${mc.title} — ONDE ESTAMOS${prazo} · ${conta}`)
+          linhas.push(m.proximoPasso ? `    Próximo passo: ${linhaTarefa(m.proximoPasso as Obj)}` : '    Sem tarefa aberta neste marco.')
+          m.tarefas.filter(t => t.status !== 'done' && t.id !== m.proximoPasso?.id).forEach(t => linhas.push(`    - ${linhaTarefa(t as Obj)}`))
+          return
+        }
+        linhas.push(`○ ${id} ${mc.title} — ${i === j.atualIdx + 1 ? 'a seguir' : 'depois'}${prazo} · ${conta}`)
+      })
+      if (j.atualIdx < 0) linhas.push('\nTodos os marcos estão concluídos.')
+      return ok(linhas.join('\n') + fora)
+    }
+
+    case 'criar_marco': {
+      const projeto = achar(doc, 'project', args.projeto)
+      const quem = args.responsavel === undefined ? RESPONSAVEL_DJ : lerResponsavel(args.responsavel)
+      if (args.prazo !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(String(args.prazo))) throw new ErroFerramenta('Prazo no formato AAAA-MM-DD.')
+      const incluir: Obj[] = (args.incluir ?? []).map((ref: unknown) => achar(doc, 'task', ref))
+      for (const t of incluir) {
+        if (t.projectId !== projeto.id) throw new ErroFerramenta(`${formatarId('task', t.seq)} é de outro projeto (${refProjeto(doc, t.projectId)}). Mova antes com mover_tarefa.`)
+        if (ehMarco(t)) throw new ErroFerramenta(`${formatarId('task', t.seq)} já é um marco; marco não entra dentro de outro.`)
+      }
+      const base = Date.parse(agora)
+      const marco = { ...novaTarefa(doc, { titulo: args.titulo, projeto, descricao: args.descricao, prazo: args.prazo, responsavel: quem }, agora), taskType: 'milestone' }
+      const titulos: string[] = (args.tarefas ?? []).map((s: unknown) => String(s).trim()).filter(Boolean)
+      // createdAt crescente preserva a ordem dada na numeração (desempate por createdAt).
+      const novas = titulos.map((titulo, i) => novaTarefa(doc, { titulo, pai: marco, responsavel: quem }, new Date(base + i + 1).toISOString()))
+      const idsIncluir = new Set(incluir.map(t => t.id))
+      let novo = numerarDoc({
+        ...doc,
+        tasks: [...doc.tasks.map(t => (idsIncluir.has(t.id) ? { ...t, parentId: marco.id, updatedAt: agora } : t)), marco, ...novas],
+      })
+      // Marco montado só com trabalho já entregue nasce concluído — mesma regra de "todas as
+      // filhas feitas fecha a mãe" do app; senão a jornada o mostraria como "onde estamos".
+      if (incluir.length && !novas.length && incluir.every(t => t.status === 'done')) novo = mudarStatus(novo, marco.id, 'done', agora)
+      const criado = novo.tasks.find(t => t.id === marco.id)!
+      const lista = [
+        ...novas.map(n => `- ${linhaTarefa(novo.tasks.find(x => x.id === n.id)!)} (nova)`),
+        ...incluir.map(t => `- ${linhaTarefa(t)} (já existia)`),
+      ]
+      return {
+        texto: `Marco criado: ${formatarId('task', criado.seq)} ${criado.title}${criado.dueDate ? ` · até ${dia(criado.dueDate)}` : ' · sem prazo'} · responsável: ${criado.assignee}.\n`
+          + (lista.length ? `Tarefas do marco:\n${lista.join('\n')}` : 'Ainda sem tarefas — use criar_subtarefas ou mover_tarefa com pai = este marco.'),
+        alterou: true, doc: novo,
+      }
     }
 
     case 'criar_subtarefas': {
@@ -403,6 +489,12 @@ export function executar(nome: string, args: Args, docOriginal: DocConta, agora 
       if (args.prioridade !== undefined) { if (!PRIORIDADE[args.prioridade]) throw new ErroFerramenta('Prioridade inválida.'); campos.priority = args.prioridade }
       if (args.prazo !== undefined) campos.dueDate = args.prazo || null
       if (args.responsavel !== undefined) { const r = lerResponsavel(args.responsavel); if (r !== t.assignee) campos.assignee = r }
+      if (args.tipo !== undefined) {
+        if (args.tipo !== 'marco' && args.tipo !== 'tarefa') throw new ErroFerramenta('Tipo inválido: use "marco" ou "tarefa".')
+        if (args.tipo === 'marco' && t.parentId) throw new ErroFerramenta(`${formatarId('task', t.seq)} é subtarefa; marco precisa ser tarefa principal. Solte-a antes com mover_tarefa (pai "nenhuma").`)
+        const novoTipo = args.tipo === 'marco' ? 'milestone' : 'task'
+        if ((t.taskType ?? 'task') !== novoTipo) campos.taskType = novoTipo
+      }
       if (Object.keys(campos).length) novo = comTarefa(novo, t.id, x => ({ ...x, ...campos }), agora)
       if (args.status !== undefined) {
         if (!STATUS[args.status]) throw new ErroFerramenta('Status inválido.')
@@ -457,6 +549,7 @@ export function executar(nome: string, args: Args, docOriginal: DocConta, agora 
       if (!pai && !semPai && !projeto) throw new ErroFerramenta('Diga para onde: "projeto" (P-…) e/ou "pai" (T-… ou "nenhuma").')
       const ramo = galho(doc, t.id)
       if (pai && ramo.some(x => x.id === pai.id)) throw new ErroFerramenta('Não dá para pendurar a tarefa dentro dela mesma ou de uma subtarefa dela.')
+      if (pai && ehMarco(t)) throw new ErroFerramenta(`${formatarId('task', t.seq)} é um marco; marco não entra dentro de outra tarefa. Para isso, mude o tipo antes (atualizar_tarefa, tipo "tarefa").`)
       const destinoProjeto = pai ? pai.projectId : (projeto ? projeto.id : t.projectId)
       const destinoWs = pai ? pai.workspaceId : (projeto ? (projeto.workspaceId ?? t.workspaceId) : t.workspaceId)
       const ids = new Set(ramo.map(x => x.id))
@@ -465,8 +558,12 @@ export function executar(nome: string, args: Args, docOriginal: DocConta, agora 
         const base = { ...x, projectId: destinoProjeto, workspaceId: destinoWs, updatedAt: agora }
         return x.id === t.id ? { ...base, parentId: pai ? pai.id : ((semPai || projeto) ? null : x.parentId) } : base
       }) }
-      const onde = pai ? `subtarefa de ${formatarId('task', pai.seq)}` : `tarefa principal em ${refProjeto(novo, destinoProjeto)}`
-      return ok(`${formatarId('task', t.seq)} agora é ${onde}${ramo.length > 1 ? ` (levou ${ramo.length - 1} subtarefa(s) junto)` : ''}.`, novo)
+      // Trabalho pendente que entra numa mãe concluída a reabre, como no app — senão a jornada
+      // diria "marco concluído" com tarefa aberta dentro.
+      const final = pai && pai.status === 'done' && t.status !== 'done' ? mudarStatus(novo, pai.id, 'in_progress', agora) : novo
+      const onde = pai ? `${ehMarco(pai) ? 'tarefa do marco' : 'subtarefa de'} ${formatarId('task', pai.seq)}` : `tarefa principal em ${refProjeto(novo, destinoProjeto)}`
+      const reaberto = final !== novo ? ` ${formatarId('task', pai!.seq)} estava concluído e foi reaberto.` : ''
+      return ok(`${formatarId('task', t.seq)} agora é ${onde}${ramo.length > 1 ? ` (levou ${ramo.length - 1} subtarefa(s) junto)` : ''}.${reaberto}`, final)
     }
 
     case 'editar_descricao': {

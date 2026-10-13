@@ -170,7 +170,12 @@ const INSTRUCOES =
   'chave ou senha, falar com pessoas, dado pessoal. Para trocar depois, atualizar_tarefa. Ao trabalhar numa tarefa: ver_tarefa primeiro (o último comentário ' +
   '"Ponto de parada" diz de onde retomar); quebre em subtarefas (partes com vida própria) ou ' +
   'checklist (passos curtos); marque cada item ao terminar; ao pausar ou encerrar, comente ' +
-  'começando com "Ponto de parada:". Excluir tarefa ou projeto manda para a lixeira (restaurar ' +
+  'começando com "Ponto de parada:". Marcos (◆) são as etapas de um projeto e as tarefas de cada ' +
+  'um são as subtarefas dele: para "em que pé está", "onde estamos" ou "o que vem depois", use ' +
+  'ver_marcos; para organizar um projeto em etapas a partir de um pedido em texto, leia o projeto ' +
+  '(listar_tarefas), proponha os marcos com as tarefas de cada um (aproveitando as que já existem) ' +
+  'e, com o ok do usuário, crie com criar_marco — um por etapa, com prazos crescentes. ' +
+  'Excluir tarefa ou projeto manda para a lixeira (restaurar ' +
   'desfaz) — confirme com o usuário antes, citando ID e título.'
 
 type Rpc = { jsonrpc: '2.0'; id?: string | number | null; method: string; params?: any }
